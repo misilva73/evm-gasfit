@@ -135,6 +135,8 @@ The remaining keys are full per-opcode counts (used by glue adjustment).
 Fixtures appearing in only one of the two files are dropped, with a warning. The
 union of unmatched fixtures is reported once at the start of the run, not per row.
 
+When loading this data, the "<fixture_name>" field should go into a column named `fixture_name`.
+
 ### 2.4 Gas-cost defaults
 
 Ship as a Python module per fork (`AmsterdamGasCosts`, `OsakaGasCosts`, …) whose
@@ -223,6 +225,8 @@ Params extracted into named columns on `fixtures_df` for every row:
 Implementation reuses logic from
 [src/data.py::extract_param_values](https://github.com/misilva73/evm-gas-repricings/blob/main/src/data.py) but reorganized into a pure
 parser module that takes a fixture name string and a list of param names.
+
+After this, the `opcount` column loaded from the opcode counts JSON is merged into the processed `fixtures_df`. It is done through a left join on the `fixture_name`.
 
 ### 4.2 Regressor: NNLS (fixed)
 
@@ -488,7 +492,36 @@ evm-gasfit/
 
 ---
 
-## 7. CLI and Python API
+## 7. Dependencies
+
+### Runtime
+
+- Python ≥ 3.10.
+- `pydantic` (v2) — config schema and validation in `config.py`.
+- `pyyaml` — YAML config loader.
+- `pandas`, `numpy` — dataframes throughout the pipeline.
+- `scipy` — `scipy.optimize.nnls` (§4.2).
+- `matplotlib`, `seaborn` — figure rendering (§5.1); ported from
+  [src/plotting.py](https://github.com/misilva73/evm-gas-repricings/blob/main/src/plotting.py).
+- `statsmodels` — QQ / diagnostics helpers used by the ported plotting code.
+- `mdutils` — markdown report assembly (`reports/*.py`), matching the current
+  [src/reports.py](https://github.com/misilva73/evm-gas-repricings/blob/main/src/reports.py).
+- `ethereum/execution-specs` — source of per-fork `GasCosts` (§2.4). Soft
+  dependency: if it can't resolve, fall back to the literal table in
+  `defaults/_fallback.py`.
+
+Python stdlib only (no extra dep): `ast` for the derived-formula evaluator
+(§4.8), `csv`/`json` for the input loaders.
+
+### Dev
+
+- `pytest` — `tests/`.
+- `ruff` — formatting + linting + import sorting (one tool, black-compatible
+  output). Deliberate departure from the parent repo's `black` convention.
+
+---
+
+## 8. CLI and Python API
 
 ### CLI
 
@@ -527,7 +560,7 @@ without the data-loading mixed in).
 
 ---
 
-## 8. Reused logic (port, don't rewrite)
+## 9. Reused logic (port, don't rewrite)
 
 | New module | Source in this repo |
 | --- | --- |
@@ -553,7 +586,7 @@ What does **not** port:
 
 ---
 
-## 9. Implementation order
+## 10. Implementation order
 
 1. **Config + IO** (`config.py`, `io/*.py`) with end-to-end Pydantic validation
    and a `load_run_inputs()` that returns a single `fixtures_df`. Smoke test on
@@ -574,7 +607,7 @@ What does **not** port:
 
 ---
 
-## 10. Out of scope
+## 11. Out of scope
 
 - Data ingestion from Benchmarkoor or gas-bench. The new repo accepts CSV/JSON
   inputs only — gathering and shaping those inputs stays in this repo
