@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evm-gasfit"
+version = "0.0.1"
+description = "Estimate worst-case EVM gas costs from runtime measurements."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Maria Inês Silva", email = "maria.silva@ethereum.org" }]
+dependencies = [
+    "pydantic>=2.0",
+    "pyyaml",
+    "pandas",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "statsmodels",
+    "mdutils",
+]
+
+[project.optional-dependencies]
+# Soft runtime extra (plan §2.4): pull per-fork GasCosts from the execution-specs
+# package. The package falls back to `defaults/_fallback.py` if this isn't installed.
+specs = ["ethereum-execution"]
+
+# Docs site build (plan §11). Kept as a project extra (not a dependency-group)
+# so the GitHub Actions workflow can install it with plain pip: `pip install -e ".[docs]"`.
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+]
+
+# PEP 735 dependency groups — dev-only tools live here so they don't leak into
+# `pip install evm-gasfit[...]`. `uv sync` installs them by default;
+# `uv sync --no-dev` excludes them.
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+evm-gasfit = "evm_gasfit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
