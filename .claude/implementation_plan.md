@@ -21,6 +21,29 @@ The new repo is **analysis-only**. Data ingestion (Benchmarkoor / gas-bench quer
 in [src/data.py](https://github.com/misilva73/evm-gas-repricings/blob/main/src/data.py)) stays in this repo. The new tool consumes CSV/JSON
 inputs and nothing else.
 
+### 1.1 Engineering principles
+
+These are non-negotiable for every module in the package:
+
+- **Less is more.** Code should be simple and short. Prefer the shortest
+  solution that meets the spec; reject cleverness for its own sake.
+- **Readability and maintainability over performance or compactness.**
+  Optimize for the next reader. Clear names, flat control flow, obvious data
+  shapes. Don't golf.
+- **Don't reinvent the wheel.** If a widely used, well-maintained library
+  already does X (`scipy.optimize.nnls`, `pydantic` validation, `mdutils`
+  markdown assembly, `ast` parsing for the derived evaluator, …), depend on
+  it. Reach for the dep before writing a helper that approximates it.
+- **Stack defaults.** `pandas` is the data-manipulation primitive throughout
+  the pipeline — favor vectorized DataFrame/Series operations over hand-rolled
+  Python loops on raw lists/dicts. `seaborn` is the default plotting
+  front-end; drop down to raw `matplotlib` only for things `seaborn` cannot
+  express.
+
+The ports listed in §9 are starting points, not contracts — when the
+reference implementation reaches for a custom helper that a library now
+provides, prefer the library.
+
 ---
 
 ## 2. Inputs
@@ -28,6 +51,9 @@ inputs and nothing else.
 ### 2.1 Test config (YAML)
 
 ```yaml
+# schema version pin — required
+version: 1
+
 # anchor rate (gas/sec) — required
 anchor_rate: 1.0e8
 
@@ -40,13 +66,13 @@ gas_costs:
 # glue adjustment — off by default
 glue_adjustment:
   enabled: true            # optional, default false
-  p_value_threshold: 0.05  # optional, default 0.05
+  glue_contribution_p_value_threshold: 0.05  # optional, default 0.05
   ratio_corr_eps: 0.05     # optional, default 0.05 — keep opcodes with corr ≥ 1 − eps
 
 # modeling knobs — all optional
 modeling:
   bootstrap_iterations: 1000        # default 1000
-  p_value_threshold: 0.05  # optional, default 0.05
+  poor_fit_p_value_threshold: 0.05  # optional, default 0.05
   random_seed: 42                   # optional, default 42 — controls bootstrap sampling
 
 # output controls
@@ -60,58 +86,121 @@ derived:
   ACCESS_LIST_STORAGE_KEY: "COLD_STORAGE_ACCESS"
   ACCESS_LIST_ADDRESS: "COLD_ACCOUNT_CODE_ACCESS"
 
-# models — one entry per test
+# models — pick from bundled presets and/or supply custom specs (see §2.6)
 models:
-  - test_name: test_arithmetic
-    target_operation_param: opcode
-    model_by: opcode_ADD
-    model_params:
-      slope: OPCODE_ADD
-
-  - test_name: test_account_access
-    target_operation_param: opcode
-    filter_by: cache_strategy_CacheStrategy.NO_CACHE
-    model_by: opcode
-    model_params:
-      slope: COLD_ACCOUNT_ACCESS
-      value_sent: COLD_ACCOUNT_WRITE
-
-  - test_name: test_sload_bloated
-    target_operation: SLOAD
-    filter_by: [cache_strategy_CacheStrategy.NO_CACHE, 10GB]
-    model_by: existing_slots
-    model_params:
-      slope: COLD_STORAGE_ACCESS
+  presets:                                 # optional; names from defaults/models.py
+    - arithmetic_add
+    - account_access
+    - storage_access
+  custom:                                  # optional; one entry per custom test
+    - test_name: test_sstore_custom_pattern
+      target_operation: SSTORE
+      filter_by: [cache_strategy_CacheStrategy.NO_CACHE, "10GB"]
+      model_by: update                     # raw or derived param name (see §2.7)
+      fixture_params:                      # optional; derive canonical columns
+        update:                            # from raw params (see §2.7)
+          source: write_new_value
+          values: {"False": 0, "True": 1}
+      model_params:
+        target_coef: COLD_STORAGE_ACCESS
+        update: STORAGE_WRITE
 ```
 
 Field semantics:
+
+- `version` — required. Schema version pin. The only accepted value today is
+  `1`. Unknown versions raise a config error at load time (CLI exit code 1
+  per §8).
+- `models.presets` — optional list of preset names from the bundled registry
+  in `src/evm_gasfit/defaults/models.py` (see §2.6). Unknown names, or the
+  same name listed twice, raise a config error.
+- `models.custom` — optional list of model specs in the shape described
+  below. The loader resolves `models.presets` to their bundled `ModelSpec`
+  objects and concatenates them with `models.custom` to form the full set of
+  models to fit; at least one of the two must be non-empty.
+
+Each model spec — whether bundled as a preset or written under
+`models.custom` — has these fields:
 
 - `test_name` — the EEST test function name (e.g. `test_arithmetic`).
 - `target_operation` *or* `target_operation_param` — either fix the target opcode
   to a literal (`SLOAD`), or name a fixture-param that varies the target across
   fixtures (`opcode` → opcode is read from the fixture's `opcode_*` token).
+  **Exactly one** of `target_operation` or `target_operation_param` must be set
+  on each model entry. Setting both, or neither, is a config error caught at
+  load time and surfaces as CLI exit code 1. Enforcement: a Pydantic v2
+  `model_validator(mode="after")` on the `ModelSpec` class checks the XOR and
+  raises before any other downstream validation runs. The error message names
+  the offending entry's `test_name` and its source location — either the
+  preset name (e.g. `presets[account_access]`) for a bundled spec, or its
+  zero-based index in `models.custom` (e.g. `models.custom[2]`) for a
+  user-supplied entry — so the user can locate the entry even if two specs
+  share a `test_name`. Preset validation errors are caught at package import
+  time, not user-config-load time, so in practice user-facing XOR errors
+  always identify a `models.custom` entry.
 - `filter_by` — string or list of strings. All entries are **ANDed** as substring
-  matches against the raw fixture name. List entries are concatenated with `-`
+  matches against the raw fixture name. The Pydantic config loader normalizes
+  scalar inputs to a one-element list at load time, so after validation
+  downstream code always sees `list[str]`. The YAML accepts either shape (so
+  user configs stay terse), but the validated config object stores the
+  canonical list form — `filter_by: opcode_ADD` and `filter_by: [opcode_ADD]`
+  are equivalent after load. List entries are concatenated with `-`
   into a `filter_by` column in the parsed dataframe (purely informational; the
-  match itself is still substring).
-- `model_by` — string or list of fixture-param names. The pipeline groups fixtures
-  by every distinct combination of these param values and fits one model per group.
+  match itself is still substring). **Default when omitted**: if
+  `target_operation: <X>` is set and `filter_by` is omitted, the Pydantic loader
+  fills `filter_by = ["opcode_<X>"]` on the validated config object — the
+  default is materialized at load time in the same canonical list form as a
+  user-provided value, not computed lazily by the matcher. This means the
+  effective filter is visible by inspecting the loaded config, surfaces in any
+  warnings or logs that print the spec, and goes through exactly the same
+  list-normalization path as a user-supplied entry. The convention behind the
+  default is that fixtures targeting opcode `X` carry an `opcode_X` token in
+  their name. When `target_operation_param` is used instead, **no default
+  `filter_by` is applied** — the validated config stores `filter_by = []` (an
+  empty list, not `None`) if the user omitted it, and the param assignment is
+  the only selector unless the user supplies an explicit `filter_by`.
+  Implementation hook: this defaulting is performed by a Pydantic v2
+  `model_validator(mode="after")` on `ModelSpec` (a sibling to, or the same
+  validator as, the one enforcing the `target_operation` / `target_operation_param`
+  XOR — running after the XOR check so the branch is unambiguous). After config
+  load the matcher always sees `filter_by` as a populated `list[str]` (either
+  user-supplied or the materialized `["opcode_<X>"]` default) or as an explicit
+  empty list (`target_operation_param` spec with no user-provided filter); it
+  never sees `None`, and it never needs to fall back to `opcode_<X>` itself.
+- `model_by` — string or list of fixture-param names. Names may be raw
+  parsed-param tokens or derived names declared in the same spec's
+  `fixture_params` block (§2.7). The pipeline groups fixtures by every
+  distinct combination of these param values and fits one model per group.
+  As with `filter_by`, the Pydantic config loader normalizes scalar inputs to a
+  one-element list at load time; after validation downstream code always sees
+  `list[str]`. `model_by: opcode` and `model_by: [opcode]` are identical after
+  load.
+- **Normalization hook** for both `filter_by` and `model_by`: a Pydantic v2
+  `field_validator` (or `BeforeValidator`) on each field coerces `str` → `[str]`.
+  Empty strings are rejected.
 - `model_params` — maps regression coefficient name → gas parameter name.
-  - `slope` (reserved) maps the `opcount` coefficient.
-  - Every other key must be a fixture-param name; that param multiplies `opcount`
-    in the regression (see §4).
+  - `target_coef` (reserved) maps the coefficient on `opcount` (i.e. the price
+    of the target opcode).
+  - Every other key must be a fixture-param name (raw parsed token or derived
+    name from `fixture_params`, §2.7); that param multiplies `opcount` in the
+    regression (see §4).
+- `fixture_params` — optional. Declares derived fixture-param columns built
+  from raw parsed params (rename and/or value remap) so one regression recipe
+  can consume tests that name the same concept differently. Full semantics in
+  §2.7.
 
 ### 2.2 Runtime CSV
 
 Minimum required columns:
 
 ```csv
-client_name, fixture_name, runtime
+client_name, fixture_name, test_runtime_ms
 ```
 
 `fixture_name` follows the EEST convention
-`<test_file>__<test_name>[<key>_<value>-<key>_<value>-...]`. `runtime` is in the
-same time unit the model will report (the current pipeline uses ms — see §4.5).
+`<test_file>__<test_name>[<key>_<value>-<key>_<value>-...]`. `test_runtime_ms`
+is the measured runtime of one fixture run, in milliseconds, and serves as the
+LHS of every regression in §4.
 
 Extra columns are passed through into the parsed dataframe and are available as
 group columns if referenced from `model_by` (this is forward-compat — today the
@@ -140,11 +229,13 @@ When loading this data, the "<fixture_name>" field should go into a column named
 ### 2.4 Gas-cost defaults
 
 Ship as a Python module per fork (`AmsterdamGasCosts`, `OsakaGasCosts`, …) whose
-fields match the snippet in the previous spec. Single source of truth: pin
-`ethereum/execution-specs` as a dependency and re-export its `vm.gas.GasCosts` for
-each fork. The hard-coded fallback table from the previous spec ships as a Python
-literal in `evm_gasfit/defaults/_fallback.py` only for environments where
-the dep can't resolve.
+fields match the snippet in the previous spec. `ethereum/execution-specs` is an
+**optional extra** (`pip install -e ".[specs]"`); when installed, its
+`vm.gas.GasCosts` is the source of truth for each fork. When not installed,
+`evm_gasfit/defaults/_fallback.py` provides the same field set as a Python
+literal so the package is fully functional without the extra. The defaults
+module probes for the extra at import time and selects one source for the
+whole run — the two paths are never mixed.
 
 Override mechanics:
 
@@ -155,6 +246,227 @@ Override mechanics:
   bypassing the YAML fork/overrides.
 
 No CLI flag for this — config only (per user feedback).
+
+### 2.5 Config-load validation of gas-param names
+
+Gas-param names appear in three places in the YAML: as keys under
+`gas_costs.overrides` (patch targets on the fork's `GasCosts`), as values inside
+each model spec's `model_params` (the gas-param a regression coefficient maps
+to), and as keys under `derived:` (newly defined params). These three surfaces
+share a single validation pass that runs at config-load time, after the per-spec
+`ModelSpec` validators (XOR, list-normalization, defaulting) and after the
+selected fork's `GasCosts` class has been instantiated.
+
+Pass order and rules:
+
+1. **Instantiate the fork's `GasCosts`** from `gas_costs.fork`. The set of its
+   field names is the "raw fork fields" set — the only identifiers that exist
+   as priced gas params before the user's config is considered.
+2. **Validate `gas_costs.overrides` keys (strict).** Every key in the overrides
+   dict must be a member of the raw fork fields. An unknown key is a hard
+   config error — you cannot patch a field that does not exist on the fork.
+   The error message names the offending key and the fork (e.g.
+   `gas_costs.overrides key 'COLD_STORAG_ACCESS' is not a field on the
+   'amsterdam' GasCosts`). This is the only branch where an unknown gas-param
+   name is fatal, because `overrides` cannot meaningfully introduce a new
+   param — it only patches existing ones.
+3. **Apply the overrides** to the instantiated `GasCosts` (overrides become
+   effective only after step 2 passes).
+4. **Collect proposed names.** Walk every `ModelSpec.model_params` dict and
+   union the RHS values (across all keys including `target_coef` and the
+   interaction entries) into the "proposed-by-model_params" set. Walk the
+   top-level `derived:` block and union its keys into the "proposed-by-derived"
+   set. The full universe of valid gas-param identifiers usable elsewhere in
+   the config is `raw fork fields ∪ proposed-by-model_params ∪
+   proposed-by-derived`.
+5. **Lenient warnings for `model_params` RHS values.** For every
+   `model_params` value that is not in the raw fork fields, emit a warning —
+   not an error. The user may legitimately be proposing a new gas-param name
+   that doesn't exist on the fork yet (that is the whole point of the tool).
+   The warning text names the model spec's `test_name`, its source location
+   (the preset name for a bundled spec, e.g. `presets[account_access]`, or
+   its zero-based index in `models.custom`, e.g. `models.custom[2]`, for a
+   user-supplied entry), the offending value, and a "did you mean…?" hint
+   computed by string distance against the universe (raw fork fields plus the
+   other proposed names). The hint is suppressed when no candidate is within a
+   reasonable distance threshold.
+6. **Lenient warnings for `derived:` keys that shadow fork fields.** A
+   `derived:` key whose name collides with an existing raw fork field is
+   legitimate when the user is proposing to redefine that param, but suspicious
+   enough to flag. Emit the same kind of warning, naming the colliding key.
+
+Warning routing — applies to both lenient branches above:
+
+- Each warning is written to **stderr** at load time, prefixed with the config
+  file path (and, for `model_params` warnings, the spec's source location —
+  preset name or `models.custom` index — and `test_name`) so the user can
+  find the source line.
+- Each warning is also collected into an in-memory list on the loaded config
+  object so it can be surfaced in the final `new_gas_proposal.md` report's
+  Warnings section (same routing convention as the missing-glue warning in
+  §4.4). Producing the report does not re-emit the warnings to stderr.
+
+Implementation hook: this validator is a Pydantic v2
+`model_validator(mode="after")` on the top-level `Config` class, **not** on
+individual `ModelSpec`s — it needs the patched `GasCosts` plus the union of
+`model_params` values across every model spec and the `derived:` block, none
+of which a per-spec validator can see. It runs after every `ModelSpec`
+validator (XOR check, list normalization, `filter_by` defaulting) and after
+`gas_costs.overrides` have been applied.
+
+Composability: the validator exposes the computed universe of known gas-param
+names (raw fork fields ∪ proposed-by-model_params ∪ proposed-by-derived) on
+the validated config object. A sibling validator that checks identifiers
+inside `derived:` formulas (§4.8) consumes the same universe so the two passes
+share a single source of truth and run on the same config object.
+
+### 2.6 Model presets
+
+A **preset** is a named, frozen `ModelSpec` shipped in
+`src/evm_gasfit/defaults/models.py`. Presets exist purely to cut config
+boilerplate for the common case: most users want to run the same suite of
+fixtures, with the same `filter_by` / `model_by` / `model_params` recipes,
+every time. Selecting a preset is identical to pasting its `ModelSpec`
+literal into `models.custom:` — the "preset" concept ends at the config
+loader; downstream modules never see it.
+
+Mechanics:
+
+- The bundled registry is a `dict[str, ModelSpec]` keyed by preset name.
+  Names use `lower_snake_case` and describe the recipe (the fixture +
+  filter/group combination), not the gas param produced — one preset may
+  write several params (see "Granularity" below).
+- At config load time, the loader resolves `models.presets: [name, ...]` to
+  the matching `ModelSpec` objects and concatenates them with
+  `models.custom`. The resulting flat list is the only thing the rest of the
+  pipeline sees.
+- Every `ModelSpec` in the registry passes through the same Pydantic v2
+  validators as a user-supplied entry (XOR on `target_operation` /
+  `target_operation_param`, `filter_by` / `model_by` list normalization,
+  `filter_by` defaulting). Because presets are constructed in Python at
+  import time, any preset that fails validation surfaces as an import error
+  before `load_config()` is ever called.
+- Unknown preset name → config error (CLI exit 1 per §8). Duplicate preset
+  name in `presets:` → config error.
+- Duplicate `test_name` *across* `presets:` and `custom:` is allowed —
+  independent fits, and the worst-case aggregator (§4.6) handles the
+  collision naturally.
+- If both `presets:` and `custom:` are empty or omitted, the loader raises a
+  config error rather than silently producing empty output.
+
+Granularity — preset is the unit of selection, not the gas param:
+
+A preset's `model_params` may map several coefficients to several gas params
+(e.g. `account_access` writes both `COLD_ACCOUNT_ACCESS` and
+`COLD_ACCOUNT_WRITE`). Listing the preset always contributes the full set —
+there is no syntax for "preset, but drop the `value_sent` entry". To fit
+only a subset of a preset's gas params, write a custom spec with a smaller
+`model_params` instead.
+
+Replacement vs. extension:
+
+There is no field-level override of presets. To **extend** the bundled
+recipes, add an entry to `custom:`. To **replace** a preset, omit its name
+from `presets:` and supply the full spec under `custom:`. This keeps
+override semantics trivial — concatenation, no merge logic.
+
+Interaction with §2.5 validation:
+
+The gas-param name validator described in §2.5 runs over the resolved union
+of preset and custom specs. A preset whose `model_params` proposes a new
+gas-param name therefore produces the same "did you mean…?" warnings as a
+user-supplied entry; the source location in the warning text is the preset
+name (e.g. `presets[account_access]`) rather than a `models.custom` index.
+
+Initial preset list (port of the recipes used in the eip-8038 reference
+implementation under
+[reports/eip-8038/runtime_estimation/2026-05-01_2026-05-08_interop/](https://github.com/misilva73/evm-gas-repricings/tree/main/reports/eip-8038/runtime_estimation/2026-05-01_2026-05-08_interop/)):
+
+| Preset name | `test_name` | Target opcode | Writes |
+| --- | --- | --- | --- |
+| `arithmetic_add` | `test_arithmetic` | `ADD` | `OPCODE_ADD` |
+| `account_access` | `test_account_access` | param `opcode` | `COLD_ACCOUNT_ACCESS`, `COLD_ACCOUNT_WRITE` |
+| `storage_access` | `test_sload_bloated` | `SLOAD` | `COLD_STORAGE_ACCESS` |
+
+The table above is illustrative — `defaults/models.py` is the source of
+truth and the full catalog lands when the recipes are ported.
+
+Discoverability:
+
+Preset definitions are auto-rendered into the docs site via mkdocstrings
+(§11), so the catalog is browsable without reading source. No CLI
+inspection subcommand is shipped — `evm-gasfit run` stays purely I/O paths
+plus `--out` (§8).
+
+### 2.7 Derived fixture params
+
+Some tests describe the same underlying behavior with different param names or
+non-numeric values. `value_sent_0` in `test_account_access` and
+`write_new_value_False` in `test_sstore_bloated` both mean "no state write" — but
+to a model spec they look like two unrelated params. To let one regression
+recipe consume both, a spec may declare a `fixture_params` block that
+materializes derived columns from raw parsed params.
+
+```yaml
+custom:
+  - test_name: test_account_access
+    target_operation_param: opcode
+    filter_by: [opcode_STATICCALL]
+    model_by: update
+    fixture_params:
+      update:
+        source: value_sent          # rename only; numeric values pass through
+    model_params:
+      target_coef: COLD_ACCOUNT_ACCESS
+      update: ACCOUNT_WRITE
+
+  - test_name: test_sstore_bloated
+    target_operation: SSTORE
+    model_by: update
+    fixture_params:
+      update:
+        source: write_new_value
+        values: {"False": 0, "True": 1}
+    model_params:
+      target_coef: COLD_STORAGE_WRITE
+      update: STORAGE_WRITE
+```
+
+Field semantics:
+
+- The mapping key (`update` above) is the **derived** param name. It is the
+  name that may appear in `model_by` and as a non-`target_coef` key in
+  `model_params` on the same spec.
+- `source` — required. The raw fixture-param name to read from. Every matched
+  fixture must carry this param; a missing source on any filtered fixture is
+  a fit-time error naming the spec's `test_name` and the missing source.
+- `values` — optional. Maps each observed source value to the value the model
+  should see. Keys are coerced to `str` at load time so YAML may express them
+  as booleans or numbers (`{False: 0}` and `{"False": 0}` are equivalent).
+  When `values` is set, every observed source value across the filtered
+  fixtures must appear as a key — an unmapped value is a fit-time error
+  naming the offending value. When `values` is omitted, the source value
+  passes through unchanged and is then coerced to float by §4.3's existing
+  rule.
+
+Scoping and validation:
+
+- `fixture_params` is **per spec**. Two specs may both declare `update` with
+  different sources or value maps — derived columns live in the per-spec
+  view of `fixtures_df`, not on the shared frame, so the global parser stays
+  free of any spec-specific knowledge.
+- `target_operation_param` always reads from raw params, never from derived
+  ones. Derived params exist to feed `model_by` and `model_params`, not to
+  switch the regression target.
+- Load-time validation (Pydantic v2 `model_validator(mode="after")` on
+  `ModelSpec`, running after the existing XOR / list-normalization
+  validators): the derived name must not collide with the spec's
+  `target_operation_param` value (if set), and every name appearing in
+  `model_by` or as a non-`target_coef` key in `model_params` must resolve
+  either to a derived name declared in the same spec's `fixture_params` or
+  be deferred to fit time for resolution against raw parsed-param tokens
+  (the set of which depends on which fixtures match and so cannot be
+  enumerated statically at load time).
 
 ---
 
@@ -210,9 +522,13 @@ No CLI flag for this — config only (per user feedback).
 ### 4.1 Fixture-name parser
 
 Hard requirement: EEST `key_value-key_value-…` convention (inside the `[…]`).
-Tokens without an underscore (like `benchmark_30M`) split on the last `_` and the
-right side is the value. Tokens with no recognized `key_` prefix (`10GB`,
-`benchmark`) become standalone tags that match against `filter_by` substring tests.
+The bracketed content is split on `-`. Each resulting token containing at
+least one `_` is parsed as `key_value` by splitting on the **last** `_`, so
+`opcode_ADD` yields `opcode = ADD`, `cache_strategy_NO_CACHE` yields
+`cache_strategy = NO_CACHE`, and `block_limit_million_30` yields
+`block_limit_million = 30`. Tokens with no `_` (`10GB`, `benchmark`) become
+standalone tags — they create no column on `fixtures_df`, but they are part
+of the raw fixture name and so participate in `filter_by` substring tests.
 
 Params extracted into named columns on `fixtures_df` for every row:
 
@@ -227,6 +543,15 @@ Implementation reuses logic from
 parser module that takes a fixture name string and a list of param names.
 
 After this, the `opcount` column loaded from the opcode counts JSON is merged into the processed `fixtures_df`. It is done through a left join on the `fixture_name`.
+
+Derived fixture-param columns declared under a spec's `fixture_params:` (§2.7)
+are materialized **per spec** when the estimator slices `fixtures_df` for that
+spec, not on the global frame. For each entry, the estimator reads the source
+column on the per-spec slice, applies the optional `values` remap, coerces the
+result to float (matching §4.3), and writes it under the derived name on the
+slice. The shared `fixtures_df` carries only the raw parsed columns, so two
+specs may define the same derived name from different sources without
+colliding. Source-missing and unmapped-value errors (§2.7) fire here.
 
 ### 4.2 Regressor: NNLS (fixed)
 
@@ -245,16 +570,23 @@ its own NNLS model.
 
 ### 4.3 Model formula
 
-For a given model spec with `model_params = {slope: G0, x1: G1, x2: G2, …}`:
+For a given model spec with `model_params = {target_coef: G0, x1: G1, x2: G2, …}`:
 
 ```
-runtime = intercept + slope·opcount + Σ_i x_i·opcount·param_i
+test_runtime_ms = intercept + target_coef·opcount + Σ_i x_i·opcount·param_i
 ```
 
-- `slope` is reserved and always maps the bare `opcount` coefficient.
+`test_runtime_ms` is the measured per-fixture runtime (§2.2). `intercept`,
+`target_coef`, and each `x_i` are fitted coefficients in milliseconds; they
+land on `results.csv` as `intercept_runtime_ms`, `target_coef_runtime_ms`, and
+`<param>_runtime_ms` respectively (see column list below). Their p-value and
+95 % CI companion columns keep the short prefix (`target_coef_pvalue`,
+`<param>_conf_int_low`, …) since those stats are not in ms.
+
+- `target_coef` is reserved and always maps the bare `opcount` coefficient.
 - All other keys must be fixture-param names; the corresponding feature is
   `opcount · param_value` (param values are coerced to float at parse time).
-- **One-value extras**: if a non-slope feature has only one unique value across
+- **One-value extras**: if a non-`target_coef` feature has only one unique value across
   the filtered fixtures, drop it from the design matrix and log a warning naming
   the model spec and the feature. Continue with the remaining features.
 - **Empty specs**: if `filter_by` leaves zero matching fixtures for a spec, skip
@@ -267,17 +599,14 @@ Output of one fit (column names in `results.csv`):
 
 ```
 test_name, client_name, <model_by columns...>, target_opcode,
-nobs, intercept, intercept_pvalue, rsquared, rsquared_adj,
-slope, slope_pvalue, slope_conf_int_low, slope_conf_int_high,
-<param>, <param>_pvalue, <param>_conf_int_low, <param>_conf_int_high, ...,
-runtime_ms
+nobs, intercept_runtime_ms, intercept_pvalue, rsquared, rsquared_adj,
+target_coef_runtime_ms, target_coef_pvalue, target_coef_conf_int_low, target_coef_conf_int_high,
+<param>_runtime_ms, <param>_pvalue, <param>_conf_int_low, <param>_conf_int_high, ...
 ```
 
-`runtime_ms` is the worst-case predicted runtime for this fit — the regression
-evaluated at the worst-case opcount (and worst-case param values, when non-slope
-features are present). It's the value the proposal aggregator (§4.6) maxes over.
-No `glue_adjustment` column on `results.csv` — the adjustment lives in
-`new_gas_all_params.csv`.
+`results.csv` carries only the fitted-model coefficients and goodness-of-fit
+statistics. No `glue_adjustment` column on
+`results.csv` either — the adjustment lives in `new_gas_all_params.csv`.
 
 ### 4.4 Glue-opcode adjustment
 
@@ -288,7 +617,7 @@ Two-tier estimation, replacing the single regression-per-client used today
 
 1. **Pure glue opcodes** — opcodes that have no glue dependency of their own.
    Fit one **single-feature** NNLS per `(client, opcode)`:
-   `runtime = intercept + slope · opcode_count`. Fixed list:
+   `test_runtime_ms = intercept + glue_runtime_ms · opcode_count`. Fixed list:
    `ISZERO`, `JUMPDEST`, `POP`, `STOP`, `SWAP`.
 
 2. **Cycle glue opcodes** — opcodes that appear as both glue and target with a
@@ -323,39 +652,56 @@ Per-fixture glue ratios are computed the same way as today
 Adjustment formula (unchanged):
 
 ```
-adjusted_slope = max(0, slope − Σ_i ratio_i · glue_runtime_i)
+adjusted_target_coef_runtime_ms = max(0, target_coef_runtime_ms − Σ_i ratio_i · (glue_runtime_ms)_i)
 ```
 
-Only glue opcodes whose fit has `p_value < p_value_threshold` (config, default
-0.05) contribute. Negative adjusted slopes are clipped to zero. The CI bounds
-on `slope` are shifted by the same adjustment and clipped identically.
+Only glue opcodes whose fit has `p_value < glue_contribution_p_value_threshold`
+(config, default 0.05) contribute. Negative adjusted coefficients are clipped
+to zero. The CI bounds on `target_coef_runtime_ms` are shifted by the same
+adjustment and clipped identically.
 
 **Missing-glue warning.** If a fitted model's filtered fixtures use a glue opcode
 that isn't in the 12-opcode estimation set (i.e. the tool can't price it), emit
 a warning to stderr **and** include it in the final `new_gas_proposal.md` under a
-"Warnings" section, naming the (test, glue_opcode) pair. The slope is left
-unadjusted for that contribution.
+"Warnings" section, naming the (test, glue_opcode) pair. The target coefficient
+is left unadjusted for that contribution.
 
 ### 4.5 Time units
 
-Runtimes throughout are interpreted as **milliseconds** (matches the current
-pipeline's `run_duration_ms` column). The `anchor_rate` is in gas/second, so the
-conversion is `new_gas_decimal = anchor_rate · runtime_ms / 1000`.
+All `*_runtime_ms` columns are in milliseconds. `anchor_rate` is in
+gas/second, so the per-opcode gas conversion is
+`new_gas_decimal = anchor_rate · runtime_ms / 1000`, where `runtime_ms` is
+the per-opcode ms cost selected for that `(gas_param, client)` row (§4.6).
 
 ### 4.6 Coefficient → gas mapping
 
 For every `(model_spec, model_by-combo, client)` row in `results_df`, expand into
 one row per entry in `model_params`. Each row maps to its target gas-param name.
+The row's per-opcode predicted ms is `target_coef_runtime_ms` for the
+`target_coef` entry and `<param>_runtime_ms` for any non-`target_coef` entry
+(both straight off `results.csv`). This value is what `new_gas_all_params.csv`
+and `new_gas.csv` record as `runtime_ms`, and what the aggregator below
+compares.
 
 Aggregation:
 
 1. **Per client**: across all `(test, model_by-combo)` rows that map to the same
    `(gas_param, client)`, keep the row with the largest `runtime_ms`. If any of
-   the candidates has `pvalue < 0.05`, restrict the max to those; otherwise pick
-   the max across all and set `poor_fit = true` on that row.
+   the candidates has `pvalue < poor_fit_p_value_threshold` (config, default
+   0.05), restrict the max to those; otherwise pick the max across all and set
+   `poor_fit = true` on that row.
 2. **Across clients**: the proposal value for `gas_param` is the max of the
    per-client picks. `new_gas_all_params.csv` records all per-client values
    before this collapse; `new_gas.csv` holds the across-client maxes.
+
+The proposal is diffed against the universe of **raw fork fields** (the
+unpatched `GasCosts` field set, captured before `gas_costs.overrides` was
+applied — overrides are themselves part of the proposal, not the baseline).
+Gas-param names that were introduced only by the config (a `model_params`
+value or a `derived:` key that does not collide with a fork field) have no
+prior default to diff against; their row in any diff column shows "no prior
+default" rather than a numeric current value. This applies to `new_gas.csv`,
+`new_gas_all_params.csv`, and the proposal markdown.
 
 The `poor_fit` flag is serialized as a boolean column on `new_gas_all_params.csv`
 (one row per `(gas_param, client)`). It also surfaces in `new_gas_proposal.md`
@@ -378,9 +724,66 @@ Evaluated against the integer worst-case-across-clients table. Each entry in
   already-computed gas params (base + previously-evaluated derived).
 
 The evaluator is a hand-rolled AST walker (`ast.parse(mode='eval')` with a
-whitelisted node set) — no `eval`. Derived params are evaluated in declaration
-order so later entries can reference earlier ones. The output is always rounded
-up to an integer.
+whitelisted node set) — no `eval`. The whitelist is: `Expression`, `Constant`
+(numeric only), `Name` (load context only), `BinOp` over `Add`/`Sub`/`Mult`/
+`Div`/`FloorDiv`, and `UnaryOp` over `UAdd`/`USub`. Anything else — attribute
+access, subscript, function call, comparison, boolean op, `__import__`,
+walrus, comprehensions, lambdas — is rejected. Derived params are evaluated in
+declaration order so later entries can reference earlier ones. The output is
+always rounded up to an integer.
+
+**Load-time identifier and node-shape validation.** The same AST walker runs
+once at config-load time, before any modeling, to fail fast on malformed
+formulas. It serves two purposes on every `derived:` entry:
+
+1. **Node-shape check.** Walk the parsed AST and reject any node outside the
+   whitelist above. A disallowed node is a hard config error (CLI exit 1 per
+   §8); the message names the offending `derived:` key and the disallowed node
+   kind (e.g. `derived['STORAGE_CLEAR_REFUND'] formula uses an unsupported
+   construct: Call`). This is the same check the runtime evaluator performs,
+   surfaced earlier — the runtime walker still re-enforces it as defense in
+   depth, but a clean load means no formula-shape errors can fire mid-pipeline.
+2. **Identifier-resolution check.** Collect every `ast.Name` in the formula
+   and verify each one resolves against the set of gas-param names that will
+   be in scope by the time this entry is evaluated. The in-scope set at the
+   declaration point of `derived[K]` is:
+     - the fork's `GasCosts` field names **after** `gas_costs.overrides` have
+       been applied (i.e. the patched-fork field set from §2.5 step 3), **plus**
+     - every gas-param name introduced as a `model_params` RHS value across
+       any model spec, anywhere in the config (the "proposed-by-model_params"
+       set from §2.5 step 4), **plus**
+     - every `derived:` key declared **earlier** than `K` in declaration order.
+       Keys declared later (or `K` itself) are out of scope and must not
+       resolve, matching the runtime evaluator's rule that later entries can
+       reference earlier ones but not vice versa.
+   An identifier that doesn't resolve is a hard config error (CLI exit 1). The
+   message names the offending `derived:` key, the offending identifier, and a
+   "did you mean…?" hint computed by string distance against the resolvable
+   universe at that declaration point. The hint is suppressed when no
+   candidate is within a reasonable distance threshold (matching the §2.5
+   convention).
+
+The string-alias form (`KEY: "OTHER_KEY"`) is treated as a one-identifier
+formula for both checks above: it parses to a single `Name` node and goes
+through the same resolution rules.
+
+**Why this is stricter than the `model_params` check in §2.5.** A
+`model_params` RHS typo is a lenient warning, because the user may legitimately
+be proposing a new gas-param name that doesn't exist on the fork yet — that is
+the whole point of the tool. A `derived:` formula identifier has no such
+out — it *must* resolve at evaluation time against an already-priced param,
+so an unresolvable identifier is unambiguously wrong and is therefore fatal at
+load time. The two checks share §2.5's computed universe of known gas-param
+names but apply opposite severities to non-members.
+
+**Implementation hook.** The check runs as a Pydantic v2
+`model_validator(mode="after")` on the top-level `Config` class, alongside (or
+immediately after) the §2.5 validator. It consumes the universe that §2.5
+exposes on the validated config object — no duplicate computation — and
+additionally tracks declaration order across the `derived:` mapping to
+enforce the "earlier-declared only" rule. Because `derived:` is loaded from
+YAML into an ordered Python dict, the declaration order is preserved through
+the Pydantic model.
 
 ---
 
@@ -389,13 +792,13 @@ up to an integer.
 | File | Always written | Notes |
 | --- | --- | --- |
 | `results.csv` | yes | one row per `(model_spec, model_by-combo, client)`; no `glue_adjustment` column (that lives on `new_gas_all_params.csv`) |
-| `glue_results.csv` | iff glue enabled | per `(client, glue_opcode)`: `nobs, runtime, p_value, rsquared` |
+| `glue_results.csv` | iff glue enabled | per `(client, glue_opcode)`: `nobs, glue_runtime_ms, p_value, rsquared` |
 | `glue_opcodes_by_test.csv` | iff glue enabled | per `(test, target_opcode, *model_by)`: `glue_opcode, corr, ratio` |
-| `new_gas_all_params.csv` | yes | per-client values; columns include `gas_param, client_name, runtime_ms, pvalue, conf_int_low, conf_int_high, test_name, target_opcode, coef, glue_adjustment, *model_by, new_gas, new_gas_rounded, poor_fit` |
-| `new_gas.csv` | yes | worst-case across clients; one row per gas param; columns include `gas_param, client_name, runtime_ms, conf_int_low, conf_int_high, selected_test, selected_opcode, selected_coef, glue_adjustment, *model_by, new_gas, new_gas_rounded` |
+| `new_gas_all_params.csv` | yes | per-client values; columns include `gas_param, client_name, runtime_ms, pvalue, conf_int_low, conf_int_high, test_name, target_opcode, model_coef_name, glue_adjustment, *model_by, new_gas, new_gas_rounded, poor_fit` |
+| `new_gas.csv` | yes | worst-case across clients; one row per gas param; columns include `gas_param, client_name, runtime_ms, conf_int_low, conf_int_high, selected_test, selected_opcode, selected_model_coef_name, glue_adjustment, *model_by, new_gas, new_gas_rounded` |
 | `runtime_estimation_autogenerated_report.md` | yes | per-spec regression report; plots embedded iff `output.plots: true` |
 | `glue_opcodes_autogenerated_report.md` | iff glue enabled | per-client joint regression summary; plots embedded iff `output.plots: true` |
-| `new_gas_proposal.md` | yes | final proposal, diff vs. fork defaults, warnings section |
+| `new_gas_proposal.md` | yes | final proposal, diff vs. raw fork fields (§4.6) with "no prior default" sentinel for newly proposed names, warnings section (collects config-load warnings from §2.5 plus the missing-glue warnings from §4.4) |
 | `figs/*.png` | iff `output.plots: true` | regression, residual, bootstrap plots |
 
 If `output.plots: false`, the report markdown is generated without `<img>` tags
@@ -447,11 +850,18 @@ When `output.plots: false`, neither the file nor the `<img>` tag is produced.
 evm-gasfit/
 ├── pyproject.toml
 ├── README.md
+├── mkdocs.yml                  # docs site config (§11)
+├── docs/
+│   ├── index.md                # landing page
+│   └── api.md                  # mkdocstrings-rendered API reference
+├── .github/workflows/
+│   └── docs.yml                # auto-deploy docs to gh-pages on push to main
 ├── src/evm_gasfit/
 │   ├── __init__.py             # public re-exports: GasFit, GasCosts, load_config
 │   ├── config.py               # Pydantic models for the YAML schema; load_config()
 │   ├── defaults/
 │   │   ├── __init__.py         # fork_name → GasCosts factory
+│   │   ├── models.py           # named ModelSpec presets (see §2.6)
 │   │   ├── _fallback.py        # the literal GasCosts table from the spec
 │   │   └── _from_execution_specs.py  # pulls from ethereum/execution-specs
 │   ├── io/
@@ -506,9 +916,10 @@ evm-gasfit/
 - `statsmodels` — QQ / diagnostics helpers used by the ported plotting code.
 - `mdutils` — markdown report assembly (`reports/*.py`), matching the current
   [src/reports.py](https://github.com/misilva73/evm-gas-repricings/blob/main/src/reports.py).
-- `ethereum/execution-specs` — source of per-fork `GasCosts` (§2.4). Soft
-  dependency: if it can't resolve, fall back to the literal table in
-  `defaults/_fallback.py`.
+- `ethereum/execution-specs` — source of per-fork `GasCosts` (§2.4). **Optional
+  extra**, declared under `[project.optional-dependencies]` as `specs` and
+  installed via `pip install -e ".[specs]"`. When absent, `defaults/_fallback.py`
+  serves the same field set.
 
 Python stdlib only (no extra dep): `ast` for the derived-formula evaluator
 (§4.8), `csv`/`json` for the input loaders.
@@ -518,6 +929,16 @@ Python stdlib only (no extra dep): `ast` for the derived-formula evaluator
 - `pytest` — `tests/`.
 - `ruff` — formatting + linting + import sorting (one tool, black-compatible
   output). Deliberate departure from the parent repo's `black` convention.
+
+### Docs
+
+Shipped as a `docs` extra in `[project.optional-dependencies]`, so CI can install
+with `pip install -e ".[docs]"` (no `uv` required).
+
+- `mkdocs` — static site generator.
+- `mkdocs-material` — theme + extensions.
+- `mkdocstrings[python]` — pulls docstrings from `src/evm_gasfit/**` into the
+  generated site. Configured for Google-style docstrings.
 
 ---
 
@@ -536,6 +957,15 @@ evm-gasfit run \
 All behavioral flags (anchor rate, fork, glue toggle, plots, thresholds, derived
 params) live in the YAML — the CLI is purely I/O paths plus `--out`. Exit codes:
 0 success, 1 config / input error, 2 modeling error (no rows produced).
+
+Mapping of the §2.5 validation outcomes onto these exit codes:
+
+- A `gas_costs.overrides` key that is not a raw fork field → exit 1 (config
+  error, surfaced at load time before any modeling work begins).
+- A `model_params` RHS value that is not a raw fork field, or a `derived:` key
+  that shadows a raw fork field → **warning, not exit 1**. The run proceeds; the
+  warning is written to stderr at load time and is included in the Warnings
+  section of `new_gas_proposal.md`.
 
 ### Python API
 
@@ -607,7 +1037,81 @@ What does **not** port:
 
 ---
 
-## 11. Out of scope
+## 11. Documentation site
+
+### 11.1 Scope
+
+API reference site generated from docstrings in `src/evm_gasfit/**`. The site is
+the **user-facing reference for the public API** (`GasFit`, `GasCosts`,
+`load_config`, and the CLI). Long-form tutorials, design notes, and per-fork
+base-table dumps are deliberately out of scope — keep the site lean, so it
+stays trivially maintainable.
+
+### 11.2 Stack
+
+- **MkDocs** with the **Material** theme.
+- **mkdocstrings** (python handler) renders docstrings under `docs/api.md` via
+  the `:::` directive.
+- **Docstring style: Google.** Configured once in `mkdocs.yml`
+  (`docstring_style: google`); every public docstring must follow it, so the
+  rendered pages stay consistent. Type hints from signatures are the source of
+  truth for types — don't duplicate them in the docstring body.
+
+### 11.3 Layout
+
+```text
+mkdocs.yml          # site config (theme, plugins, nav)
+docs/
+├── index.md        # landing: one-paragraph description + install + quickstart
+└── api.md          # `::: evm_gasfit` — mkdocstrings renders the public surface
+```
+
+`docs/index.md` and `docs/api.md` are the only authored pages. New pages require
+a plan update — drift toward a sprawling docs tree is the failure mode this
+section is meant to prevent.
+
+### 11.4 Local preview and build
+
+```bash
+pip install -e ".[docs]"   # one-time install
+mkdocs serve               # live-reload preview at http://127.0.0.1:8000
+mkdocs build --strict      # fail on broken refs / missing imports
+```
+
+`--strict` is what CI runs before deploy, so contributors should match it locally.
+
+### 11.5 Deployment
+
+Automatic on push to `main`. A single GitHub Actions workflow at
+`.github/workflows/docs.yml`:
+
+1. Checks out the repo on Ubuntu with Python 3.12.
+2. `pip install -e ".[docs]"`.
+3. `mkdocs gh-deploy --force` — builds the site and force-pushes to the
+   `gh-pages` branch.
+
+GitHub Pages must be configured (once, in repo settings) to "Deploy from branch
+→ gh-pages / root". After that, every push to `main` updates the live site with
+no manual intervention. The workflow needs `permissions: contents: write` to
+push the `gh-pages` branch — no PAT required.
+
+No staging site, no preview-per-PR, no docs versioning (mike). If the project
+needs versioned docs later, add `mike` as a separate plan revision.
+
+### 11.6 Docstring expectations
+
+Public API symbols (`GasFit`, `GasCosts`, `load_config`, CLI entry point) carry
+Google-style docstrings with a summary line, an `Args:` section if relevant,
+and a `Returns:`/`Raises:` section if relevant. Internal modules can have
+shorter docstrings — mkdocstrings doesn't render them by default (the API page
+explicitly lists the public surface).
+
+If a docstring would only restate the signature, omit it. Empty docstrings are
+preferable to ones that add no information.
+
+---
+
+## 12. Out of scope
 
 - Data ingestion from Benchmarkoor or gas-bench. The new repo accepts CSV/JSON
   inputs only — gathering and shaping those inputs stays in this repo
