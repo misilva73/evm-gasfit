@@ -71,14 +71,7 @@ def test_fixture_param_rename_passes_through_numeric_value(tmp_path: Path) -> No
     """`fixture_params` with only `source:` renames a raw param; values pass through as floats."""
     fixtures = _account_fixtures()
     true_slope = 1.0e-5
-    true_value_sent_coef = 3.0e-6
-    models = {
-        "geth": ClientModel(
-            intercept=70.0,
-            slope=true_slope,
-            extra_coefs={"value_sent": true_value_sent_coef},
-        )
-    }
+    models = {"geth": ClientModel(intercept=70.0, slope=true_slope)}
     config = base_config(models_custom=[_ACCOUNT_VALUE_SENT_SPEC])
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=3
@@ -143,7 +136,9 @@ def test_two_specs_can_share_derived_name_with_different_sources(tmp_path: Path)
 
     new_gas = pd.read_csv(out_dir / "new_gas.csv")
     proposed = set(new_gas["gas_param"])
-    expected = {"COLD_ACCOUNT_ACCESS", "ACCOUNT_WRITE", "COLD_STORAGE_WRITE", "STORAGE_WRITE"}
+    # Only target_coef params survive: `update` is constant within each
+    # per-group fit and is dropped by the one-value-extras rule.
+    expected = {"COLD_ACCOUNT_ACCESS", "COLD_STORAGE_WRITE"}
     assert expected.issubset(proposed), f"new_gas.csv missing params: {expected - proposed}"
 
 

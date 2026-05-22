@@ -9,7 +9,7 @@ description = "Estimate worst-case EVM gas costs from runtime measurements."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
-authors = [{ name = "Maria Inês Silva", email = "maria.silva@ethereum.org" }]
+authors = [{ name = "Maria Silva", email = "misilva73@gmail.com" }]
 dependencies = [
     "pydantic>=2.0",
     "pyyaml",

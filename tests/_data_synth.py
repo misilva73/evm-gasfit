@@ -73,6 +73,10 @@ class ClientModel:
 def runtime_for(spec: FixtureSpec, model: ClientModel, rng: np.random.Generator, noise_pct: float) -> float:
     val = model.intercept + model.slope * spec.target_opcount
     for param_name, coef in model.extra_coefs.items():
+        if param_name not in spec.params:
+            # Coefficient doesn't apply to this fixture (e.g. mixed-spec runs
+            # where only some fixtures carry the param).
+            continue
         param_val = float(spec.params[param_name])
         val += coef * spec.target_opcount * param_val
     if noise_pct > 0:

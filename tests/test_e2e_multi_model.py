@@ -148,7 +148,12 @@ def test_multi_model_with_target_param_and_groups(tmp_path: Path) -> None:
         candidates = new_gas_all[new_gas_all["gas_param"] == gp]
         mask = pd.Series(True, index=candidates.index)
         for col in provenance_cols + model_by_cols:
-            mask &= candidates[col].astype(object) == win[col]
+            win_val = win[col]
+            col_vals = candidates[col]
+            if pd.isna(win_val):
+                mask &= col_vals.isna()
+            else:
+                mask &= col_vals.astype(object) == win_val
         matched = candidates[mask]
         assert len(matched) == 1, (
             f"expected exactly one provenance row for {gp}, got {len(matched)}"

@@ -1,0 +1,106 @@
+"""Safe arithmetic mini-language for ``derived:`` entries in user config.
+
+Parses a small whitelisted subset of Python expressions, lists referenced
+identifiers, and evaluates against an environment of numeric values. The
+same AST walker is used for both load-time validation and runtime evaluation.
+"""
+
+from __future__ import annotations
+
+import ast
+from typing import Mapping
+
+from evm_gasfit.errors import ConfigError
+
+_BIN_OPS: dict[type[ast.operator], object] = {
+    ast.Add: lambda a, b: a + b,
+    ast.Sub: lambda a, b: a - b,
+    ast.Mult: lambda a, b: a * b,
+    ast.Div: lambda a, b: a / b,
+    ast.FloorDiv: lambda a, b: a // b,
+}
+
+_UNARY_OPS: dict[type[ast.unaryop], object] = {
+    ast.UAdd: lambda a: +a,
+    ast.USub: lambda a: -a,
+}
+
+
+def _reject(node: ast.AST, formula: str | None = None) -> None:
+    suffix = f" in formula {formula!r}" if formula is not None else ""
+    raise ConfigError(f"unsupported node {type(node).__name__}{suffix}")
+
+
+def _validate(node: ast.AST, formula: str) -> None:
+    if isinstance(node, ast.Expression):
+        _validate(node.body, formula)
+    elif isinstance(node, ast.Constant):
+        if not isinstance(node.value, (int, float)) or isinstance(node.value, bool):
+            raise ConfigError(
+                f"unsupported constant {node.value!r} in formula {formula!r}"
+            )
+    elif isinstance(node, ast.Name):
+        if not isinstance(node.ctx, ast.Load):
+            _reject(node, formula)
+    elif isinstance(node, ast.BinOp):
+        if type(node.op) not in _BIN_OPS:
+            _reject(node.op, formula)
+        _validate(node.left, formula)
+        _validate(node.right, formula)
+    elif isinstance(node, ast.UnaryOp):
+        if type(node.op) not in _UNARY_OPS:
+            _reject(node.op, formula)
+        _validate(node.operand, formula)
+    else:
+        _reject(node, formula)
+
+
+def parse_formula(formula: str) -> ast.Expression:
+    try:
+        tree = ast.parse(formula, mode="eval")
+    except SyntaxError as exc:
+        raise ConfigError(f"invalid syntax in formula {formula!r}: {exc.msg}") from exc
+    _validate(tree, formula)
+    return tree
+
+
+def names_referenced(tree: ast.Expression) -> list[str]:
+    out: list[str] = []
+
+    def visit(node: ast.AST) -> None:
+        if isinstance(node, ast.Name):
+            out.append(node.id)
+        elif isinstance(node, ast.Expression):
+            visit(node.body)
+        elif isinstance(node, ast.BinOp):
+            visit(node.left)
+            visit(node.right)
+        elif isinstance(node, ast.UnaryOp):
+            visit(node.operand)
+
+    visit(tree)
+    return out
+
+
+def _eval(node: ast.AST, env: Mapping[str, int | float]) -> float:
+    if isinstance(node, ast.Expression):
+        return _eval(node.body, env)
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Name):
+        if node.id not in env:
+            raise ConfigError(f"unknown identifier {node.id!r} in formula")
+        return env[node.id]
+    if isinstance(node, ast.BinOp):
+        left = _eval(node.left, env)
+        right = _eval(node.right, env)
+        if isinstance(node.op, (ast.Div, ast.FloorDiv)) and right == 0:
+            raise ConfigError("division by zero in formula")
+        return _BIN_OPS[type(node.op)](left, right)
+    if isinstance(node, ast.UnaryOp):
+        return _UNARY_OPS[type(node.op)](_eval(node.operand, env))
+    _reject(node)
+
+
+def evaluate(tree: ast.Expression, env: Mapping[str, int | float]) -> float:
+    return float(_eval(tree, env))
