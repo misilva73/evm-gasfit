@@ -1,0 +1,176 @@
+"""End-to-end: derived fixture params (rename + value remap).
+
+Pins the per-spec derived-column mechanic:
+
+- A spec may declare `fixture_params: {<derived>: {source: <raw>}}` to rename a
+  raw fixture-param into a canonical name used by `model_by` / `model_params`.
+- The optional `values:` mapping remaps non-numeric source values to floats so
+  the regressor can consume them.
+- Two specs can declare the same derived name from different sources — the
+  derived columns live on the per-spec slice of `fixtures_df`, never the
+  shared frame.
+- An observed source value that is not in `values:` is a fit-time error.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+from _data_synth import (
+    ClientModel,
+    base_config,
+    cross_product_fixtures,
+    run_pipeline,
+    write_standard_inputs,
+)
+
+
+_ACCOUNT_VALUE_SENT_SPEC = {
+    "test_name": "test_account_access",
+    "target_operation": "BALANCE",
+    "model_by": "update",
+    "fixture_params": {"update": {"source": "value_sent"}},
+    "model_params": {"target_coef": "COLD_ACCOUNT_ACCESS", "update": "ACCOUNT_WRITE"},
+}
+
+_SSTORE_REMAP_SPEC = {
+    "test_name": "test_sstore_bloated",
+    "target_operation": "SSTORE",
+    "model_by": "update",
+    "fixture_params": {
+        "update": {"source": "write_new_value", "values": {"False": 0, "True": 1}},
+    },
+    "model_params": {"target_coef": "COLD_STORAGE_WRITE", "update": "STORAGE_WRITE"},
+}
+
+
+def _account_fixtures(values=("0", "1", "2")):
+    return cross_product_fixtures(
+        test_file="test_account_access",
+        test_name="test_account_access",
+        param_grid={"value_sent": list(values)},
+        target_opcode_for="BALANCE",
+        target_opcount_per_million=800_000,
+    )
+
+
+def _sstore_fixtures(values=("False", "True")):
+    return cross_product_fixtures(
+        test_file="test_sstore_bloated",
+        test_name="test_sstore_bloated",
+        param_grid={"write_new_value": list(values)},
+        target_opcode_for="SSTORE",
+        target_opcount_per_million=500_000,
+    )
+
+
+def test_fixture_param_rename_passes_through_numeric_value(tmp_path: Path) -> None:
+    """`fixture_params` with only `source:` renames a raw param; values pass through as floats."""
+    fixtures = _account_fixtures()
+    true_slope = 1.0e-5
+    true_value_sent_coef = 3.0e-6
+    models = {
+        "geth": ClientModel(
+            intercept=70.0,
+            slope=true_slope,
+            extra_coefs={"value_sent": true_value_sent_coef},
+        )
+    }
+    config = base_config(models_custom=[_ACCOUNT_VALUE_SENT_SPEC])
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=3
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    results = pd.read_csv(out_dir / "results.csv")
+    assert len(results) == 3  # 3 update values × 1 client
+    assert "update" in results.columns
+    assert set(results["update"].astype(float)) == {0.0, 1.0, 2.0}
+
+    for _, row in results.iterrows():
+        recovered = float(row["target_coef_runtime_ms"])
+        assert recovered == pytest.approx(true_slope, rel=0.05), (
+            f"update={row['update']}: target_coef {recovered} not ~{true_slope}"
+        )
+
+
+def test_fixture_param_value_remap_translates_strings(tmp_path: Path) -> None:
+    """`values:` translates non-numeric source values to floats the regressor can use."""
+    fixtures = _sstore_fixtures()
+    models = {"geth": ClientModel(intercept=60.0, slope=1.2e-5)}
+    config = base_config(models_custom=[_SSTORE_REMAP_SPEC])
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=5
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    results = pd.read_csv(out_dir / "results.csv")
+    assert len(results) == 2  # 2 update groups × 1 client
+    assert "update" in results.columns
+    assert set(results["update"].astype(float)) == {0.0, 1.0}
+    # Raw strings did not survive into the per-spec column.
+    assert "False" not in set(results["update"].astype(str))
+    assert "True" not in set(results["update"].astype(str))
+
+
+def test_two_specs_can_share_derived_name_with_different_sources(tmp_path: Path) -> None:
+    """The derived column is per-spec — two specs may both declare `update`
+    from different raw params."""
+    fixtures = _account_fixtures(values=("0", "1")) + _sstore_fixtures()
+    models = {
+        "geth": ClientModel(
+            intercept=80.0,
+            slope=1.0e-5,
+            extra_coefs={"value_sent": 2.0e-6},
+        )
+    }
+    config = base_config(models_custom=[_ACCOUNT_VALUE_SENT_SPEC, _SSTORE_REMAP_SPEC])
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=9
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    results = pd.read_csv(out_dir / "results.csv")
+    assert len(results) == 4  # 2 update values per spec × 2 specs × 1 client
+    assert set(results["test_name"]) == {"test_account_access", "test_sstore_bloated"}
+    for test_name in ("test_account_access", "test_sstore_bloated"):
+        sub = results[results["test_name"] == test_name]
+        assert len(sub) == 2
+        assert set(sub["update"].astype(float)) == {0.0, 1.0}
+
+    new_gas = pd.read_csv(out_dir / "new_gas.csv")
+    proposed = set(new_gas["gas_param"])
+    expected = {"COLD_ACCOUNT_ACCESS", "ACCOUNT_WRITE", "COLD_STORAGE_WRITE", "STORAGE_WRITE"}
+    assert expected.issubset(proposed), f"new_gas.csv missing params: {expected - proposed}"
+
+
+def test_unmapped_source_value_raises(tmp_path: Path) -> None:
+    """An observed source value that the `values:` map omits is a fit-time error."""
+    fixtures = _sstore_fixtures()
+    models = {"geth": ClientModel(intercept=60.0, slope=1.2e-5)}
+    spec = {
+        **_SSTORE_REMAP_SPEC,
+        # "True" deliberately missing from the map.
+        "fixture_params": {
+            "update": {"source": "write_new_value", "values": {"False": 0}},
+        },
+    }
+    config = base_config(models_custom=[spec])
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=13
+    )
+
+    from evm_gasfit import GasFit
+
+    gas_fit = GasFit.from_config(config_yaml)
+    gas_fit.load_runtimes(runtimes_csv)
+    gas_fit.load_opcounts(opcounts_json)
+
+    # The unmapped value is detected when the spec slice is materialized
+    # inside `estimate_models()`.
+    with pytest.raises(Exception):
+        gas_fit.estimate_models()
+    assert not (out_dir / "results.csv").exists()
