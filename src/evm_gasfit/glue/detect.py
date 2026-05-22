@@ -16,7 +16,11 @@ import numpy as np
 import pandas as pd
 
 from evm_gasfit.config import ModelSpec
-from evm_gasfit.modeling.estimate import _apply_filters, _materialize_derived, _resolve_target_opcode
+from evm_gasfit.modeling.estimate import (
+    _apply_filters,
+    _materialize_derived,
+    _resolve_target_opcode,
+)
 
 from .required import PRICED_GLUE_OPCODES
 
@@ -109,7 +113,9 @@ def compute_glue_opcodes_by_test(
         ``model_by`` column observed across specs, ``glue_opcode``, ``corr``,
         ``ratio``.
     """
-    model_by_cols: list[str] = sorted({c for spec in model_specs for c in spec.model_by})
+    model_by_cols: list[str] = sorted(
+        {c for spec in model_specs for c in spec.model_by}
+    )
     rows: list[dict[str, object]] = []
 
     for spec in model_specs:
@@ -141,7 +147,14 @@ def compute_glue_opcodes_by_test(
 
     df = pd.DataFrame(rows)
     if df.empty:
-        cols = ["test_name", "target_opcode", *model_by_cols, "glue_opcode", "corr", "ratio"]
+        cols = [
+            "test_name",
+            "target_opcode",
+            *model_by_cols,
+            "glue_opcode",
+            "corr",
+            "ratio",
+        ]
         return pd.DataFrame(columns=cols)
     sort_cols = ["test_name", "target_opcode", *model_by_cols, "glue_opcode"]
     sort_cols = [c for c in sort_cols if c in df.columns]

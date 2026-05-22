@@ -148,7 +148,9 @@ def build_proposal(
         }
         for col in model_by_cols:
             derived_summary[col] = None
-        derived_summary_aligned = {c: derived_summary.get(c) for c in new_gas_df.columns}
+        derived_summary_aligned = {
+            c: derived_summary.get(c) for c in new_gas_df.columns
+        }
         new_gas_df = pd.concat(
             [new_gas_df, pd.DataFrame([derived_summary_aligned])], ignore_index=True
         )
@@ -191,7 +193,9 @@ def build_proposal(
         ["gas_param", "client_name", "test_name", "target_opcode", "model_coef_name"],
         kind="mergesort",
     ).reset_index(drop=True)
-    new_gas_df = new_gas_df.sort_values("gas_param", kind="mergesort").reset_index(drop=True)
+    new_gas_df = new_gas_df.sort_values("gas_param", kind="mergesort").reset_index(
+        drop=True
+    )
     _ = anchor_rate  # touched in aggregate; kept here for clarity in the trace.
     _ = np  # quiet linters; numpy imported for future use.
 

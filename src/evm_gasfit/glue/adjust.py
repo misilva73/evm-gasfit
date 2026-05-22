@@ -51,9 +51,8 @@ def compute_glue_adjustment(
 
     rows: list[dict[str, object]] = []
     for _, row in results_df.iterrows():
-        ratio_mask = (
-            (glue_opcodes_by_test_df["test_name"] == row["test_name"])
-            & (glue_opcodes_by_test_df["target_opcode"] == row["target_opcode"])
+        ratio_mask = (glue_opcodes_by_test_df["test_name"] == row["test_name"]) & (
+            glue_opcodes_by_test_df["target_opcode"] == row["target_opcode"]
         )
         for mb in model_by_cols:
             ratio_mask &= glue_opcodes_by_test_df[mb] == row[mb]

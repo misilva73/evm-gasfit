@@ -37,7 +37,9 @@ def _invoke_cli(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
-def _prep(tmp_path: Path, *, config: dict[str, Any] | None = None) -> tuple[Path, Path, Path, Path]:
+def _prep(
+    tmp_path: Path, *, config: dict[str, Any] | None = None
+) -> tuple[Path, Path, Path, Path]:
     fixtures = make_block_limit_fixtures(
         test_file="test_arithmetic",
         test_name="test_arithmetic",
@@ -57,10 +59,14 @@ def _prep(tmp_path: Path, *, config: dict[str, Any] | None = None) -> tuple[Path
 def _cli_args(config: Path, runtimes: Path, opcounts: Path, out: Path) -> list[str]:
     return [
         "run",
-        "--config", str(config),
-        "--runtimes", str(runtimes),
-        "--opcounts", str(opcounts),
-        "--out", str(out),
+        "--config",
+        str(config),
+        "--runtimes",
+        str(runtimes),
+        "--opcounts",
+        str(opcounts),
+        "--out",
+        str(out),
     ]
 
 

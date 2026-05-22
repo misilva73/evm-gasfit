@@ -128,10 +128,13 @@ def _build_design(
     Returns the (renamed) frame and the list of non-``target_coef`` feature
     names that survived the one-value-extras filter.
     """
-    design = pd.DataFrame({
-        "opcount": df["opcount"].astype(float).to_numpy(),
-        "test_runtime_ms": df["test_runtime_ms"].astype(float).to_numpy(),
-    }, index=df.index)
+    design = pd.DataFrame(
+        {
+            "opcount": df["opcount"].astype(float).to_numpy(),
+            "test_runtime_ms": df["test_runtime_ms"].astype(float).to_numpy(),
+        },
+        index=df.index,
+    )
     extras: list[str] = []
     for coef_name, _gas_param in spec.model_params.items():
         if coef_name == "target_coef":
@@ -219,17 +222,19 @@ def _build_result_row(
         "target_opcode": target_opcode,
     }
     row.update(group_values)
-    row.update({
-        "nobs": fit.nobs,
-        "intercept_runtime_ms": float(fit.params["const"]),
-        "intercept_pvalue": float(fit.pvalues["const"]),
-        "rsquared": float(fit.rsquared),
-        "rsquared_adj": float(fit.rsquared_adj),
-        "target_coef_runtime_ms": float(fit.params["opcount"]),
-        "target_coef_pvalue": float(fit.pvalues["opcount"]),
-        "target_coef_conf_int_low": float(ci.loc["opcount", 0]),
-        "target_coef_conf_int_high": float(ci.loc["opcount", 1]),
-    })
+    row.update(
+        {
+            "nobs": fit.nobs,
+            "intercept_runtime_ms": float(fit.params["const"]),
+            "intercept_pvalue": float(fit.pvalues["const"]),
+            "rsquared": float(fit.rsquared),
+            "rsquared_adj": float(fit.rsquared_adj),
+            "target_coef_runtime_ms": float(fit.params["opcount"]),
+            "target_coef_pvalue": float(fit.pvalues["opcount"]),
+            "target_coef_conf_int_low": float(ci.loc["opcount", 0]),
+            "target_coef_conf_int_high": float(ci.loc["opcount", 1]),
+        }
+    )
     for extra in extras:
         row[f"{extra}_runtime_ms"] = float(fit.params[extra])
         row[f"{extra}_pvalue"] = float(fit.pvalues[extra])
@@ -345,6 +350,8 @@ def estimate_models(config: Config, fixtures_df: pd.DataFrame) -> EstimateOutput
     sort_cols += sorted({c for spec in config.resolved_models for c in spec.model_by})
     sort_cols.append("client_name")
     sort_cols = [c for c in sort_cols if c in results_df.columns]
-    results_df = results_df.sort_values(sort_cols, kind="mergesort").reset_index(drop=True)
+    results_df = results_df.sort_values(sort_cols, kind="mergesort").reset_index(
+        drop=True
+    )
 
     return EstimateOutput(results_df=results_df, fits=fits)

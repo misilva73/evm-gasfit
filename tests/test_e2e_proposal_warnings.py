@@ -91,7 +91,8 @@ def test_unknown_gas_param_emits_warning_and_renders_sentinel(
 
     # ---- warning fired on evm_gasfit logger ----------------------------
     matching = [
-        r for r in caplog.records
+        r
+        for r in caplog.records
         if r.levelno >= logging.WARNING and gas_param in r.getMessage()
     ]
     assert matching, (
@@ -109,7 +110,7 @@ def test_unknown_gas_param_emits_warning_and_renders_sentinel(
     proposal = (out_dir / "new_gas_proposal.md").read_text()
     warnings_heading = re.search(r"#+\s*Warnings", proposal, flags=re.IGNORECASE)
     assert warnings_heading, "new_gas_proposal.md is missing a Warnings section"
-    assert gas_param in proposal[warnings_heading.start():], (
+    assert gas_param in proposal[warnings_heading.start() :], (
         f"Warnings section does not mention {gas_param}"
     )
 
@@ -144,7 +145,9 @@ def test_known_gas_param_does_not_carry_sentinel(tmp_path: Path) -> None:
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
     new_gas = pd.read_csv(out_dir / "new_gas.csv")
-    assert KNOWN_PARAM in set(new_gas["gas_param"]), f"{KNOWN_PARAM} missing from new_gas.csv"
+    assert KNOWN_PARAM in set(new_gas["gas_param"]), (
+        f"{KNOWN_PARAM} missing from new_gas.csv"
+    )
 
     csv_text = new_gas[new_gas["gas_param"] == KNOWN_PARAM].to_csv(index=False)
     proposal = (out_dir / "new_gas_proposal.md").read_text()
@@ -188,6 +191,7 @@ def test_non_priced_glue_candidate_emits_warning_and_appears_in_proposal(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     from evm_gasfit.glue.required import REQUIRED_GLUE_TESTS
+
     priced = {op for _, op in REQUIRED_GLUE_TESTS}
     assert NON_PRICED_OPCODE not in priced, (
         f"{NON_PRICED_OPCODE} unexpectedly priced — adjust the test contaminant"
@@ -202,7 +206,8 @@ def test_non_priced_glue_candidate_emits_warning_and_appears_in_proposal(
 
     pattern = re.compile(rf"\b{re.escape(NON_PRICED_OPCODE)}\b")
     matching = [
-        r for r in caplog.records
+        r
+        for r in caplog.records
         if r.levelno >= logging.WARNING
         and r.name.startswith("evm_gasfit")
         and pattern.search(r.getMessage())
@@ -234,7 +239,8 @@ def test_priced_glue_opcode_does_not_emit_missing_glue_warning(
 
     pattern = re.compile(rf"\b{re.escape(priced_opcode)}\b")
     offending = [
-        r for r in caplog.records
+        r
+        for r in caplog.records
         if r.levelno >= logging.WARNING
         and r.name.startswith("evm_gasfit")
         and pattern.search(r.getMessage())

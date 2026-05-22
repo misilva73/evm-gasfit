@@ -30,7 +30,9 @@ def load_opcounts(path: Path) -> dict[str, dict[str, float]]:
     except json.JSONDecodeError as exc:
         raise ConfigError(f"opcounts JSON {path} is not valid JSON: {exc}") from exc
     if not isinstance(raw, dict):
-        raise ConfigError(f"opcounts JSON {path} must be a JSON object at the top level")
+        raise ConfigError(
+            f"opcounts JSON {path} must be a JSON object at the top level"
+        )
 
     out: dict[str, dict[str, float]] = {}
     for fixture, entry in raw.items():

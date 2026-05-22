@@ -8,7 +8,9 @@ import pandas as pd
 
 from evm_gasfit.io import report_unmatched_fixtures
 
-_FIXTURE_RE = re.compile(r"^(?P<test_file>[^.]+)\.py__(?P<test_name>[^\[]+)\[(?P<tokens>.*)\]$")
+_FIXTURE_RE = re.compile(
+    r"^(?P<test_file>[^.]+)\.py__(?P<test_name>[^\[]+)\[(?P<tokens>.*)\]$"
+)
 # Split a token into (key, value) at the first '_' whose value side starts with
 # an uppercase letter or a digit — that's the key/value transition. If no such
 # transition exists, fall back to the first '_'. Tokens with no '_' don't match
@@ -69,7 +71,11 @@ def build_fixtures_df(
     opcounts_fixtures = set(opcounts.keys())
     matched = report_unmatched_fixtures(runtimes_fixtures, opcounts_fixtures)
 
-    df = runtimes_df[runtimes_df["fixture_name"].isin(matched)].copy().reset_index(drop=True)
+    df = (
+        runtimes_df[runtimes_df["fixture_name"].isin(matched)]
+        .copy()
+        .reset_index(drop=True)
+    )
 
     # Parse fixture names once per unique fixture to avoid redundant work.
     unique_names = df["fixture_name"].drop_duplicates().tolist()

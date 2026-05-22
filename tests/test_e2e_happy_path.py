@@ -130,5 +130,9 @@ def test_minimal_pipeline_end_to_end(tmp_path: Path) -> None:
 
     # ---- anchor_rate * runtime_ms / 1000 + ceil rounding ----------------
     expected_decimal = anchor_rate * float(add_row["runtime_ms"]) / 1000.0
-    assert float(add_row["new_gas_decimal"]) == pytest.approx(expected_decimal, rel=1e-9)
-    assert int(add_row["new_gas_rounded"]) == math.ceil(float(add_row["new_gas_decimal"]))
+    assert float(add_row["new_gas_decimal"]) == pytest.approx(
+        expected_decimal, rel=1e-9
+    )
+    assert int(add_row["new_gas_rounded"]) == math.ceil(
+        float(add_row["new_gas_decimal"])
+    )

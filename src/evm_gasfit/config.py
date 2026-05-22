@@ -189,7 +189,9 @@ class Config(BaseModel):
     version: Literal[1]
     anchor_rate: float
     gas_costs: GasCostsSection
-    glue_adjustment: GlueAdjustmentSection = Field(default_factory=GlueAdjustmentSection)
+    glue_adjustment: GlueAdjustmentSection = Field(
+        default_factory=GlueAdjustmentSection
+    )
     modeling: ModelingSection = Field(default_factory=ModelingSection)
     output: OutputSection = Field(default_factory=OutputSection)
     # ``derived`` values are either ``str`` (alias form) or ``{formula: str}``.
@@ -202,7 +204,9 @@ class Config(BaseModel):
     raw_fork_fields: frozenset[str] = Field(default_factory=frozenset)
     param_universe: frozenset[str] = Field(default_factory=frozenset)
     warnings: list[str] = Field(default_factory=list)
-    derived_evaluated: dict[str, tuple[str, ast.Expression]] = Field(default_factory=dict)
+    derived_evaluated: dict[str, tuple[str, ast.Expression]] = Field(
+        default_factory=dict
+    )
 
     @model_validator(mode="after")
     def _cross_validate(self) -> "Config":
@@ -220,7 +224,9 @@ class Config(BaseModel):
             spec = preset.model_copy(update={"source_label": f"presets[{name}]"})
             resolved.append(spec)
         for i, spec in enumerate(self.models.custom):
-            spec_with_label = spec.model_copy(update={"source_label": f"models.custom[{i}]"})
+            spec_with_label = spec.model_copy(
+                update={"source_label": f"models.custom[{i}]"}
+            )
             resolved.append(spec_with_label)
         if not resolved:
             raise ConfigError(
@@ -259,9 +265,9 @@ class Config(BaseModel):
             for coef_name, gas_param in spec.model_params.items():
                 if gas_param in self.raw_fork_fields:
                     continue
-                candidates = (
-                    self.raw_fork_fields | proposed_by_model_params
-                ) - {gas_param}
+                candidates = (self.raw_fork_fields | proposed_by_model_params) - {
+                    gas_param
+                }
                 hint = get_close_matches(gas_param, list(candidates), n=1)
                 suffix = f"; did you mean {hint[0]!r}?" if hint else ""
                 msg = (
@@ -290,18 +296,14 @@ class Config(BaseModel):
             elif isinstance(raw_or_formula, dict) and "formula" in raw_or_formula:
                 formula = raw_or_formula["formula"]
                 if not isinstance(formula, str):
-                    raise ConfigError(
-                        f"derived[{name!r}].formula must be a string"
-                    )
+                    raise ConfigError(f"derived[{name!r}].formula must be a string")
                 raw = formula
             else:
                 raise ConfigError(
                     f"derived[{name!r}] must be a string alias or {{formula: <expr>}} mapping"
                 )
             tree = parse_formula(raw)
-            universe = (
-                self.raw_fork_fields | proposed_by_model_params | seen_derived
-            )
+            universe = self.raw_fork_fields | proposed_by_model_params | seen_derived
             for ident in names_referenced(tree):
                 if ident not in universe:
                     hint = get_close_matches(ident, list(universe), n=1)
@@ -343,10 +345,15 @@ def load_config(path: Path) -> Config:
     except ValidationError as exc:
         # Unwrap a ConfigError raised inside a validator (Pydantic wraps it).
         for err in exc.errors():
-            cause = err.get("ctx", {}).get("error") if isinstance(err.get("ctx"), dict) else None
+            cause = (
+                err.get("ctx", {}).get("error")
+                if isinstance(err.get("ctx"), dict)
+                else None
+            )
             if isinstance(cause, ConfigError):
                 raise cause from exc
         details = "; ".join(
-            f"{'.'.join(str(p) for p in err['loc'])}: {err['msg']}" for err in exc.errors()
+            f"{'.'.join(str(p) for p in err['loc'])}: {err['msg']}"
+            for err in exc.errors()
         )
         raise ConfigError(f"invalid config {path}: {details}") from exc

@@ -75,7 +75,12 @@ def test_multi_model_with_target_param_and_groups(tmp_path: Path) -> None:
         ],
     )
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
-        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.005, seed=7
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.005,
+        seed=7,
     )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
@@ -195,7 +200,12 @@ def test_multi_feature_regression_recovers_extra_coefficient(tmp_path: Path) -> 
         ],
     )
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
-        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=11
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.002,
+        seed=11,
     )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
@@ -208,9 +218,13 @@ def test_multi_feature_regression_recovers_extra_coefficient(tmp_path: Path) -> 
     assert float(row["value_sent_runtime_ms"]) == pytest.approx(
         true_value_sent_coef, rel=0.05
     )
-    assert {"value_sent_pvalue", "value_sent_conf_int_low", "value_sent_conf_int_high"}.issubset(
-        results.columns
-    )
+    assert {
+        "value_sent_pvalue",
+        "value_sent_conf_int_low",
+        "value_sent_conf_int_high",
+    }.issubset(results.columns)
 
     new_gas = pd.read_csv(out_dir / "new_gas.csv")
-    assert {"COLD_STORAGE_WRITE", "STORAGE_WRITE_PER_VALUE"}.issubset(set(new_gas["gas_param"]))
+    assert {"COLD_STORAGE_WRITE", "STORAGE_WRITE_PER_VALUE"}.issubset(
+        set(new_gas["gas_param"])
+    )

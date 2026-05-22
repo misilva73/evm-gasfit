@@ -78,9 +78,7 @@ def write_proposal_report(
     # Plots (if enabled and there are non-derived rows to plot).
     plots_enabled = config.output.plots
     new_gas_all_df = proposal_output.new_gas_all_df
-    plottable = new_gas_all_df[
-        new_gas_all_df["client_name"].astype(str).str.len() > 0
-    ]
+    plottable = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
     if plots_enabled and not plottable.empty:
         plot_proposal_heatmap(plottable, out_dir=out_dir)
         plot_proposal_by_client(plottable, out_dir=out_dir)

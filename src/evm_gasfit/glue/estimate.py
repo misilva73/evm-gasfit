@@ -43,8 +43,7 @@ def _pure_fit(
     opcode: str,
 ) -> NNLSResults | None:
     slice_df = fixtures_df[
-        (fixtures_df["client_name"] == client)
-        & (fixtures_df["test_name"] == opcode)
+        (fixtures_df["client_name"] == client) & (fixtures_df["test_name"] == opcode)
     ]
     if slice_df.empty or opcode not in slice_df.columns:
         _log.warning(

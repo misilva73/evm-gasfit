@@ -51,7 +51,9 @@ def write_runtime_report(
             for col in all_mb:
                 in_spec = col in spec.model_by
                 val = row.get(col) if col in row.index else None
-                present = not (val is None or (isinstance(val, float) and np.isnan(val)))
+                present = not (
+                    val is None or (isinstance(val, float) and np.isnan(val))
+                )
                 if in_spec != present:
                     match = False
                     break

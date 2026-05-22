@@ -80,13 +80,27 @@ def test_two_runs_with_same_seed_produce_byte_identical_csvs_and_md(
     fixtures = _main_fixtures()
     runtimes_csv = tmp_path / "runtimes.csv"
     opcounts_json = tmp_path / "opcounts.json"
-    write_runtimes_csv(runtimes_csv, fixtures, _two_client_models(), noise_pct=0.005, seed=42)
+    write_runtimes_csv(
+        runtimes_csv, fixtures, _two_client_models(), noise_pct=0.005, seed=42
+    )
     write_opcounts_json(opcounts_json, fixtures)
 
-    out_a = _run_with_seed(tmp_path, "a", seed=42, runtimes_csv=runtimes_csv,
-                           opcounts_json=opcounts_json, glue=False)
-    out_b = _run_with_seed(tmp_path, "b", seed=42, runtimes_csv=runtimes_csv,
-                           opcounts_json=opcounts_json, glue=False)
+    out_a = _run_with_seed(
+        tmp_path,
+        "a",
+        seed=42,
+        runtimes_csv=runtimes_csv,
+        opcounts_json=opcounts_json,
+        glue=False,
+    )
+    out_b = _run_with_seed(
+        tmp_path,
+        "b",
+        seed=42,
+        runtimes_csv=runtimes_csv,
+        opcounts_json=opcounts_json,
+        glue=False,
+    )
     _assert_bytes_equal(out_a, out_b, ALWAYS_ON_ARTIFACTS)
 
 
@@ -94,16 +108,38 @@ def test_different_seed_produces_different_bootstrap_outputs(tmp_path: Path) -> 
     fixtures = _main_fixtures()
     runtimes_csv = tmp_path / "runtimes.csv"
     opcounts_json = tmp_path / "opcounts.json"
-    write_runtimes_csv(runtimes_csv, fixtures, _two_client_models(), noise_pct=0.01, seed=42)
+    write_runtimes_csv(
+        runtimes_csv, fixtures, _two_client_models(), noise_pct=0.01, seed=42
+    )
     write_opcounts_json(opcounts_json, fixtures)
 
-    out_42 = _run_with_seed(tmp_path, "42", seed=42, runtimes_csv=runtimes_csv,
-                            opcounts_json=opcounts_json, glue=False)
-    out_99 = _run_with_seed(tmp_path, "99", seed=99, runtimes_csv=runtimes_csv,
-                            opcounts_json=opcounts_json, glue=False)
+    out_42 = _run_with_seed(
+        tmp_path,
+        "42",
+        seed=42,
+        runtimes_csv=runtimes_csv,
+        opcounts_json=opcounts_json,
+        glue=False,
+    )
+    out_99 = _run_with_seed(
+        tmp_path,
+        "99",
+        seed=99,
+        runtimes_csv=runtimes_csv,
+        opcounts_json=opcounts_json,
+        glue=False,
+    )
 
-    r42 = pd.read_csv(out_42 / "results.csv").sort_values("client_name").reset_index(drop=True)
-    r99 = pd.read_csv(out_99 / "results.csv").sort_values("client_name").reset_index(drop=True)
+    r42 = (
+        pd.read_csv(out_42 / "results.csv")
+        .sort_values("client_name")
+        .reset_index(drop=True)
+    )
+    r99 = (
+        pd.read_csv(out_99 / "results.csv")
+        .sort_values("client_name")
+        .reset_index(drop=True)
+    )
     assert list(r42["client_name"]) == list(r99["client_name"])
 
     bootstrap_cols = (
@@ -121,12 +157,29 @@ def test_glue_on_pipeline_is_also_deterministic(tmp_path: Path) -> None:
     all_fixtures = _main_fixtures() + make_glue_driver_fixtures()
     runtimes_csv = tmp_path / "runtimes.csv"
     opcounts_json = tmp_path / "opcounts.json"
-    write_runtimes_csv(runtimes_csv, all_fixtures, {"geth": ClientModel(intercept=50.0, slope=2.0e-5)},
-                       noise_pct=0.003, seed=42)
+    write_runtimes_csv(
+        runtimes_csv,
+        all_fixtures,
+        {"geth": ClientModel(intercept=50.0, slope=2.0e-5)},
+        noise_pct=0.003,
+        seed=42,
+    )
     write_opcounts_json(opcounts_json, all_fixtures)
 
-    out_a = _run_with_seed(tmp_path, "a", seed=42, runtimes_csv=runtimes_csv,
-                           opcounts_json=opcounts_json, glue=True)
-    out_b = _run_with_seed(tmp_path, "b", seed=42, runtimes_csv=runtimes_csv,
-                           opcounts_json=opcounts_json, glue=True)
+    out_a = _run_with_seed(
+        tmp_path,
+        "a",
+        seed=42,
+        runtimes_csv=runtimes_csv,
+        opcounts_json=opcounts_json,
+        glue=True,
+    )
+    out_b = _run_with_seed(
+        tmp_path,
+        "b",
+        seed=42,
+        runtimes_csv=runtimes_csv,
+        opcounts_json=opcounts_json,
+        glue=True,
+    )
     _assert_bytes_equal(out_a, out_b, ALWAYS_ON_ARTIFACTS + GLUE_ARTIFACTS)

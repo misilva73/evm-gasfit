@@ -78,9 +78,15 @@ def write_glue_report(
             lines.append("")
 
             if plots_enabled:
-                plot_glue_regression(fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir)
-                plot_glue_bootstrap(fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir)
-                plot_glue_diagnostics(fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir)
+                plot_glue_regression(
+                    fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+                )
+                plot_glue_bootstrap(
+                    fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+                )
+                plot_glue_diagnostics(
+                    fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+                )
                 base = slug(glue_opcode, client)
                 for family in ("regression", "bootstrap", "diagnostics"):
                     lines.append(f"![](figs/glue/{base}__{family}.png)")

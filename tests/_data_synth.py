@@ -70,7 +70,9 @@ class ClientModel:
     extra_coefs: dict[str, float] = field(default_factory=dict)
 
 
-def runtime_for(spec: FixtureSpec, model: ClientModel, rng: np.random.Generator, noise_pct: float) -> float:
+def runtime_for(
+    spec: FixtureSpec, model: ClientModel, rng: np.random.Generator, noise_pct: float
+) -> float:
     val = model.intercept + model.slope * spec.target_opcount
     for param_name, coef in model.extra_coefs.items():
         if param_name not in spec.params:
@@ -207,7 +209,8 @@ def cross_product_fixtures(
                     target_opcode=target,
                     target_opcount=bl * target_opcount_per_million,
                     extra_opcounts={
-                        op: bl * per_m for op, per_m in extra_opcount_per_million.items()
+                        op: bl * per_m
+                        for op, per_m in extra_opcount_per_million.items()
                     },
                 )
             )
@@ -344,50 +347,56 @@ def run_pipeline(
 # Single source of truth so tests don't drift if a column is renamed.
 
 
-RESULTS_COLUMNS: frozenset[str] = frozenset({
-    "test_name",
-    "client_name",
-    "target_opcode",
-    "nobs",
-    "intercept_runtime_ms",
-    "intercept_pvalue",
-    "rsquared",
-    "rsquared_adj",
-    "target_coef_runtime_ms",
-    "target_coef_pvalue",
-    "target_coef_conf_int_low",
-    "target_coef_conf_int_high",
-})
+RESULTS_COLUMNS: frozenset[str] = frozenset(
+    {
+        "test_name",
+        "client_name",
+        "target_opcode",
+        "nobs",
+        "intercept_runtime_ms",
+        "intercept_pvalue",
+        "rsquared",
+        "rsquared_adj",
+        "target_coef_runtime_ms",
+        "target_coef_pvalue",
+        "target_coef_conf_int_low",
+        "target_coef_conf_int_high",
+    }
+)
 
-NEW_GAS_ALL_PARAMS_COLUMNS: frozenset[str] = frozenset({
-    "gas_param",
-    "client_name",
-    "runtime_ms",
-    "pvalue",
-    "conf_int_low",
-    "conf_int_high",
-    "test_name",
-    "target_opcode",
-    "model_coef_name",
-    "glue_adjustment",
-    "new_gas_decimal",
-    "new_gas_rounded",
-    "poor_fit",
-})
+NEW_GAS_ALL_PARAMS_COLUMNS: frozenset[str] = frozenset(
+    {
+        "gas_param",
+        "client_name",
+        "runtime_ms",
+        "pvalue",
+        "conf_int_low",
+        "conf_int_high",
+        "test_name",
+        "target_opcode",
+        "model_coef_name",
+        "glue_adjustment",
+        "new_gas_decimal",
+        "new_gas_rounded",
+        "poor_fit",
+    }
+)
 
-NEW_GAS_COLUMNS: frozenset[str] = frozenset({
-    "gas_param",
-    "client_name",
-    "runtime_ms",
-    "conf_int_low",
-    "conf_int_high",
-    "selected_test",
-    "selected_opcode",
-    "selected_model_coef_name",
-    "glue_adjustment",
-    "new_gas_decimal",
-    "new_gas_rounded",
-})
+NEW_GAS_COLUMNS: frozenset[str] = frozenset(
+    {
+        "gas_param",
+        "client_name",
+        "runtime_ms",
+        "conf_int_low",
+        "conf_int_high",
+        "selected_test",
+        "selected_opcode",
+        "selected_model_coef_name",
+        "glue_adjustment",
+        "new_gas_decimal",
+        "new_gas_rounded",
+    }
+)
 
 ALWAYS_ON_ARTIFACTS: tuple[str, ...] = (
     "results.csv",

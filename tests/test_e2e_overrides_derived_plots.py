@@ -73,7 +73,12 @@ def _build_simple_inputs(
     if derived is not None:
         config["derived"] = derived
     return write_standard_inputs(
-        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=9
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.002,
+        seed=9,
     )
 
 
@@ -100,7 +105,9 @@ def test_derived_alias_and_formula_evaluate(tmp_path: Path) -> None:
         "STORAGE_CLEAR_REFUND": {
             "formula": "(COLD_STORAGE_WRITE + COLD_STORAGE_ACCESS) * 4800 / 5000"
         },
-        "DOUBLED_ACCESS_LIST_ADDRESS": {"formula": "ACCESS_LIST_ADDRESS * 2"},  # chained
+        "DOUBLED_ACCESS_LIST_ADDRESS": {
+            "formula": "ACCESS_LIST_ADDRESS * 2"
+        },  # chained
     }
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build_simple_inputs(
         tmp_path, plots=False, derived=derived

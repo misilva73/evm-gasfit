@@ -101,7 +101,9 @@ def test_preset_plus_custom_concatenate(tmp_path: Path) -> None:
     ],
     ids=["unknown_preset_name", "empty_presets_and_empty_custom"],
 )
-def test_invalid_models_section_is_config_error(tmp_path: Path, models_section: dict) -> None:
+def test_invalid_models_section_is_config_error(
+    tmp_path: Path, models_section: dict
+) -> None:
     config_yaml = tmp_path / "config.yaml"
     config = base_config()
     config["models"] = models_section
@@ -113,7 +115,9 @@ def test_invalid_models_section_is_config_error(tmp_path: Path, models_section: 
         GasFit.from_config(config_yaml)
 
 
-def test_duplicate_test_name_across_preset_and_custom_is_allowed(tmp_path: Path) -> None:
+def test_duplicate_test_name_across_preset_and_custom_is_allowed(
+    tmp_path: Path,
+) -> None:
     fixtures = _add_fixtures()
     models = {"geth": ClientModel(intercept=80.0, slope=1.0e-5)}
     config = base_config(

@@ -1106,7 +1106,70 @@ preferable to ones that add no information.
 
 ---
 
-## 12. Out of scope
+## 12. Continuous integration
+
+GitHub Actions workflows live under `.github/workflows/`:
+
+- **`ci.yml`** — runs on every pull request and on push to `main`.
+  - `lint` job: `ruff format --check` and `ruff check` on Python 3.12. The
+    tree is kept formatted to ruff defaults (no `[tool.ruff]` config), so this
+    job catches drift before merge.
+  - `test` job: pytest, with `fail-fast: false` so one cell's failure does not
+    suppress the others. Matrix cells:
+    - Python 3.10 / 3.11 / 3.12 with `pip install -e .` — `ethereum-execution`
+      is **not** installed, so the §2.4 `defaults/_fallback.py` path is what
+      gets exercised. This is the path most users hit, hence three Python
+      versions.
+    - Python 3.12 with `pip install -e ".[specs]"` — installs
+      `ethereum-execution` and exercises the execution-specs source. One cell
+      is enough; the path itself doesn't vary across Python versions.
+  - `build` job: `python -m build` produces sdist + wheel, then
+    `twine check dist/*` verifies the package metadata. Catches packaging
+    breakage (broken README rendering, missing files, invalid metadata) on PRs
+    rather than at release time — the same `python -m build` step runs in
+    `release.yml` below, so failures here are a leading indicator.
+  - The `dev` PEP 735 dependency group is not used in CI — pytest is installed
+    by name, and ruff is installed in the lint job. CI avoids depending on a
+    pip version new enough for `--group`.
+- **`docs.yml`** — see §11.5. Builds and force-pushes to `gh-pages` on push to
+  `main`. No PR-time build today; if doc breakage on PRs becomes a recurring
+  problem, add a `pull_request` trigger that runs `mkdocs build --strict`
+  without the deploy step.
+- **`release.yml`** — triggered by GitHub Release publication
+  (`on: release: types: [published]`). Two jobs:
+  1. `build` — `python -m build` produces sdist + wheel, `twine check` validates
+     them, and the `dist/` directory is uploaded as a workflow artifact.
+  2. `publish` — downloads the artifact and pushes to PyPI via
+     `pypa/gh-action-pypi-publish`. Runs in the `pypi` GitHub Environment with
+     `id-token: write`, so authentication uses PyPI **Trusted Publishing**
+     (OIDC) — no long-lived API tokens stored in the repo.
+
+  One-time setup before the first release works:
+  - On PyPI: configure the project as a pending publisher pointing at this
+    repo, workflow filename `release.yml`, environment `pypi`. See
+    <https://docs.pypi.org/trusted-publishers/>.
+  - On GitHub: create an Environment named `pypi` under repo
+    settings → Environments. Protection rules (required reviewers, branch
+    restrictions) are optional but recommended.
+  - In `pyproject.toml`: bump `version` from `0.0.1` to the target release
+    string before cutting the release. The package uses static versioning;
+    `setuptools-scm` is intentionally not in the stack.
+
+  Release flow: bump `version` in `pyproject.toml` → merge to `main` → cut a
+  GitHub Release tagged `vX.Y.Z` → workflow runs → package appears on PyPI.
+
+## 12.1 Dependabot
+
+`.github/dependabot.yml` opens weekly PRs to bump pinned versions of GitHub
+Actions used across the workflows above (the `uses: actions/checkout@v4`,
+`uses: pypa/gh-action-pypi-publish@release/v1`, etc.). The pip ecosystem is
+**not** enabled today — `pyproject.toml` uses loose `>=` constraints which
+dependabot has no clean strategy to bump. If/when the project tightens to
+exact pins or grows a lockfile, add a `pip` entry to the dependabot config.
+
+---
+
+## 13. Out of scope
 
 - Data ingestion from Benchmarkoor or gas-bench. The new repo accepts CSV/JSON
   inputs only — gathering and shaping those inputs stays in this repo

@@ -74,7 +74,12 @@ def test_fixture_param_rename_passes_through_numeric_value(tmp_path: Path) -> No
     models = {"geth": ClientModel(intercept=70.0, slope=true_slope)}
     config = base_config(models_custom=[_ACCOUNT_VALUE_SENT_SPEC])
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
-        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=3
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.002,
+        seed=3,
     )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
@@ -96,7 +101,12 @@ def test_fixture_param_value_remap_translates_strings(tmp_path: Path) -> None:
     models = {"geth": ClientModel(intercept=60.0, slope=1.2e-5)}
     config = base_config(models_custom=[_SSTORE_REMAP_SPEC])
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
-        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=5
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.002,
+        seed=5,
     )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
@@ -109,7 +119,9 @@ def test_fixture_param_value_remap_translates_strings(tmp_path: Path) -> None:
     assert "True" not in set(results["update"].astype(str))
 
 
-def test_two_specs_can_share_derived_name_with_different_sources(tmp_path: Path) -> None:
+def test_two_specs_can_share_derived_name_with_different_sources(
+    tmp_path: Path,
+) -> None:
     """The derived column is per-spec — two specs may both declare `update`
     from different raw params."""
     fixtures = _account_fixtures(values=("0", "1")) + _sstore_fixtures()
@@ -122,7 +134,12 @@ def test_two_specs_can_share_derived_name_with_different_sources(tmp_path: Path)
     }
     config = base_config(models_custom=[_ACCOUNT_VALUE_SENT_SPEC, _SSTORE_REMAP_SPEC])
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
-        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=9
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.002,
+        seed=9,
     )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
@@ -139,7 +156,9 @@ def test_two_specs_can_share_derived_name_with_different_sources(tmp_path: Path)
     # Only target_coef params survive: `update` is constant within each
     # per-group fit and is dropped by the one-value-extras rule.
     expected = {"COLD_ACCOUNT_ACCESS", "COLD_STORAGE_WRITE"}
-    assert expected.issubset(proposed), f"new_gas.csv missing params: {expected - proposed}"
+    assert expected.issubset(proposed), (
+        f"new_gas.csv missing params: {expected - proposed}"
+    )
 
 
 def test_unmapped_source_value_raises(tmp_path: Path) -> None:
@@ -155,7 +174,12 @@ def test_unmapped_source_value_raises(tmp_path: Path) -> None:
     }
     config = base_config(models_custom=[spec])
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
-        tmp_path, fixtures=fixtures, models=models, config=config, noise_pct=0.002, seed=13
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.002,
+        seed=13,
     )
 
     from evm_gasfit import GasFit

@@ -5,11 +5,14 @@ package; analysis-only (no data ingestion).
 
 ## Status
 
-Greenfield. The package skeleton exists ([src/evm_gasfit/__init__.py](src/evm_gasfit/__init__.py))
-but **no modules are implemented yet**. The e2e test suite under [tests/](tests/)
-is the executable spec — it imports the public API (`from evm_gasfit import GasFit`,
-the `evm-gasfit run` CLI, etc.) and drives implementation by failing until each
-piece lands.
+First end-to-end pass landed. Every module in the §6 target layout exists
+([config.py](src/evm_gasfit/config.py), [io/](src/evm_gasfit/io/),
+[modeling/](src/evm_gasfit/modeling/), [glue/](src/evm_gasfit/glue/),
+[proposal/](src/evm_gasfit/proposal/), [reports/](src/evm_gasfit/reports/),
+[defaults/](src/evm_gasfit/defaults/), [api.py](src/evm_gasfit/api.py),
+[cli.py](src/evm_gasfit/cli.py), [errors.py](src/evm_gasfit/errors.py)) and the
+full e2e suite under [tests/](tests/) passes. The e2e tests remain the executable
+spec — when changing behavior, run the relevant test, watch it fail, make it pass.
 
 ## Source of truth
 
@@ -90,6 +93,10 @@ pytest
 # run a single test file
 pytest tests/test_e2e_cli.py -v
 
+# lint + format check (matches CI)
+ruff format --check .
+ruff check .
+
 # install the optional ethereum-execution dependency (for live fork gas costs)
 pip install -e ".[specs]"
 
@@ -118,8 +125,12 @@ mkdocs.yml                # docs site config (see plan §11)
 docs/
 ├── index.md              # landing page
 └── api.md                # mkdocstrings-rendered public API reference
-.github/workflows/
-└── docs.yml              # auto-deploys docs to gh-pages on push to main
+.github/
+├── dependabot.yml        # weekly bumps for github-actions
+└── workflows/
+    ├── ci.yml            # lint + pytest matrix + build verification on PRs and main
+    ├── docs.yml          # auto-deploys docs to gh-pages on push to main
+    └── release.yml       # publishes to PyPI on GitHub Release (Trusted Publishing)
 ```
 
 ## Notes for AI agents

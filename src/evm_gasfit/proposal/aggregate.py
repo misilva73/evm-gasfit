@@ -70,7 +70,9 @@ def expand_to_per_client(
             for col in model_by_cols:
                 in_spec = col in spec.model_by
                 val = res_row.get(col) if col in res_row.index else None
-                is_present = not (val is None or (isinstance(val, float) and np.isnan(val)))
+                is_present = not (
+                    val is None or (isinstance(val, float) and np.isnan(val))
+                )
                 if in_spec and not is_present:
                     spec_match = False
                     break

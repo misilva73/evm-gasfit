@@ -28,9 +28,7 @@ PRICED_GLUE_OPCODES: list[str] = PURE_GLUE_OPCODES + CYCLE_GLUE_OPCODES
 
 # (test_name, target_opcode) pairs the loader expects to see in the runtime
 # inputs whenever glue adjustment is enabled.
-REQUIRED_GLUE_TESTS: list[tuple[str, str]] = [
-    (op, op) for op in PRICED_GLUE_OPCODES
-]
+REQUIRED_GLUE_TESTS: list[tuple[str, str]] = [(op, op) for op in PRICED_GLUE_OPCODES]
 
 
 def validate_inputs(fixtures_df: pd.DataFrame) -> None:

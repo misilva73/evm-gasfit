@@ -118,7 +118,9 @@ def test_glue_enabled_writes_files_and_adjusts_slope(tmp_path: Path) -> None:
 
     # new_gas_decimal = anchor_rate * post-adjustment runtime_ms / 1000.
     expected_decimal = anchor_rate * float(add_row["runtime_ms"]) / 1000.0
-    assert float(add_row["new_gas_decimal"]) == pytest.approx(expected_decimal, rel=1e-9)
+    assert float(add_row["new_gas_decimal"]) == pytest.approx(
+        expected_decimal, rel=1e-9
+    )
 
 
 def test_glue_missing_required_test_raises(tmp_path: Path) -> None:
