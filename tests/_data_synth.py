@@ -220,24 +220,30 @@ def cross_product_fixtures(
 def make_glue_driver_fixtures(
     target_opcount_per_million: float = 2_000_000.0,
 ) -> list[FixtureSpec]:
-    """Driver fixtures for every required (test_name, target_opcode) pair.
+    """Driver fixtures for every priced glue spec with a driver test.
 
-    Sources the pair list from `evm_gasfit.glue.required.REQUIRED_GLUE_TESTS`
-    so the test suite tracks the priced-glue set without restating it.
+    Walks `evm_gasfit.glue.required.PRICED_GLUE_SPECS`, generating one
+    block-limit sweep per family member. Family specs (DUP/SWAP/PUSH)
+    therefore produce one sweep per `DUPn`/`SWAPn`/`PUSHn`; the e2e
+    pipeline collapses them into one canonical estimate. Specs without
+    a driver test (POP, STOP) are skipped.
     """
-    from evm_gasfit.glue.required import REQUIRED_GLUE_TESTS
+    from evm_gasfit.glue.required import PRICED_GLUE_SPECS
 
     fixtures: list[FixtureSpec] = []
-    for test_name, target_op in REQUIRED_GLUE_TESTS:
-        fixtures.extend(
-            make_block_limit_fixtures(
-                test_file=test_name,
-                test_name=test_name,
-                target_opcode=target_op,
-                params={"opcode": target_op},
-                target_opcount_per_million=target_opcount_per_million,
+    for spec in PRICED_GLUE_SPECS:
+        if spec.test_name is None:
+            continue
+        for member in spec.members:
+            fixtures.extend(
+                make_block_limit_fixtures(
+                    test_file=spec.test_name,
+                    test_name=spec.test_name,
+                    target_opcode=member,
+                    params={"opcode": member},
+                    target_opcount_per_million=target_opcount_per_million,
+                )
             )
-        )
     return fixtures
 
 

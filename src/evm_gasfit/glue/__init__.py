@@ -7,18 +7,22 @@ from .detect import compute_glue_opcodes_by_test, detect_missing_glue
 from .estimate import GlueEstimateOutput, estimate_glue
 from .required import (
     CYCLE_GLUE_OPCODES,
+    MEMBER_TO_CANONICAL,
     PRICED_GLUE_OPCODES,
+    PRICED_GLUE_SPECS,
     PURE_GLUE_OPCODES,
-    REQUIRED_GLUE_TESTS,
+    GlueOpcodeSpec,
     validate_inputs,
 )
 
 __all__ = [
     "CYCLE_GLUE_OPCODES",
     "GlueEstimateOutput",
+    "GlueOpcodeSpec",
+    "MEMBER_TO_CANONICAL",
     "PRICED_GLUE_OPCODES",
+    "PRICED_GLUE_SPECS",
     "PURE_GLUE_OPCODES",
-    "REQUIRED_GLUE_TESTS",
     "compute_glue_adjustment",
     "compute_glue_opcodes_by_test",
     "detect_missing_glue",

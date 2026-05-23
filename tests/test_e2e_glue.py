@@ -1,24 +1,30 @@
 """End-to-end: glue-opcode adjustment toggle.
 
-Three paths exercised:
+Paths exercised:
 
 - glue off (the default): glue CSVs and the glue markdown report are not
   produced; `new_gas_all_params.csv` still carries a `glue_adjustment`
   column, uniformly zero.
-- glue on: the 12 hardcoded glue opcodes are estimated and written, the
-  per-test ratio table is written, and a fit whose target opcode is
-  contaminated by a glue opcode (POP background in the ADD fit) ends up
-  with a strictly positive `glue_adjustment` on `new_gas_all_params.csv`.
+- glue on: every priced spec with a driver fixture is estimated and written,
+  the per-test ratio table is written, and a fit whose target opcode is
+  contaminated by a priced glue opcode ends up with a strictly positive
+  `glue_adjustment` on `new_gas_all_params.csv`.
+- glue on with family driver fixtures spanning multiple members
+  (DUP1, DUP2, ...): the family is collapsed to a single `DUP` row, not one
+  row per member.
 - glue on without the required driver fixtures: the pipeline refuses to
   proceed.
+- glue on with the *optional* drivers (POP, STOP) absent: the pipeline
+  proceeds — those specs are silently skipped.
 
-The priced glue-opcode set is sourced from
-`evm_gasfit.glue.required.REQUIRED_GLUE_TESTS` so the tests track the
+The expected priced-glue name set is sourced from
+`evm_gasfit.glue.required.PRICED_GLUE_SPECS` so the tests track the
 implementation without restating the set.
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -34,6 +40,13 @@ from _data_synth import (
 )
 
 
+def _active_priced_names() -> set[str]:
+    """Canonical names with a driver fixture (POP/STOP excluded)."""
+    from evm_gasfit.glue.required import PRICED_GLUE_SPECS
+
+    return {s.name for s in PRICED_GLUE_SPECS if s.test_name is not None}
+
+
 def _main_fixtures(extra_per_million: dict[str, float] | None = None):
     return make_block_limit_fixtures(
         test_file="test_arithmetic",
@@ -45,7 +58,7 @@ def _main_fixtures(extra_per_million: dict[str, float] | None = None):
 
 
 def test_glue_disabled_skips_files(tmp_path: Path) -> None:
-    fixtures = _main_fixtures(extra_per_million={"POP": 500_000})
+    fixtures = _main_fixtures(extra_per_million={"ISZERO": 500_000})
     models = {"geth": ClientModel(intercept=80.0, slope=1.0e-5)}
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path, fixtures=fixtures, models=models, config=base_config(), seed=1
@@ -65,13 +78,13 @@ def test_glue_disabled_skips_files(tmp_path: Path) -> None:
 
 
 def test_glue_enabled_writes_files_and_adjusts_slope(tmp_path: Path) -> None:
-    from evm_gasfit.glue.required import REQUIRED_GLUE_TESTS
+    priced_glue = _active_priced_names()
 
-    priced_glue = {op for _, op in REQUIRED_GLUE_TESTS}
-
-    # POP background contaminates the ADD fit so the adjustment must subtract
-    # the glue contribution out.
-    main_fixtures = _main_fixtures(extra_per_million={"POP": 500_000})
+    # ISZERO background contaminates the ADD fit so the adjustment must
+    # subtract the glue contribution out. ISZERO is a priced glue opcode
+    # *with* a driver fixture, so it ends up with a non-NaN glue runtime
+    # the adjuster can apply.
+    main_fixtures = _main_fixtures(extra_per_million={"ISZERO": 500_000})
     all_fixtures = main_fixtures + make_glue_driver_fixtures()
     models = {"geth": ClientModel(intercept=50.0, slope=2.0e-5)}
     anchor_rate = 1.0e8
@@ -98,7 +111,7 @@ def test_glue_enabled_writes_files_and_adjusts_slope(tmp_path: Path) -> None:
         "p_value",
         "rsquared",
     }.issubset(glue_results.columns)
-    # Exactly the priced opcodes appear, no more, no fewer.
+    # Exactly the priced opcodes with a driver appear (POP/STOP excluded).
     assert set(glue_results["glue_opcode"]) == priced_glue
     assert len(glue_results) == len(priced_glue)  # one client → one row per opcode
 
@@ -112,8 +125,9 @@ def test_glue_enabled_writes_files_and_adjusts_slope(tmp_path: Path) -> None:
     assert len(add_rows) == 1
     add_row = add_rows.iloc[0]
 
-    # POP contaminates the ADD fit at half the target rate, so the adjustment
-    # must be strictly positive (negative values are clipped to zero).
+    # ISZERO contaminates the ADD fit at half the target rate, so the
+    # adjustment must be strictly positive (negative values are clipped to
+    # zero).
     assert float(add_row["glue_adjustment"]) > 0
 
     # new_gas_decimal = anchor_rate * post-adjustment runtime_ms / 1000.
@@ -121,6 +135,35 @@ def test_glue_enabled_writes_files_and_adjusts_slope(tmp_path: Path) -> None:
     assert float(add_row["new_gas_decimal"]) == pytest.approx(
         expected_decimal, rel=1e-9
     )
+
+
+def test_glue_family_collapses_to_single_canonical_row(tmp_path: Path) -> None:
+    """DUP1..DUP16 driver fixtures collapse to a single `DUP` glue row."""
+    fixtures = _main_fixtures() + make_glue_driver_fixtures()
+    models = {"geth": ClientModel(intercept=50.0, slope=2.0e-5)}
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=base_config(glue_enabled=True),
+        seed=11,
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+    glue_results = pd.read_csv(out_dir / "glue_results.csv")
+    dup_rows = glue_results[glue_results["glue_opcode"] == "DUP"]
+    # Exactly one DUP row per client; no DUP1/DUP3/... rows leaked through.
+    assert len(dup_rows) == glue_results["client_name"].nunique()
+    leaked = [
+        op
+        for op in glue_results["glue_opcode"].unique()
+        if op.startswith("DUP") and op != "DUP"
+    ]
+    assert leaked == [], f"unexpected per-member DUP rows: {leaked!r}"
+
+    # DUP's recovered slope should match the synthetic model (2e-5).
+    dup_slope = float(dup_rows.iloc[0]["glue_runtime_ms"])
+    assert dup_slope == pytest.approx(2.0e-5, rel=0.1)
 
 
 def test_glue_missing_required_test_raises(tmp_path: Path) -> None:
@@ -140,3 +183,30 @@ def test_glue_missing_required_test_raises(tmp_path: Path) -> None:
     # estimate_glue() — implementations may detect at different stages.
     with pytest.raises(Exception):
         run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+
+def test_glue_missing_optional_driver_does_not_raise(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """POP/STOP have no driver fixtures in any current dataset.
+
+    The pipeline must still run; the spec rows just don't appear in
+    `glue_results.csv`. (No new warning is needed for the always-missing
+    POP/STOP case — see the validate_inputs policy.)
+    """
+    all_fixtures = _main_fixtures() + make_glue_driver_fixtures()
+    models = {"geth": ClientModel(intercept=50.0, slope=2.0e-5)}
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=all_fixtures,
+        models=models,
+        config=base_config(glue_enabled=True),
+        seed=21,
+    )
+
+    with caplog.at_level(logging.WARNING, logger="evm_gasfit"):
+        run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+    glue_results = pd.read_csv(out_dir / "glue_results.csv")
+    assert "POP" not in set(glue_results["glue_opcode"])
+    assert "STOP" not in set(glue_results["glue_opcode"])

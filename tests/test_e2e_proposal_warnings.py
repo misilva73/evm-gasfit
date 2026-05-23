@@ -190,9 +190,9 @@ def _build_contaminant_inputs(
 def test_non_priced_glue_candidate_emits_warning_and_appears_in_proposal(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    from evm_gasfit.glue.required import REQUIRED_GLUE_TESTS
+    from evm_gasfit.glue.required import PRICED_GLUE_OPCODES
 
-    priced = {op for _, op in REQUIRED_GLUE_TESTS}
+    priced = set(PRICED_GLUE_OPCODES)
     assert NON_PRICED_OPCODE not in priced, (
         f"{NON_PRICED_OPCODE} unexpectedly priced — adjust the test contaminant"
     )

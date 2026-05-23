@@ -1,9 +1,14 @@
 """Per-group ratio/correlation detection of glue opcodes.
 
 Groups fixtures by ``(test_name, target_opcode, *model_by)`` (no client axis —
-opcode counts are a property of the fixture). For each non-target column the
+opcode counts are a property of the fixture). For each non-target opcode the
 detector computes the Pearson correlation against ``opcount`` and the mean
-delta ratio; opcodes passing both thresholds are returned. The result drives
+delta ratio; opcodes passing both thresholds are returned.
+
+Family-member columns (``DUP1``..``DUP16``, ``SWAP1``..``SWAP16``,
+``PUSH1``..``PUSH32``) are folded into their canonical name (``DUP``,
+``SWAP``, ``PUSH``) before the threshold pass, so a single family row is
+emitted instead of one per member. The result drives
 ``glue_opcodes_by_test.csv`` and the missing-glue warning.
 """
 
@@ -22,7 +27,7 @@ from evm_gasfit.modeling.estimate import (
     _resolve_target_opcode,
 )
 
-from .required import PRICED_GLUE_OPCODES
+from .required import MEMBER_TO_CANONICAL, PRICED_GLUE_OPCODES
 
 _log = logging.getLogger("evm_gasfit.glue")
 
@@ -69,14 +74,28 @@ def _spec_groups(
     return out
 
 
-def _opcode_columns(group_df: pd.DataFrame, target_opcode: str) -> list[str]:
-    return [
+def _canonical_columns(agg: pd.DataFrame, target_opcode: str) -> dict[str, np.ndarray]:
+    """Fold per-mnemonic opcount columns into canonical-name sums.
+
+    The target opcode is excluded from every family sum so a target that
+    happens to be a family member (e.g. ``DUP3``) cannot spuriously match
+    its own canonical family.
+    """
+    raw_cols = [
         c
-        for c in group_df.columns
+        for c in agg.columns
         if c not in _NON_OPCODE_COLUMNS
         and c != target_opcode
-        and pd.api.types.is_numeric_dtype(group_df[c])
+        and pd.api.types.is_numeric_dtype(agg[c])
     ]
+    members_by_canonical: dict[str, list[str]] = {}
+    for col in raw_cols:
+        canonical = MEMBER_TO_CANONICAL.get(col, col)
+        members_by_canonical.setdefault(canonical, []).append(col)
+    return {
+        canonical: agg[cols].astype(float).sum(axis=1).to_numpy()
+        for canonical, cols in members_by_canonical.items()
+    }
 
 
 def _passes_thresholds(
@@ -110,8 +129,8 @@ def compute_glue_opcodes_by_test(
 
     Returns:
         DataFrame with columns ``test_name``, ``target_opcode``, every
-        ``model_by`` column observed across specs, ``glue_opcode``, ``corr``,
-        ``ratio``.
+        ``model_by`` column observed across specs, ``glue_opcode``
+        (canonical name), ``corr``, ``ratio``.
     """
     model_by_cols: list[str] = sorted(
         {c for spec in model_specs for c in spec.model_by}
@@ -129,8 +148,7 @@ def compute_glue_opcodes_by_test(
                 continue
             target_opcode = group_df["target_opcode"].iloc[0]
             opcount = agg["opcount"].astype(float).to_numpy()
-            for col in _opcode_columns(agg, target_opcode):
-                counts = agg[col].astype(float).to_numpy()
+            for canonical, counts in _canonical_columns(agg, target_opcode).items():
                 keep, corr, ratio = _passes_thresholds(counts, opcount, eps)
                 if not keep:
                     continue
@@ -140,7 +158,7 @@ def compute_glue_opcodes_by_test(
                 }
                 for mb in model_by_cols:
                     row[mb] = group_values.get(mb)
-                row["glue_opcode"] = col
+                row["glue_opcode"] = canonical
                 row["corr"] = corr
                 row["ratio"] = ratio
                 rows.append(row)

@@ -591,31 +591,51 @@ statistics. No `glue_adjustment` column on
 **Off by default.** Enabled by `glue_adjustment.enabled: true`.
 
 Two-tier estimation, replacing the single regression-per-client used today
-([src/glue.py](https://github.com/misilva73/evm-gas-repricings/blob/main/src/glue.py)):
+([src/glue.py](https://github.com/misilva73/evm-gas-repricings/blob/main/src/glue.py)).
+Each priced opcode is described by a `GlueOpcodeSpec` in `glue/required.py`
+that binds a **canonical name** (e.g. `DUP`) to the driver `test_name`, the
+opcode mnemonics that belong to the family (`DUP1`..`DUP16`), and an
+optional `test_opcode_filter` for tests that drive multiple opcodes (e.g.
+`MLOAD` inside `test_memory_access`).
 
 1. **Pure glue opcodes** — opcodes that have no glue dependency of their own.
-   Fit one **single-feature** NNLS per `(client, opcode)`:
-   `test_runtime_ms = intercept + glue_runtime_ms · opcode_count`. Fixed list:
-   `ISZERO`, `JUMPDEST`, `POP`, `STOP`, `SWAP`.
+   Fit one **single-feature** NNLS per `(client, canonical_name)`:
+   `test_runtime_ms = intercept + glue_runtime_ms · canonical_count`, where
+   `canonical_count` is the row-wise sum of the spec's family members.
+   Canonical names: `ISZERO`, `JUMPDEST`, `POP`, `STOP`, `SWAP`
+   (`SWAP1`..`SWAP16` collapse into one `SWAP` feature).
 
 2. **Cycle glue opcodes** — opcodes that appear as both glue and target with a
-   shared dependency. Fit one **joint** NNLS per client with all of them as
-   features at once (matches the structure of today's
-   `estimate_run_time_for_glue_opcodes`). Fixed list:
-   `CALLDATASIZE`, `DUP`, `GAS`, `MLOAD`, `PUSH`, `PUSH0`, `STATICCALL`.
+   shared dependency. Fit one **joint** NNLS per client with one feature per
+   canonical name, again summed over family members (matches the structure
+   of today's `estimate_run_time_for_glue_opcodes`). Canonical names:
+   `CALLDATASIZE`, `DUP`, `GAS`, `MLOAD`, `PUSH`, `PUSH0`, `STATICCALL`
+   (`DUP1`..`DUP16` and `PUSH1`..`PUSH32` each collapse to one feature;
+   `PUSH0` is split off as its own spec).
 
-These 12 opcodes are the **only opcodes the tool will ever price as glue.** This
-is a deliberate departure from the existing `src/glue.py`, which detects glue
-opcodes dynamically per group via correlation/ratio thresholds. In `evm-gasfit`
-the set is hardcoded — if a future test introduces a new glue opcode, extending
-the set requires a code change and a new package release (the lists in
-`glue/estimate.py` plus the matching `(test_name, target_opcode)` entries in
-`glue/required.py`).
+These 12 canonical names are the **only opcodes the tool will ever price as
+glue.** This is a deliberate departure from the existing `src/glue.py`, which
+detects glue opcodes dynamically per group via correlation/ratio thresholds.
+In `evm-gasfit` the set is hardcoded — if a future test introduces a new
+glue opcode, extending the set requires a code change and a new package
+release (a new `GlueOpcodeSpec` entry in `glue/required.py`).
 
-When `glue_adjustment.enabled: true`, all 12 are always estimated. The tool
-ships with the list of `(test_name, target_opcode)` pairs needed to drive those
-estimates; the loader checks the runtime CSV contains those fixtures and raises
-a config error if any are missing.
+When `glue_adjustment.enabled: true`, every spec with a non-null
+`test_name` is estimated and emitted as one row per `(client, canonical_name)`
+in `glue_results.csv`; the loader checks the runtime CSV contains those
+fixtures and raises a config error if any **required** driver test is missing.
+Specs whose driver does not exist in any current dataset (currently `POP` and
+`STOP`) are marked `required=False`; their absence is tolerated silently and
+no row is emitted, so their adjustment contribution is treated as zero. Adding
+the driver fixtures later is a single edit — flip `test_name=None` to the new
+driver name in `glue/required.py`.
+
+**Family aggregation in detection.** `compute_glue_opcodes_by_test` and
+`detect_missing_glue` fold per-mnemonic opcode columns (`DUP3`, `SWAP9`,
+`PUSH7`, ...) into their canonical name before applying the threshold pass,
+so a single `glue_opcode == "DUP"` row is emitted instead of one per
+member. The result aligns directly with `glue_results.csv`, which also keys
+on canonical names.
 
 Per-fixture glue ratios are computed the same way as today
 ([src/glue.py::get_glue_opcodes_by_test](https://github.com/misilva73/evm-gas-repricings/blob/main/src/glue.py)):
