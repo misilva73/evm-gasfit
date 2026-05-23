@@ -82,7 +82,7 @@ anchor_rate: 1.0e8
 
 # base gas costs — fork name from the bundled defaults
 gas_costs:
-  fork: amsterdam          # required
+  fork: osaka          # required
   overrides:               # optional, patches specific fields
     COLD_ACCOUNT_ACCESS: 2400
 
@@ -235,14 +235,15 @@ When loading this data, the "<fixture_name>" field should go into a column named
 
 ### 2.4 Gas-cost defaults
 
-Ship as a Python module per fork (`AmsterdamGasCosts`, `OsakaGasCosts`, …) whose
-fields match the snippet in the previous spec. `ethereum/execution-specs` is an
-**optional extra** (`pip install -e ".[specs]"`); when installed, its
-`vm.gas.GasCosts` is the source of truth for each fork. When not installed,
-`evm_gasfit/defaults/_fallback.py` provides the same field set as a Python
-literal so the package is fully functional without the extra. The defaults
-module probes for the extra at import time and selects one source for the
-whole run — the two paths are never mixed.
+`ethereum/execution-specs` is an **optional extra**
+(`pip install -e ".[specs]"`); when installed, its `vm.gas.GasCosts` is the
+source of truth for each fork (one class per fork module, e.g.
+`ethereum.osaka.vm.gas.GasCosts`). When not installed,
+`evm_gasfit/defaults/_fallback.py` provides a single bundled fork — currently
+`osaka`, mirroring the public integer attributes of the upstream `GasCosts` —
+as a Python literal so the package is fully functional without the extra. The
+defaults module probes for the extra at import time and selects one source for
+the whole run — the two paths are never mixed.
 
 The selected source is logged once at startup at `INFO` on the
 `evm_gasfit.defaults` logger (`"gas costs: fork=<name>, source=execution-specs"`
@@ -865,7 +866,7 @@ evm-gasfit/
 │   ├── defaults/
 │   │   ├── __init__.py         # fork_name → GasCosts factory
 │   │   ├── models.py           # named ModelSpec presets (see §2.6)
-│   │   ├── _fallback.py        # the literal GasCosts table from the spec
+│   │   ├── _fallback.py        # literal GasCosts table for the bundled fork (osaka)
 │   │   └── _from_execution_specs.py  # pulls from ethereum/execution-specs
 │   ├── io/
 │   │   ├── runtimes.py         # CSV loader
@@ -923,7 +924,7 @@ evm-gasfit/
 - `ethereum/execution-specs` — source of per-fork `GasCosts` (§2.4). **Optional
   extra**, declared under `[project.optional-dependencies]` as `specs` and
   installed via `pip install -e ".[specs]"`. When absent, `defaults/_fallback.py`
-  serves the same field set.
+  serves a single bundled fork (osaka).
 
 Python stdlib only (no extra dep): `ast` for the derived-formula evaluator
 (§4.8), `csv`/`json` for the input loaders.

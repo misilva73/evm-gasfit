@@ -37,7 +37,7 @@ A minimal `tests.yaml`:
 version: 1
 anchor_rate: 1.0e8
 gas_costs:
-  fork: amsterdam
+  fork: osaka
 models:
   presets:
     - arithmetic_add

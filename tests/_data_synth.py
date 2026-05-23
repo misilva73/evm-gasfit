@@ -276,7 +276,7 @@ def base_config(
     """
     if models_custom is None and models_presets is None:
         models_custom = [copy.deepcopy(_ADD_MODEL_SPEC)]
-    gas_costs: dict[str, Any] = {"fork": "amsterdam"}
+    gas_costs: dict[str, Any] = {"fork": "osaka"}
     if overrides is not None:
         gas_costs["overrides"] = dict(overrides)
     cfg: dict[str, Any] = {
