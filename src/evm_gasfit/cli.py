@@ -10,6 +10,7 @@ from pathlib import Path
 
 from evm_gasfit.api import GasFit
 from evm_gasfit.errors import ConfigError, ModelingError
+from evm_gasfit.adapter.eest import prepare_eest
 
 _log = logging.getLogger("evm_gasfit")
 
@@ -33,6 +34,14 @@ def _build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--opcounts", required=True, type=Path)
     run_p.add_argument("--out", required=True, type=Path)
     run_p.set_defaults(func=_run)
+
+    prepare_eest_p = sub.add_parser(
+        "prepare-eest",
+        help="Normalize EEST blockchain_tests fixtures into gasfit inputs",
+    )
+    prepare_eest_p.add_argument("--eest-fixtures", required=True, type=Path)
+    prepare_eest_p.add_argument("--out", required=True, type=Path)
+    prepare_eest_p.set_defaults(func=_prepare_eest)
     return parser
 
 
@@ -45,6 +54,11 @@ def _run(args: argparse.Namespace) -> int:
         fit.estimate_glue()
     fit.build_proposal()
     fit.write_reports(Path(args.out))
+    return 0
+
+
+def _prepare_eest(args: argparse.Namespace) -> int:
+    prepare_eest(Path(args.eest_fixtures), Path(args.out))
     return 0
 
 
