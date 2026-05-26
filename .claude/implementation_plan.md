@@ -219,9 +219,10 @@ Per-opcode keys are the EVM opcode mnemonics in upper-case (e.g. `"ADD"`,
 **Invariant:** for every fixture, `opcount` equals the count under the target
 opcode's mnemonic key — i.e. for a fixture whose resolved `target_opcode` is
 `SLOAD`, `data[fixture_name]["opcount"] == data[fixture_name]["SLOAD"]`. The
-loader enforces this and raises a config error naming the offending fixture if
-the two disagree, so downstream code can rely on a single source for the target
-count.
+opcounts loader has no spec context, so it cannot identify the target opcode
+on its own; the equality is enforced at model-estimation time, once each spec
+has resolved `target_opcode` per row, and raises a config error naming the
+offending fixture if the two disagree.
 
 **Missing per-opcode keys** in any fixture's inner dict are treated as zero
 counts (sparse JSON is supported, no warning emitted). This applies to
@@ -310,9 +311,12 @@ Mechanics:
   are constructed at import time, any preset that fails validation surfaces
   as a package import error.
 - Unknown or duplicated preset names → config error. Duplicate `test_name`
-  across `presets:` and `custom:` is allowed (independent fits; the
-  aggregator in §4.6 handles the collision). Empty `presets:` *and* empty
-  `custom:` → config error.
+  across `presets:` and `custom:` is allowed when the specs differ in
+  `target_operation` (independent fits with distinct `target_opcode`; the
+  aggregator in §4.6 routes them by that key). Two specs that share both
+  `test_name` and target selection — e.g. same `target_operation_param`,
+  same `model_by` — are not distinguishable by the aggregator and should
+  not be relied upon. Empty `presets:` *and* empty `custom:` → config error.
 - **Granularity.** Selection is per-preset, not per-gas-param. A preset's
   `model_params` may write several params (e.g. `account_access` →
   `COLD_ACCOUNT_ACCESS`, `COLD_ACCOUNT_WRITE`); listing it always contributes
@@ -683,6 +687,13 @@ the per-opcode ms cost selected for that `(gas_param, client)` row (§4.6).
 
 For every `(model_spec, model_by-combo, client)` row in `results_df`, expand into
 one row per entry in `model_params`. Each row maps to its target gas-param name.
+
+`results_df` does not carry an explicit spec identifier, so the row-to-spec join uses
+`test_name` + `model_by` shape + (for fixed-target specs) `target_opcode ==
+spec.target_operation`. This means duplicate `test_name` across presets and
+custom entries is only safely disambiguated when the specs differ in
+`target_operation` (see §2.6).
+
 The row's per-opcode predicted ms is `target_coef_runtime_ms` for the
 `target_coef` entry and `<param>_runtime_ms` for any non-`target_coef` entry
 (both straight off `results.csv`). This value is what `new_gas_all_params.csv`

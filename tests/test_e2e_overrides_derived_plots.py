@@ -168,6 +168,7 @@ def test_derived_formula_unknown_identifier_is_load_time_error(tmp_path: Path) -
     config_yaml, _, _, _ = _build_simple_inputs(tmp_path, plots=False, derived=derived)
 
     from evm_gasfit import GasFit
+    from evm_gasfit.errors import ConfigError
 
-    with pytest.raises(Exception):
+    with pytest.raises(ConfigError, match="unknown identifier"):
         GasFit.from_config(config_yaml)

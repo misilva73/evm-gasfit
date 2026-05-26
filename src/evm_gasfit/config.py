@@ -143,6 +143,10 @@ class ModelSpec(BaseModel):
             raise ValueError(
                 "exactly one of target_operation / target_operation_param must be set"
             )
+        # Default filter_by to the EEST opcode token when target_operation is
+        # literal and the user omitted the field.
+        if has_op and not self.filter_by:
+            self.filter_by = [f"opcode_{self.target_operation}"]
         # model_params must be non-empty and carry a target_coef key.
         if not self.model_params:
             raise ValueError("model_params must be non-empty")

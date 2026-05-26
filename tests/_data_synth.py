@@ -48,7 +48,7 @@ class FixtureSpec:
 
     @property
     def fixture_name(self) -> str:
-        tokens = ["fork_Amsterdam", "benchmark_test"]
+        tokens = ["fork_Amsterdam", "benchmark_test", f"opcode_{self.target_opcode}"]
         tokens.extend(f"{k}_{v}" for k, v in self.params.items())
         tokens.append(f"block_limit_million_{self.block_limit_million}")
         return f"{self.test_file}.py__{self.test_name}[{'-'.join(tokens)}]"

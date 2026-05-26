@@ -65,6 +65,14 @@ def expand_to_per_client(
         for _, res_row in results_df.iterrows():
             if res_row["test_name"] != spec.test_name:
                 continue
+            # Fixed-target specs only own rows for their literal opcode; without
+            # this filter, two specs sharing test_name/model_by but differing on
+            # target_operation would each expand the other's row.
+            if (
+                spec.target_operation is not None
+                and res_row["target_opcode"] != spec.target_operation
+            ):
+                continue
             # Match the spec's exact model_by combo on this row.
             spec_match = True
             for col in model_by_cols:
@@ -81,12 +89,6 @@ def expand_to_per_client(
                     break
             if not spec_match:
                 continue
-            # Skip results rows whose gas-param target doesn't match this spec's writes.
-            # Specs with the same (test_name, model_by) may differ on model_params.
-            # The fit_key in estimate_models doesn't track which spec produced a row,
-            # so a duplicate (test_name, target_opcode, model_by, client) means
-            # both specs would expand the same row. That's acceptable per the
-            # plan §2.6 "duplicate test_name across presets/custom allowed" rule.
 
             model_by_values = {c: res_row[c] for c in spec.model_by}
             target_opcode = res_row["target_opcode"]

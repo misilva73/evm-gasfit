@@ -181,7 +181,9 @@ def test_glue_missing_required_test_raises(tmp_path: Path) -> None:
 
     # Acceptable for the error to surface anywhere from load up to
     # estimate_glue() — implementations may detect at different stages.
-    with pytest.raises(Exception):
+    from evm_gasfit.errors import ConfigError, ModelingError
+
+    with pytest.raises((ConfigError, ModelingError)):
         run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
 
 

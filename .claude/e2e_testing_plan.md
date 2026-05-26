@@ -29,7 +29,7 @@ until the pipeline piece it exercises lands.
 
 - runtimes CSV column is **`test_runtime_ms`** (LHS of every regression).
 - Fixture-name token convention emits `block_limit_million_{N}` (the parser produces a `block_limit_million` column for every row).
-- opcounts JSON writes both `opcount` and `data[fixture][TARGET_OPCODE] = opcount` (the loader enforces the equality).
+- opcounts JSON writes both `opcount` and `data[fixture][TARGET_OPCODE] = opcount` (the equality is enforced at model estimation, once each spec has resolved its `target_opcode`).
 - `runtime = intercept + slope·opcount + Σ_i extra_coef_i · opcount · param_i` matches the multi-feature regression form.
 
 ### Conventions every test follows

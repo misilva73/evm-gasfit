@@ -190,6 +190,8 @@ def test_unmapped_source_value_raises(tmp_path: Path) -> None:
 
     # The unmapped value is detected when the spec slice is materialized
     # inside `estimate_models()`.
-    with pytest.raises(Exception):
+    from evm_gasfit.errors import ModelingError
+
+    with pytest.raises(ModelingError, match="values map omits observed"):
         gas_fit.estimate_models()
     assert not (out_dir / "results.csv").exists()
