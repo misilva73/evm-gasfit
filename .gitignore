@@ -46,3 +46,7 @@ site/
 
 # Local Claude / tooling state
 .claude/settings.local.json
+
+# Project specific]
+out/
+in/
