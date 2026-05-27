@@ -70,12 +70,15 @@ def _materialize_derived(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
             df[derived_name] = source_col.map(fp_spec.values).astype(float)
         else:
             try:
-                df[derived_name] = source_col.astype(float)
+                numeric = source_col.astype(float)
             except (TypeError, ValueError) as exc:
                 raise ModelingError(
                     f"spec test_name={spec.test_name!r}: fixture_params[{derived_name!r}] "
                     f"source {source!r} contains non-numeric values; supply a 'values:' map"
                 ) from exc
+            if fp_spec.transform == "bytes_to_words":
+                numeric = np.ceil(numeric.to_numpy() / 32.0).astype(float)
+            df[derived_name] = numeric
     return df
 
 

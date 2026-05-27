@@ -365,15 +365,18 @@ Mechanics:
   new gas-param name produces the same "did you mean…?" warning as a custom
   entry would.
 
-Initial preset list (illustrative; [src/evm_gasfit/defaults/models.py](src/evm_gasfit/defaults/models.py) is the source
-of truth and the full catalog lands when the recipes are ported):
+Preset catalog (illustrative shapes; [src/evm_gasfit/defaults/models.py](src/evm_gasfit/defaults/models.py) is the
+source of truth — currently ships ~105 presets covering arithmetic, bitwise,
+comparison, stack, control flow, block/tx context, call context, memory,
+account/storage/state, hashing, system, and all bn128 / bls12-381 precompiles):
 
 | Preset name | `test_name` | Target opcode | Writes |
 | --- | --- | --- | --- |
-| `arithmetic_add` | `test_arithmetic` | `ADD` | `OPCODE_ADD` |
-| `account_access` | `test_account_access` | param `opcode` | `COLD_ACCOUNT_ACCESS`, `COLD_ACCOUNT_WRITE` |
-| `storage_access` | `test_sload_bloated` | `SLOAD` | `COLD_STORAGE_ACCESS` |
-| `precompile_bls12_g1add` | `test_bls12_381` | `BLS12_G1ADD` (count via `STATICCALL`) | `PRECOMPILE_BLS12_G1ADD` |
+| `arithmetic_add` | `test_arithmetic` | `ADD` (anchored `filter_by: [opcode_ADD-]`) | `OPCODE_ADD` |
+| `cold_account_code_access_existing_contract` | `test_account_access` | param `opcode` | `COLD_ACCOUNT_CODE_ACCESS`, `ACCOUNT_WRITE` |
+| `cold_storage_sload` | `test_sload_bloated` | `SLOAD` | `COLD_STORAGE_ACCESS` |
+| `keccak` | `test_keccak_diff_mem_msg_sizes` | `KECCAK256` | `OPCODE_KECCAK256_BASE`, `OPCODE_KECCAK256_PER_WORD` (via `bytes_to_words`) |
+| `precompile_bls_g1add` | `test_bls12_381` | `BLS12_G1ADD` (count via `STATICCALL`) | `PRECOMPILE_BLS_G1ADD` |
 
 The last row illustrates the precompile shape: `target_operation` carries the
 precompile's display name (used as `target_opcode` in all output rows),
@@ -438,6 +441,11 @@ Field semantics:
   naming the offending value. When `values` is omitted, the source value
   passes through unchanged and is then coerced to float by §4.3's existing
   rule.
+- `transform` — optional. One of `bytes_to_words`. Applies `ceil(x / 32)` to
+  the float-coerced source so the derived column carries per-word units; this
+  lets a single regression fit a `*_PER_WORD` coefficient directly when the
+  raw fixture-param carries the size in bytes (e.g. `calldata_size`,
+  `code_size`, `msg_size`). Mutually exclusive with `values`.
 
 Scoping and validation:
 

@@ -135,6 +135,32 @@ Plan rules pinned: `fixture_params:` materializes per-spec derived columns from 
 | `test_two_specs_can_share_derived_name_with_different_sources` | Two specs both declare `update` from different raw sources; each spec's `update` column is independent; both pipelines produce their gas params. |
 | `test_unmapped_source_value_raises` | `values: {"False": 0}` but a fixture has `True`; `estimate_models()` raises at fit time. |
 
+### 2.7a [`tests/test_e2e_bytes_to_words.py`](../tests/test_e2e_bytes_to_words.py) — `bytes_to_words` fixture-param transform (§2.7)
+
+Plan rules pinned: a `fixture_params` entry may carry `transform: bytes_to_words` to apply `ceil(x / 32)` to a byte-sized raw param before the regression consumes it; the fitted coefficient on the derived column then directly recovers the per-word slope. `transform` and `values` are mutually exclusive.
+
+| Test | Coverage |
+| --- | --- |
+| `test_bytes_to_words_transform_recovers_per_word_coefficient` | Copy-style sweep with `calldata_size ∈ {32, 64, 96, 128}`; spec declares `fixture_params.calldata_words = {source: calldata_size, transform: bytes_to_words}` and `model_params.calldata_words → OPCODE_CALLDATACOPY_PER_WORD`; the recovered `calldata_words_runtime_ms` matches the planted per-word slope; both BASE and PER_WORD gas params land in `new_gas.csv`. |
+| `test_transform_and_values_are_mutually_exclusive` | A spec setting both fields raises at config load. |
+
+### 2.7b [`tests/test_e2e_anchor_filter.py`](../tests/test_e2e_anchor_filter.py) — prefix-overlap `filter_by` anchors (§2.6 / catalog)
+
+Plan rules pinned: when an opcode's `opcode_<X>` token is a prefix of another opcode's token in the same `test_name` slice, the catalog preset must carry a trailing `-` anchor (`filter_by: [opcode_<X>-]`) so the default substring match cannot leak the sibling's fixtures into the fit.
+
+| Test | Coverage |
+| --- | --- |
+| `test_anchored_filter_excludes_prefix_sibling[add_vs_addmod]` / `[mul_vs_mulmod]` / `[push0_vs_push1]` | Parametrized over the three documented overlap pairs. Synthesizes fixtures for *both* the target opcode and the sibling under one `test_name`, drives the corresponding catalog preset (`arithmetic_add`, `arithmetic_mul`, `stack_push0`), and asserts `results.csv` carries only the target opcode and the recovered slope matches the target's planted value — not the sibling's (5× larger). |
+
+### 2.7c [`tests/test_e2e_catalog_smoke.py`](../tests/test_e2e_catalog_smoke.py) — full preset catalog smoke (§2.6)
+
+Plan rules pinned: every preset in `defaults/models.py::PRESETS` must pass Pydantic validation and drive an end-to-end pipeline run without raising. The goal is to catch typos in `test_name` / `target_operation` / `model_params` keys at landing time, not to validate fit quality.
+
+| Test | Coverage |
+| --- | --- |
+| `test_every_catalog_preset_fits_without_raising` | Programmatically synthesizes one block-limit sweep per preset by introspecting each `ModelSpec` (covers `target_operation_param`, `model_by`, `fixture_params` sources, non-target `model_params` coefs, and precompile-style `target_operation_count_source`). Loads all preset names into one config, runs the pipeline, asserts every preset's `test_name` produces at least one row in `results.csv` and `new_gas.csv` is non-empty. |
+| `test_catalog_warnings_only_list_new_gas_param_names` | Loads the catalog config and asserts every config-load warning names one of the documented new gas-param names (`OPCODE_*COPY_PER_WORD`, `COLD_ACCOUNT_NOCODE_ACCESS`, `COLD_ACCOUNT_CODE_ACCESS`, `ACCOUNT_WRITE`, `STORAGE_WRITE`) — no surprise warnings from typos. |
+
 ### 2.8 [`tests/test_e2e_determinism.py`](../tests/test_e2e_determinism.py) — determinism contract (§4.0)
 
 Plan rules pinned: "given identical inputs and the same `random_seed`, all CSV and markdown outputs are byte-identical across runs and across platforms"; bootstrap sampling threads the seed into every `numpy.random.Generator`; PNGs are **not** promised byte-identical.
@@ -190,8 +216,8 @@ When the implementation pins any of the above, tighten the matching assertion to
 | §2.3 | Opcounts JSON + `opcount == data[fixture][TARGET]` invariant | `_data_synth` enforces |
 | §2.4 | Gas-cost defaults, overrides mechanics | `test_gas_overrides_flow_to_proposal` |
 | §2.5 | Strict override-key validation; lenient `model_params`/`derived:` warnings | `test_cli_unknown_override_key_returns_exit_code_1` (strict); `test_unknown_gas_param_emits_warning_and_renders_sentinel` (lenient, parametrized) |
-| §2.6 | Model presets registry | `test_e2e_presets` (4 tests inc. parametrized) |
-| §2.7 | Derived fixture params (per-spec rename + value remap) | `test_e2e_fixture_params` (4 tests) |
+| §2.6 | Model presets registry | `test_e2e_presets` (4 tests inc. parametrized); `test_e2e_anchor_filter` (3 parametrized — prefix-overlap anchors); `test_e2e_catalog_smoke` (2 tests — full PRESETS dict) |
+| §2.7 | Derived fixture params (per-spec rename + value remap + `bytes_to_words` transform) | `test_e2e_fixture_params` (4 tests); `test_e2e_bytes_to_words` (2 tests) |
 | §3 | Pipeline architecture | implicit via every happy-path test |
 | §4.0 | Logging channel, error types, determinism | CLI exit codes + `test_e2e_determinism` (3 tests) |
 | §4.1 | Fixture-name parser | implicit via every test |

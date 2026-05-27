@@ -89,6 +89,7 @@ class FixtureParamSpec(BaseModel):
 
     source: str
     values: dict[str, float] | None = None
+    transform: Literal["bytes_to_words"] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -104,6 +105,14 @@ class FixtureParamSpec(BaseModel):
         data = dict(data)
         data["values"] = {str(k): float(v) for k, v in vals.items()}
         return data
+
+    @model_validator(mode="after")
+    def _check_transform_excludes_values(self) -> "FixtureParamSpec":
+        if self.transform is not None and self.values is not None:
+            raise ValueError(
+                "fixture_params: 'transform' and 'values' are mutually exclusive"
+            )
+        return self
 
 
 class ModelSpec(BaseModel):
