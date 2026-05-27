@@ -24,6 +24,7 @@ so each name independently catches a regression.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from pathlib import Path
@@ -98,6 +99,12 @@ def test_unknown_gas_param_emits_warning_and_renders_sentinel(
     assert matching, (
         f"expected a WARNING-level log record mentioning {gas_param!r} on "
         f"the evm_gasfit logger; got {[r.getMessage() for r in caplog.records]!r}"
+    )
+
+    # ---- same warning captured in meta.json ----------------------------
+    meta = json.loads((out_dir / "meta.json").read_text())
+    assert any(gas_param in w for w in meta["warnings"]), (
+        f"expected a meta.json warning mentioning {gas_param!r}; got {meta['warnings']!r}"
     )
 
     # ---- row in new_gas.csv --------------------------------------------

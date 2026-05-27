@@ -6,7 +6,7 @@ import re
 
 import pandas as pd
 
-from evm_gasfit.io import report_unmatched_fixtures
+from evm_gasfit.io import FixtureMatchResult, report_unmatched_fixtures
 
 _FIXTURE_RE = re.compile(
     r"^(?P<test_file>[^.]+)\.py__(?P<test_name>[^\[]+)\[(?P<tokens>.*)\]$"
@@ -50,7 +50,7 @@ def parse_fixture_name(fixture_name: str) -> dict[str, str | list[str]]:
 def build_fixtures_df(
     runtimes_df: pd.DataFrame,
     opcounts: dict[str, dict[str, float]],
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, FixtureMatchResult]:
     """Build the shared ``fixtures_df`` joining runtimes with parsed params and opcounts.
 
     Args:
@@ -59,17 +59,20 @@ def build_fixtures_df(
         opcounts: Mapping from :func:`load_opcounts`.
 
     Returns:
-        DataFrame with one row per ``(client_name, fixture_name)`` carrying:
-        the original runtime columns, ``test_file`` and ``test_name`` from the
-        parser, one column per parsed key/value param (string-valued;
-        ``block_limit_million`` coerced to int), ``opcount``, and one column
-        per opcode mnemonic appearing in any fixture (missing values filled
-        with 0). Fixtures appearing in only one input are dropped with a
-        single warning per direction on the ``evm_gasfit`` logger.
+        A pair ``(fixtures_df, match_result)``. ``fixtures_df`` has one row per
+        ``(client_name, fixture_name)`` carrying: the original runtime columns,
+        ``test_file`` and ``test_name`` from the parser, one column per parsed
+        key/value param (string-valued — model specs coerce types per-spec via
+        ``fixture_params:``), ``opcount``, and one column per opcode mnemonic
+        appearing in any fixture (missing values filled with 0). Fixtures
+        appearing in only one input are dropped with a single count-only
+        warning per direction on the ``evm_gasfit`` logger; their names are
+        returned on ``match_result`` for downstream export to ``meta.json``.
     """
     runtimes_fixtures = set(runtimes_df["fixture_name"].unique())
     opcounts_fixtures = set(opcounts.keys())
-    matched = report_unmatched_fixtures(runtimes_fixtures, opcounts_fixtures)
+    match_result = report_unmatched_fixtures(runtimes_fixtures, opcounts_fixtures)
+    matched = match_result.matched
 
     df = (
         runtimes_df[runtimes_df["fixture_name"].isin(matched)]
@@ -104,4 +107,4 @@ def build_fixtures_df(
     opcounts_df[opcode_cols] = opcounts_df[opcode_cols].fillna(0.0)
 
     df = df.merge(opcounts_df, on="fixture_name", how="left")
-    return df
+    return df, match_result
