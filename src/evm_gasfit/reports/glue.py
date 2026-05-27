@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from evm_gasfit.config import Config
+from evm_gasfit.glue.required import PRICED_GLUE_SPECS
 from evm_gasfit.modeling.results import NNLSResults
 
 from .plots import (
@@ -16,6 +17,96 @@ from .plots import (
     plot_glue_regression,
     slug,
 )
+
+
+_TIER_BY_NAME: dict[str, str] = {s.name: s.tier for s in PRICED_GLUE_SPECS}
+
+
+def _anchor(text: str) -> str:
+    """GitHub-flavored anchor for a heading text."""
+    out = []
+    for ch in text.lower():
+        if ch.isalnum() or ch == "-":
+            out.append(ch)
+        elif ch in " _":
+            out.append("-")
+    return "".join(out)
+
+
+def _fmt(value, ndigits: int = 4) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float) and np.isnan(value):
+        return "n/a"
+    if isinstance(value, float):
+        return f"{value:.{ndigits}g}"
+    return str(value)
+
+
+def _headline_table(rows: list[pd.Series]) -> list[str]:
+    """Render a compact metrics table for a list of glue-result rows."""
+    lines = [
+        "| glue_opcode | nobs | glue_runtime_ms | p_value | rsquared |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        nobs = row.get("nobs")
+        nobs_cell = str(int(nobs)) if not pd.isna(nobs) else "n/a"
+        lines.append(
+            f"| `{row['glue_opcode']}` | {nobs_cell} | "
+            f"{_fmt(row.get('glue_runtime_ms'))} | "
+            f"{_fmt(row.get('p_value'))} | "
+            f"{_fmt(row.get('rsquared'))} |"
+        )
+    return lines
+
+
+def _emit_opcode_block(
+    lines: list[str],
+    *,
+    row: pd.Series,
+    fit: NNLSResults | None,
+    client: str,
+    glue_opcode: str,
+    plots_enabled: bool,
+    out_dir: Path,
+    show_summary: bool,
+) -> None:
+    """Write the per-opcode subsection (headline + plots, summary optional)."""
+    lines.append(f"#### {glue_opcode}")
+    lines.append("")
+    lines.append(
+        f"- nobs: {int(row['nobs']) if not pd.isna(row.get('nobs')) else 'n/a'}"
+    )
+    lines.append(f"- glue_runtime_ms: {_fmt(row.get('glue_runtime_ms'))}")
+    lines.append(f"- p_value: {_fmt(row.get('p_value'))}")
+    lines.append(f"- rsquared: {_fmt(row.get('rsquared'))}")
+    lines.append("")
+
+    if fit is not None and show_summary:
+        lines.append("<details><summary>NNLS regression summary</summary>")
+        lines.append("")
+        lines.append("```")
+        lines.append(fit.summary())
+        lines.append("```")
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+    if fit is not None and plots_enabled:
+        plot_glue_regression(
+            fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+        )
+        plot_glue_bootstrap(
+            fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+        )
+        plot_glue_diagnostics(
+            fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+        )
+        base = slug(glue_opcode, client)
+        for family in ("regression", "bootstrap", "diagnostics"):
+            lines.append(f"![](figs/glue/{base}__{family}.png)")
+            lines.append("")
 
 
 def write_glue_report(
@@ -33,63 +124,100 @@ def write_glue_report(
         out_path.write_text("\n".join(lines))
         return
 
-    for _, row in glue_results_df.iterrows():
-        client = str(row["client_name"])
-        glue_opcode = str(row["glue_opcode"])
-        lines.append(f"## {client} / {glue_opcode}")
+    lines.append(
+        "Per-client NNLS fits of priced glue opcodes against their driver "
+        "fixtures. Cycle-tier opcodes share one joint regression per client "
+        "(shown once); pure-tier opcodes each get a single-feature fit."
+    )
+    lines.append("")
+
+    clients = sorted(glue_results_df["client_name"].unique())
+
+    # TOC.
+    lines.append(
+        "**Contents:** " + " · ".join(f"[{c}](#{_anchor(c)})" for c in clients)
+    )
+    lines.append("")
+
+    for client in clients:
+        lines.append(f"## {client}")
         lines.append("")
 
-        nobs = row.get("nobs")
-        runtime_ms = row.get("glue_runtime_ms")
-        p_value = row.get("p_value")
-        rsquared = row.get("rsquared")
-        lines.append(f"- nobs: {int(nobs) if not pd.isna(nobs) else 'n/a'}")
-        lines.append(
-            "- glue_runtime_ms: "
-            + (
-                "n/a"
-                if isinstance(runtime_ms, float) and np.isnan(runtime_ms)
-                else str(runtime_ms)
-            )
+        client_rows = list(
+            glue_results_df[glue_results_df["client_name"] == client]
+            .reset_index(drop=True)
+            .iterrows()
         )
-        lines.append(
-            "- p_value: "
-            + (
-                "n/a"
-                if isinstance(p_value, float) and np.isnan(p_value)
-                else str(p_value)
-            )
-        )
-        lines.append(
-            "- rsquared: "
-            + (
-                "n/a"
-                if isinstance(rsquared, float) and np.isnan(rsquared)
-                else str(rsquared)
-            )
-        )
+        client_rows = [row for _, row in client_rows]
+
+        pure_rows = [
+            r for r in client_rows if _TIER_BY_NAME.get(str(r["glue_opcode"])) == "pure"
+        ]
+        cycle_rows = [
+            r
+            for r in client_rows
+            if _TIER_BY_NAME.get(str(r["glue_opcode"])) == "cycle"
+        ]
+
+        # Headline metrics for the whole client.
+        lines.extend(_headline_table(client_rows))
         lines.append("")
 
-        fit = glue_fits.get((client, glue_opcode))
-        if fit is not None:
-            lines.append("```")
-            lines.append(fit.summary())
-            lines.append("```")
+        # Cycle tier — joint fit shared across opcodes.
+        if cycle_rows:
+            lines.append(f"### Cycle glue — joint fit · {client}")
             lines.append("")
 
-            if plots_enabled:
-                plot_glue_regression(
-                    fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+            # Find the shared fit object (same id for all cycle opcodes).
+            joint_fit: NNLSResults | None = None
+            for r in cycle_rows:
+                fit = glue_fits.get((client, str(r["glue_opcode"])))
+                if fit is not None:
+                    joint_fit = fit
+                    break
+
+            if joint_fit is not None:
+                lines.append(
+                    "<details><summary>Joint NNLS regression summary</summary>"
                 )
-                plot_glue_bootstrap(
-                    fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+                lines.append("")
+                lines.append("```")
+                lines.append(joint_fit.summary())
+                lines.append("```")
+                lines.append("")
+                lines.append("</details>")
+                lines.append("")
+
+            for row in cycle_rows:
+                glue_opcode = str(row["glue_opcode"])
+                fit = glue_fits.get((client, glue_opcode))
+                _emit_opcode_block(
+                    lines,
+                    row=row,
+                    fit=fit,
+                    client=client,
+                    glue_opcode=glue_opcode,
+                    plots_enabled=plots_enabled,
+                    out_dir=out_dir,
+                    show_summary=False,  # joint summary already shown above
                 )
-                plot_glue_diagnostics(
-                    fit, glue_opcode=glue_opcode, client=client, out_dir=out_dir
+
+        # Pure tier — one fit each.
+        if pure_rows:
+            lines.append(f"### Pure glue · {client}")
+            lines.append("")
+            for row in pure_rows:
+                glue_opcode = str(row["glue_opcode"])
+                fit = glue_fits.get((client, glue_opcode))
+                _emit_opcode_block(
+                    lines,
+                    row=row,
+                    fit=fit,
+                    client=client,
+                    glue_opcode=glue_opcode,
+                    plots_enabled=plots_enabled,
+                    out_dir=out_dir,
+                    show_summary=True,
                 )
-                base = slug(glue_opcode, client)
-                for family in ("regression", "bootstrap", "diagnostics"):
-                    lines.append(f"![](figs/glue/{base}__{family}.png)")
-                    lines.append("")
 
     out_path.write_text("\n".join(lines))

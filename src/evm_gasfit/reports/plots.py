@@ -71,14 +71,72 @@ def plot_regression(
     name = slug(target_opcode, test_name, model_by_combo, client, "regression")
     path = figs_dir / f"{name}.png"
 
-    fig, ax = plt.subplots(figsize=_FIGSIZE)
-    sns.scatterplot(x=fit.fittedvalues, y=fit._y, ax=ax, alpha=0.7)
-    lo = float(min(np.min(fit.fittedvalues), np.min(fit._y)))
-    hi = float(max(np.max(fit.fittedvalues), np.max(fit._y)))
-    ax.plot([lo, hi], [lo, hi], color="black", linestyle="--", linewidth=1)
-    ax.set_xlabel("Fitted")
-    ax.set_ylabel("Observed")
-    ax.set_title(f"{target_opcode} / {test_name} / {client} - regression")
+    feature_names = fit._feature_names
+    extras = [f for f in feature_names if f not in {"const", "opcount"}]
+    opcount = fit._X[:, feature_names.index("opcount")]
+    y = fit._y
+    const = float(fit.params["const"])
+    slope = float(fit.params["opcount"])
+
+    if not extras:
+        fig, ax = plt.subplots(figsize=_FIGSIZE)
+        sns.scatterplot(x=opcount, y=y, ax=ax, alpha=0.7)
+        x_range = np.linspace(float(opcount.min()), float(opcount.max()), 100)
+        ax.plot(
+            x_range,
+            const + slope * x_range,
+            color="red",
+            linewidth=2,
+            label="NNLS fit",
+        )
+        ax.set_xlabel("opcount")
+        ax.set_ylabel("test_runtime_ms")
+        ax.set_title(
+            f"{target_opcode} / {test_name} / {client}\n"
+            f"intercept={const:.2f}, slope={slope:.2e}"
+        )
+        ax.legend()
+        return _save(fig, path)
+
+    fig, axes = plt.subplots(
+        1, len(extras), figsize=(4 * len(extras), 4), squeeze=False
+    )
+    axes = axes[0]
+    palette = sns.color_palette("Set2", n_colors=8)
+    for ax, feature in zip(axes, extras):
+        # _X[:, f_idx] = opcount * p_i, so dividing recovers the raw p_i column.
+        p_vals = fit._X[:, feature_names.index(feature)] / opcount
+        feature_coef = float(fit.params[feature])
+        for i, p in enumerate(sorted(set(p_vals.tolist()))):
+            mask = p_vals == p
+            color = palette[i % len(palette)]
+            ax.scatter(
+                opcount[mask],
+                y[mask],
+                color=color,
+                alpha=0.6,
+                s=20,
+                label=f"{feature}={p:g}",
+            )
+            x_sub = opcount[mask]
+            x_range = np.array([float(x_sub.min()), float(x_sub.max())])
+            ax.plot(
+                x_range,
+                const + slope * x_range + feature_coef * p * x_range,
+                color=color,
+                linestyle="--",
+                linewidth=2,
+                alpha=0.8,
+            )
+        ax.set_xlabel("opcount")
+        ax.set_ylabel("test_runtime_ms")
+        ax.set_title(f"{feature}: coef={feature_coef:.2e}")
+        ax.legend(loc="best", fontsize=8)
+        ax.grid(True, alpha=0.3)
+    fig.suptitle(
+        f"{target_opcode} / {test_name} / {client}\n"
+        f"intercept={const:.2f}, opcount coef={slope:.2e}"
+    )
     return _save(fig, path)
 
 

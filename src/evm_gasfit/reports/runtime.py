@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -18,6 +19,27 @@ from .plots import (
 )
 
 
+def _anchor(text: str) -> str:
+    """GitHub-flavored anchor for a heading text."""
+    out: list[str] = []
+    for ch in text.lower():
+        if ch.isalnum() or ch == "-":
+            out.append(ch)
+        elif ch in " _/":
+            out.append("-")
+    return "".join(out)
+
+
+def _fmt(value, ndigits: int = 4) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float) and np.isnan(value):
+        return "n/a"
+    if isinstance(value, float):
+        return f"{value:.{ndigits}g}"
+    return str(value)
+
+
 def _model_by_values(row: pd.Series, model_by: list[str]) -> list[object]:
     return [row[c] for c in model_by]
 
@@ -25,6 +47,53 @@ def _model_by_values(row: pd.Series, model_by: list[str]) -> list[object]:
 def _model_by_combo(values: list[object]) -> str:
     parts = [str(v) for v in values]
     return "_".join(parts) if parts else "all"
+
+
+def _filter_spec_rows(
+    results_df: pd.DataFrame, spec, all_model_by: list[str]
+) -> pd.DataFrame:
+    """Keep only rows whose model_by signature matches this spec."""
+    spec_rows = results_df[results_df["test_name"] == spec.test_name]
+    if spec_rows.empty:
+        return spec_rows
+    keep_idx: list[int] = []
+    for idx, row in spec_rows.iterrows():
+        match = True
+        for col in all_model_by:
+            in_spec = col in spec.model_by
+            val = row.get(col) if col in row.index else None
+            present = not (val is None or (isinstance(val, float) and np.isnan(val)))
+            if in_spec != present:
+                match = False
+                break
+        if match:
+            keep_idx.append(idx)
+    return spec_rows.loc[keep_idx]
+
+
+def _client_headline_table(rows: list[pd.Series]) -> list[str]:
+    lines = [
+        "| client | nobs | R² | target_coef (ms) | p-value | 95% CI |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        nobs = row.get("nobs")
+        nobs_cell = str(int(nobs)) if not pd.isna(nobs) else "n/a"
+        ci_low = row.get("target_coef_conf_int_low")
+        ci_high = row.get("target_coef_conf_int_high")
+        ci_cell = (
+            f"[{_fmt(ci_low)}, {_fmt(ci_high)}]"
+            if not (pd.isna(ci_low) or pd.isna(ci_high))
+            else "n/a"
+        )
+        lines.append(
+            f"| `{row['client_name']}` | {nobs_cell} | "
+            f"{_fmt(row.get('rsquared'))} | "
+            f"{_fmt(row.get('target_coef_runtime_ms'))} | "
+            f"{_fmt(row.get('target_coef_pvalue'))} | "
+            f"{ci_cell} |"
+        )
+    return lines
 
 
 def write_runtime_report(
@@ -38,65 +107,110 @@ def write_runtime_report(
     plots_enabled = config.output.plots
 
     lines: list[str] = ["# Runtime estimation report", ""]
+    lines.append(
+        "Per-spec NNLS fits of `test_runtime_ms` against `opcount`, one row per "
+        "(test, target opcode, model_by combo, client)."
+    )
+    lines.append("")
+
+    # Group rows by test_name preserving spec order, dedup across overlapping
+    # specs by (test_name, target_opcode, *mb_values, client).
+    all_mb = sorted({c for s in config.resolved_models for c in s.model_by})
+    grouped: dict[str, list[tuple[pd.Series, list[str], list[object]]]] = defaultdict(
+        list
+    )
+    seen_keys: set[tuple] = set()
+    test_name_order: list[str] = []
     for spec in config.resolved_models:
-        spec_rows = results_df[results_df["test_name"] == spec.test_name]
+        spec_rows = _filter_spec_rows(results_df, spec, all_mb)
         if spec_rows.empty:
             continue
-
-        # Filter to rows that match this spec's model_by signature.
-        all_mb = sorted({c for s in config.resolved_models for c in s.model_by})
-        keep_idx: list[int] = []
-        for idx, row in spec_rows.iterrows():
-            match = True
-            for col in all_mb:
-                in_spec = col in spec.model_by
-                val = row.get(col) if col in row.index else None
-                present = not (
-                    val is None or (isinstance(val, float) and np.isnan(val))
-                )
-                if in_spec != present:
-                    match = False
-                    break
-            if match:
-                keep_idx.append(idx)
-        spec_rows = spec_rows.loc[keep_idx]
-
+        if spec.test_name not in test_name_order:
+            test_name_order.append(spec.test_name)
         for _, row in spec_rows.iterrows():
-            test_name = str(row["test_name"])
-            target_opcode = str(row["target_opcode"])
-            client = str(row["client_name"])
             mb_values = _model_by_values(row, spec.model_by)
+            key = (
+                str(row["test_name"]),
+                str(row["target_opcode"]),
+                *map(str, mb_values),
+                str(row["client_name"]),
+            )
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            grouped[str(row["test_name"])].append((row, list(spec.model_by), mb_values))
+
+    if not test_name_order:
+        out_path.write_text("\n".join(lines))
+        return
+
+    # TOC.
+    lines.append(
+        "**Contents:** " + " · ".join(f"[{t}](#{_anchor(t)})" for t in test_name_order)
+    )
+    lines.append("")
+
+    for test_name in test_name_order:
+        lines.append(f"## {test_name}")
+        lines.append("")
+
+        # Sub-group within a test by (target_opcode, model_by_combo).
+        by_opcode: dict[tuple[str, str, tuple], list[pd.Series]] = defaultdict(list)
+        per_opcode_mb_cols: dict[tuple[str, str, tuple], list[str]] = {}
+        for row, mb_cols, mb_values in grouped[test_name]:
             combo = _model_by_combo(mb_values)
+            opcode = str(row["target_opcode"])
+            key = (opcode, combo, tuple(mb_cols))
+            by_opcode[key].append(row)
+            per_opcode_mb_cols[key] = mb_cols
 
-            fit_key = (test_name, target_opcode, *mb_values, client)
-            fit = fits.get(fit_key)
-
-            heading = f"## {test_name} / {target_opcode} / {client}"
-            if spec.model_by:
-                heading += f" (combo: {combo})"
+        for key, rows in by_opcode.items():
+            opcode, combo, _mb_tuple = key
+            mb_cols = per_opcode_mb_cols[key]
+            heading = f"### {opcode}"
+            if mb_cols:
+                heading += f" — combo `{combo}`"
             lines.append(heading)
             lines.append("")
 
-            if fit is not None:
-                lines.append("```")
-                lines.append(fit.summary())
-                lines.append("```")
+            # Headline metrics across clients.
+            rows_sorted = sorted(rows, key=lambda r: str(r["client_name"]))
+            lines.extend(_client_headline_table(rows_sorted))
+            lines.append("")
+
+            for row in rows_sorted:
+                client = str(row["client_name"])
+                mb_values = [row[c] for c in mb_cols]
+                fit_key = (test_name, opcode, *mb_values, client)
+                fit = fits.get(fit_key)
+
+                lines.append(f"#### {client}")
                 lines.append("")
 
-                if plots_enabled:
-                    kwargs = dict(
-                        target_opcode=target_opcode,
-                        test_name=test_name,
-                        model_by_combo=combo,
-                        client=client,
-                        out_dir=out_dir,
-                    )
-                    plot_regression(fit, **kwargs)
-                    plot_bootstrap(fit, **kwargs)
-                    plot_diagnostics(fit, **kwargs)
-                    base = slug(target_opcode, test_name, combo, client)
-                    for family in ("regression", "bootstrap", "diagnostics"):
-                        lines.append(f"![](figs/runtime/{base}__{family}.png)")
-                        lines.append("")
+                if fit is not None:
+                    lines.append("<details><summary>NNLS regression summary</summary>")
+                    lines.append("")
+                    lines.append("```")
+                    lines.append(fit.summary())
+                    lines.append("```")
+                    lines.append("")
+                    lines.append("</details>")
+                    lines.append("")
+
+                    if plots_enabled:
+                        kwargs = dict(
+                            target_opcode=opcode,
+                            test_name=test_name,
+                            model_by_combo=combo,
+                            client=client,
+                            out_dir=out_dir,
+                        )
+                        plot_regression(fit, **kwargs)
+                        plot_bootstrap(fit, **kwargs)
+                        plot_diagnostics(fit, **kwargs)
+                        base = slug(opcode, test_name, combo, client)
+                        for family in ("regression", "bootstrap", "diagnostics"):
+                            lines.append(f"![](figs/runtime/{base}__{family}.png)")
+                            lines.append("")
 
     out_path.write_text("\n".join(lines))
