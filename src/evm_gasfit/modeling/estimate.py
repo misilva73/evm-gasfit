@@ -128,6 +128,13 @@ def _enforce_opcount_invariant(df: pd.DataFrame, spec: ModelSpec) -> None:
                 f"per-opcode count for {count_source!r}={actual} "
                 f"(spec test_name={spec.test_name!r})"
             )
+        if float(expected) == 0:
+            raise ConfigError(
+                f"fixture {row['fixture_name']!r}: opcount=0 for target "
+                f"{row['target_opcode']!r} (spec test_name={spec.test_name!r}); "
+                f"fixtures that don't execute the target opcode don't belong in "
+                f"this group — narrow filter_by or drop the fixture"
+            )
 
 
 def _build_design(
