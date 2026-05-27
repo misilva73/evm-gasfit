@@ -7,6 +7,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 from evm_gasfit.config import Config
 from evm_gasfit.proposal.build import ProposalOutput
 
@@ -30,12 +32,15 @@ def _signed_diff(proposed: int, current: int) -> str:
 
 def _direction_counts(
     new_gas_df, current_values: dict[str, int]
-) -> tuple[int, int, int, int]:
-    """Return (n_total, n_increased, n_decreased, n_new)."""
+) -> tuple[int, int, int, int, int]:
+    """Return (n_total, n_increased, n_decreased, n_new, n_unresolved)."""
     n_total = len(new_gas_df)
-    inc = dec = new = 0
+    inc = dec = new = unresolved = 0
     for _, row in new_gas_df.iterrows():
         gas_param = str(row["gas_param"])
+        if pd.isna(row["new_gas_rounded"]):
+            unresolved += 1
+            continue
         proposed = int(row["new_gas_rounded"])
         if gas_param not in current_values:
             new += 1
@@ -45,7 +50,7 @@ def _direction_counts(
             inc += 1
         elif diff < 0:
             dec += 1
-    return n_total, inc, dec, new
+    return n_total, inc, dec, new, unresolved
 
 
 def _partition_warnings(warnings: list[str]) -> tuple[dict[str, list[str]], list[str]]:
@@ -72,7 +77,9 @@ def write_proposal_report(
     new_gas_df = proposal_output.new_gas_df
     current_values = proposal_output.current_values
 
-    n_total, n_inc, n_dec, n_new = _direction_counts(new_gas_df, current_values)
+    n_total, n_inc, n_dec, n_new, n_unresolved = _direction_counts(
+        new_gas_df, current_values
+    )
     missing_by_test, other_warnings = _partition_warnings(proposal_output.warnings)
     n_warn = sum(len(v) for v in missing_by_test.values()) + len(other_warnings)
     poor_fit_rows = proposal_output.new_gas_all_df[
@@ -92,28 +99,34 @@ def write_proposal_report(
     # Summary line.
     lines.append(
         f"**Summary:** {n_total} parameters proposed — "
-        f"{n_inc} increased, {n_dec} decreased, {n_new} new · "
+        f"{n_inc} increased, {n_dec} decreased, {n_new} new, "
+        f"{n_unresolved} unresolved · "
         f"{n_warn} warning{'s' if n_warn != 1 else ''} · "
         f"{len(poor_fit_rows)} poor-fit selection{'s' if len(poor_fit_rows) != 1 else ''}"
     )
     lines.append("")
 
     # TOC.
-    lines.append(
-        "**Contents:** "
-        "[Proposed parameters](#proposed-gas-parameters) · "
-        "[Warnings](#warnings) · "
-        "[Poor-fit selections](#poor-fit-selections)"
-        + (" · [Plots](#plots)" if config.output.plots else "")
-    )
+    toc_items = [
+        "[Proposed parameters](#proposed-gas-parameters)",
+        "[Unresolved (no fit)](#unresolved-no-fit)",
+        "[Warnings](#warnings)",
+        "[Poor-fit selections](#poor-fit-selections)",
+    ]
+    if config.output.plots:
+        toc_items.append("[Plots](#plots)")
+    lines.append("**Contents:** " + " · ".join(toc_items))
     lines.append("")
 
-    # Diff table.
+    # Diff table — fitted rows only.
+    fitted_df = new_gas_df[~new_gas_df["new_gas_rounded"].isna()]
+    unresolved_df = new_gas_df[new_gas_df["new_gas_rounded"].isna()]
+
     lines.append("## Proposed gas parameters")
     lines.append("")
     lines.append("| gas_param | proposed_gas | current_gas | diff |")
     lines.append("| --- | --- | --- | --- |")
-    for _, row in new_gas_df.iterrows():
+    for _, row in fitted_df.iterrows():
         gas_param = str(row["gas_param"])
         proposed = int(row["new_gas_rounded"])
         if gas_param in current_values:
@@ -125,6 +138,27 @@ def write_proposal_report(
             diff_cell = "n/a"
         lines.append(f"| {gas_param} | {proposed} | {current_cell} | {diff_cell} |")
     lines.append("")
+
+    # Unresolved (no fit) — placeholder rows from missing fits or None-derived.
+    lines.append("## Unresolved (no fit)")
+    lines.append("")
+    if unresolved_df.empty:
+        lines.append("_None._")
+        lines.append("")
+    else:
+        lines.append(
+            "These names were proposed by a `model_params` RHS or `derived` "
+            "entry but produced no value — either every candidate fit was "
+            "skipped (constant opcount, insufficient observations, solver "
+            "failure) or a referenced upstream value was itself unresolved. "
+            "Inspect the `evm_gasfit` warnings in `meta.json` for the cause."
+        )
+        lines.append("")
+        lines.append("| gas_param |")
+        lines.append("| --- |")
+        for _, row in unresolved_df.iterrows():
+            lines.append(f"| `{row['gas_param']}` |")
+        lines.append("")
 
     # Warnings.
     lines.append("## Warnings")

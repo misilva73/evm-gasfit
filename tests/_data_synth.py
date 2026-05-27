@@ -291,6 +291,7 @@ def base_config(
     models_custom: Sequence[dict[str, Any]] | None = None,
     models_presets: Sequence[str] | None = None,
     overrides: Mapping[str, Any] | None = None,
+    new_params: Mapping[str, int | None] | None = None,
     glue_enabled: bool = False,
     plots: bool = False,
     seed: int | None = None,
@@ -318,6 +319,8 @@ def base_config(
             "custom": list(models_custom) if models_custom is not None else [],
         },
     }
+    if new_params is not None:
+        cfg["new_params"] = dict(new_params)
     if glue_enabled:
         cfg["glue_adjustment"] = {
             "enabled": True,

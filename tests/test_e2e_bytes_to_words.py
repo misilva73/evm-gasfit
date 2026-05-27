@@ -71,6 +71,7 @@ def test_bytes_to_words_transform_recovers_per_word_coefficient(tmp_path: Path) 
                 },
             }
         ],
+        new_params={"OPCODE_CALLDATACOPY_PER_WORD": None},
     )
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path,
@@ -126,6 +127,7 @@ def test_transform_and_values_are_mutually_exclusive(tmp_path: Path) -> None:
                 },
             }
         ],
+        new_params={"OPCODE_CALLDATACOPY_PER_WORD": None},
     )
     config_yaml, _, _, _ = write_standard_inputs(
         tmp_path, fixtures=fixtures, models=models, config=config, seed=22

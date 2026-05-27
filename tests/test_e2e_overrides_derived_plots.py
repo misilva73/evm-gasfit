@@ -61,6 +61,7 @@ def _build_simple_inputs(
     config = base_config(
         plots=plots,
         overrides=overrides,
+        new_params={"COLD_ACCOUNT_CODE_ACCESS": None},
         models_custom=[
             {
                 "test_name": tn,

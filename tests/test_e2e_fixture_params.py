@@ -72,7 +72,10 @@ def test_fixture_param_rename_passes_through_numeric_value(tmp_path: Path) -> No
     fixtures = _account_fixtures()
     true_slope = 1.0e-5
     models = {"geth": ClientModel(intercept=70.0, slope=true_slope)}
-    config = base_config(models_custom=[_ACCOUNT_VALUE_SENT_SPEC])
+    config = base_config(
+        models_custom=[_ACCOUNT_VALUE_SENT_SPEC],
+        new_params={"ACCOUNT_WRITE": None},
+    )
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path,
         fixtures=fixtures,
@@ -99,7 +102,10 @@ def test_fixture_param_value_remap_translates_strings(tmp_path: Path) -> None:
     """`values:` translates non-numeric source values to floats the regressor can use."""
     fixtures = _sstore_fixtures()
     models = {"geth": ClientModel(intercept=60.0, slope=1.2e-5)}
-    config = base_config(models_custom=[_SSTORE_REMAP_SPEC])
+    config = base_config(
+        models_custom=[_SSTORE_REMAP_SPEC],
+        new_params={"STORAGE_WRITE": None},
+    )
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path,
         fixtures=fixtures,
@@ -132,7 +138,10 @@ def test_two_specs_can_share_derived_name_with_different_sources(
             extra_coefs={"value_sent": 2.0e-6},
         )
     }
-    config = base_config(models_custom=[_ACCOUNT_VALUE_SENT_SPEC, _SSTORE_REMAP_SPEC])
+    config = base_config(
+        models_custom=[_ACCOUNT_VALUE_SENT_SPEC, _SSTORE_REMAP_SPEC],
+        new_params={"ACCOUNT_WRITE": None, "STORAGE_WRITE": None},
+    )
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path,
         fixtures=fixtures,
@@ -172,7 +181,7 @@ def test_unmapped_source_value_raises(tmp_path: Path) -> None:
             "update": {"source": "write_new_value", "values": {"False": 0}},
         },
     }
-    config = base_config(models_custom=[spec])
+    config = base_config(models_custom=[spec], new_params={"STORAGE_WRITE": None})
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path,
         fixtures=fixtures,

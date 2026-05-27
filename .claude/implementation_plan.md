@@ -86,6 +86,16 @@ gas_costs:
   overrides:               # optional, patches specific fields
     COLD_ACCOUNT_ACCESS: 2400
 
+# proposed gas parameters that are not in the fork's raw fields — required
+# for any model_params RHS or derived-formula identifier that introduces a
+# new name. Value is either null ("no prior default") or an integer that
+# renders as the current_gas baseline in the proposal diff column (see §4.6).
+new_params:
+  COLD_ACCOUNT_NOCODE_ACCESS: null
+  COLD_ACCOUNT_CODE_ACCESS: 2600
+  ACCOUNT_WRITE: null
+  STORAGE_WRITE: 2800
+
 # glue adjustment — off by default
 glue_adjustment:
   enabled: true            # optional, default false
@@ -296,10 +306,12 @@ No CLI flag for this — config only (per user feedback).
 
 ### 2.5 Config-load validation of gas-param names
 
-Gas-param names appear in three places: `gas_costs.overrides` keys (patch
-targets), each `ModelSpec.model_params` RHS value (the gas-param a coefficient
-maps to), and `derived:` keys (newly defined params). A single top-level
-`Config` validator handles all three, in this order:
+Gas-param names appear in four places: `gas_costs.overrides` keys (patch
+targets on existing fork fields), `new_params` keys (declarations of names
+introduced by the user/preset), each `ModelSpec.model_params` RHS value (the
+gas-param a coefficient maps to), and `derived:` keys (newly defined params
+computed from already-priced names). A single top-level `Config` validator
+handles all four, in this order:
 
 1. **Instantiate the fork's `GasCosts`** from `gas_costs.fork`; its field names
    form the *raw fork fields* set.
@@ -307,18 +319,35 @@ maps to), and `derived:` keys (newly defined params). A single top-level
    unknown key is a hard config error (you cannot patch a non-existent field).
    The message names the offending key and the fork.
 3. **Apply overrides** to the instantiated `GasCosts`.
-4. **Build the universe.** Let *proposed-by-model_params* = union of every
-   `ModelSpec.model_params` RHS, and *proposed-by-derived* = the `derived:`
-   keys. The full universe is `raw fork fields ∪ proposed-by-model_params ∪
-   proposed-by-derived`; the validator exposes it on the validated config so
+4. **`new_params` — strict.**
+   - Each key must be a non-empty string.
+   - Each key must **not** collide with a raw fork field. Collisions are a
+     hard config error suggesting `gas_costs.overrides` for patching existing
+     fields.
+   - Each value is either `null` or an integer. The integer form is the
+     "current_gas" baseline rendered in the proposal diff column (§4.6); the
+     `null` form falls back to the "no prior default" sentinel.
+5. **Build the universe.** Let *proposed-by-model_params* = union of every
+   `ModelSpec.model_params` RHS, *proposed-by-derived* = the `derived:` keys,
+   and *declared-new-params* = the `new_params` keys. The full universe is
+   `raw fork fields ∪ proposed-by-model_params ∪ proposed-by-derived ∪
+   declared-new-params`; the validator exposes it on the validated config so
    the §4.8 derived-formula check can consume it without recomputing.
-5. **`model_params` RHS — lenient.** Each value not in raw fork fields emits a
-   warning (not an error) — the user may legitimately be proposing a new
-   gas-param name. The warning names the spec, the offending value, and a
-   "did you mean…?" hint.
-6. **`derived:` keys that shadow raw fork fields — lenient.** Same warning
-   style, naming the colliding key. Shadowing is legitimate when redefining a
-   param but worth flagging.
+6. **`model_params` RHS — strict against `raw_fork_fields ∪ new_params`.**
+   Each value not in raw fork fields must be declared in `new_params`.
+   Otherwise it is a hard config error naming the spec, the offending value,
+   and a "did you mean…?" hint computed over the union of raw fields and
+   declared new params. (Rationale: a `model_params` RHS that names neither
+   an existing fork field nor a user-declared new param is either a typo or
+   an undeclared proposal — both worth catching at load.)
+7. **`new_params` dead-declaration — strict.** Each key in `new_params` must
+   be referenced by at least one of: (a) a resolved model's
+   `model_params.values()`, (b) a `derived:` alias-form RHS, or (c) a
+   `derived:` formula's identifier set. Unreferenced declarations are a hard
+   config error.
+8. **`derived:` keys that shadow raw fork fields — lenient.** Same warning
+   style as before, naming the colliding key. Shadowing is legitimate when
+   redefining a param but worth flagging.
 
 Each warning is also collected on the validated config so it can be surfaced
 in the `new_gas_proposal.md` Warnings section without re-emitting to stderr.
@@ -362,8 +391,10 @@ Mechanics:
   `custom:`; replace a preset by omitting it from `presets:` and supplying
   the full spec under `custom:`. Concatenation, no merge logic.
 - The §2.5 validator runs over the resolved union, so a preset proposing a
-  new gas-param name produces the same "did you mean…?" warning as a custom
-  entry would.
+  new gas-param name is subject to the same strict check as a custom entry:
+  the user must declare the name in `new_params` (with `null` or an integer
+  baseline) for the config to load. A preset-only run that doesn't declare
+  the catalog's new names is a hard config error.
 
 Preset catalog (illustrative shapes; [src/evm_gasfit/defaults/models.py](src/evm_gasfit/defaults/models.py) is the
 source of truth — currently ships ~105 presets covering arithmetic, bitwise,
@@ -803,14 +834,33 @@ across-client max never blends fields from multiple per-client rows.
 Tie-break order is part of the determinism contract (§4.0) — never depend on
 pandas / numpy sort stability alone.
 
-The proposal is diffed against the universe of **raw fork fields** (the
-unpatched `GasCosts` field set, captured before `gas_costs.overrides` was
-applied — overrides are themselves part of the proposal, not the baseline).
-Gas-param names that were introduced only by the config (a `model_params`
-value or a `derived:` key that does not collide with a fork field) have no
-prior default to diff against; their row in any diff column shows "no prior
-default" rather than a numeric current value. This applies to `new_gas.csv`,
-`new_gas_all_params.csv`, and the proposal markdown.
+**Diff baseline.** The proposal is diffed against the **patched** fork values
+(raw fork fields with `gas_costs.overrides` applied) augmented by any integer
+value declared under `new_params`. A `new_params` entry with a `null` value
+has no prior default to diff against; its row in any diff column shows the
+"no prior default" sentinel rather than a numeric current value. This applies
+to `new_gas.csv`, `new_gas_all_params.csv`, and the proposal markdown. (The
+unpatched fork values themselves are not consumed downstream — overrides are
+the user's declaration of what the "current" cost is for the run.)
+
+**Unresolved (no-fit) rows.** Every name in `proposed_by_model_params` (the
+union of every resolved `ModelSpec.model_params` RHS) is expected to receive
+a value from the fit. When no spec produced a successful fit for a given
+name (every candidate model was skipped per §4.2), the aggregator still
+emits one placeholder row per missing name on both `new_gas.csv` (no
+`client_name`) and `new_gas_all_params.csv` (with `client_name=""`):
+
+- `runtime_ms`, `conf_int_low`, `conf_int_high`, `glue_adjustment`,
+  `new_gas_decimal` — empty (CSV NaN).
+- `new_gas_rounded` — empty (nullable `Int64` column).
+- `selected_test` / `selected_opcode` / `selected_model_coef_name` (and
+  `test_name` / `target_opcode` / `model_coef_name` on
+  `new_gas_all_params.csv`) — the literal `<no-fit>`.
+- `poor_fit` — `False`.
+
+The proposal report (§5) renders these rows under a dedicated
+`## Unresolved (no fit)` subsection rather than the diff table, so the
+"proposed gas parameters" table is always numeric.
 
 The `poor_fit` flag is serialized as a boolean column on `new_gas_all_params.csv`
 (one row per `(gas_param, client)`). It also surfaces in `new_gas_proposal.md`
@@ -830,6 +880,15 @@ are evaluated in declaration order — against the integer
 worst-case-across-clients table — so later entries can reference earlier ones.
 Each output is rounded up to an integer.
 
+**None propagation.** Derived evaluation operates over `dict[str, int |
+None]`. Any identifier whose underlying gas-param is unresolved (§4.6
+placeholder row, no successful fit) resolves to `None`; any binary or unary
+operator with a `None` operand returns `None`. A derived entry whose result
+is `None` is emitted as its own placeholder row on `new_gas.csv` and
+`new_gas_all_params.csv` (empty `runtime_ms`, `new_gas_decimal`,
+`new_gas_rounded` — same shape as the no-fit rows in §4.6) and is listed
+under the same `## Unresolved (no fit)` subsection in the proposal report.
+
 **AST whitelist** (used by both the load-time validator and the runtime
 evaluator; `ast.parse(mode='eval')`, no `eval`): `Expression`, `Constant`
 (numeric only), `Name` (load context only), `BinOp` over
@@ -844,21 +903,16 @@ form is treated as a one-`Name` formula.
 1. *Node-shape:* reject any node outside the whitelist. Hard config error;
    message names the `derived:` key and the offending node kind.
 2. *Identifier resolution:* every `ast.Name` must resolve at its declaration
-   point against `patched fork fields ∪ proposed-by-model_params ∪ derived
-   keys declared earlier than this one`. Keys declared later (or the current
-   key itself) are out of scope. The universe is the same one §2.5 exposes
-   on the validated config — declaration order comes from the ordered dict
-   Pydantic loads from YAML. Hard config error on a non-resolving identifier;
-   message includes a "did you mean…?" hint.
+   point against `patched fork fields ∪ proposed-by-model_params ∪ declared-
+   new-params ∪ derived keys declared earlier than this one`. Keys declared
+   later (or the current key itself) are out of scope. The universe is the
+   same one §2.5 exposes on the validated config — declaration order comes
+   from the ordered dict Pydantic loads from YAML. Hard config error on a
+   non-resolving identifier; message includes a "did you mean…?" hint.
 
-The runtime evaluator re-runs both checks as defense in depth, but a clean
-load guarantees no formula errors fire mid-pipeline.
-
-This is stricter than the §2.5 `model_params` check on purpose: a
-`model_params` RHS *may* legitimately introduce a brand-new gas-param name
-(the whole point of the tool), so an unknown name is a warning. A `derived:`
-formula identifier has no such out — it must resolve against an
-already-priced param at evaluation time — so it is fatal at load.
+The runtime evaluator re-runs the node-shape check as defense in depth and
+performs None-propagation per the rules above. A clean load guarantees no
+identifier errors fire mid-pipeline.
 
 ---
 
@@ -869,11 +923,11 @@ already-priced param at evaluation time — so it is fatal at load.
 | `results.csv` | yes | one row per `(model_spec, model_by-combo, client)`; no `glue_adjustment` column (that lives on `new_gas_all_params.csv`) |
 | `glue_results.csv` | iff glue enabled | per `(client, glue_opcode)`: `nobs, glue_runtime_ms, p_value, rsquared` |
 | `glue_opcodes_by_test.csv` | iff glue enabled | per `(test, target_opcode, *model_by)`: `glue_opcode, corr, ratio` |
-| `new_gas_all_params.csv` | yes | per-client values; columns include `gas_param, client_name, runtime_ms, pvalue, conf_int_low, conf_int_high, test_name, target_opcode, model_coef_name, glue_adjustment, *model_by, new_gas_decimal, new_gas_rounded, poor_fit`. `pvalue` is the p-value of the regression coefficient identified by `model_coef_name` on the source `results.csv` row (i.e. `target_coef_pvalue` when `model_coef_name == "target_coef"`, else `<model_coef_name>_pvalue`). The CI bounds come from the same coefficient. |
-| `new_gas.csv` | yes | worst-case across clients; one row per gas param; columns include `gas_param, client_name, runtime_ms, conf_int_low, conf_int_high, selected_test, selected_opcode, selected_model_coef_name, glue_adjustment, *model_by, new_gas_decimal, new_gas_rounded` |
+| `new_gas_all_params.csv` | yes | per-client values; columns include `gas_param, client_name, runtime_ms, pvalue, conf_int_low, conf_int_high, test_name, target_opcode, model_coef_name, glue_adjustment, *model_by, new_gas_decimal, new_gas_rounded, poor_fit`. `pvalue` is the p-value of the regression coefficient identified by `model_coef_name` on the source `results.csv` row (i.e. `target_coef_pvalue` when `model_coef_name == "target_coef"`, else `<model_coef_name>_pvalue`). The CI bounds come from the same coefficient. `new_gas_rounded` is a nullable integer column; unresolved (no-fit) rows leave it empty (§4.6). |
+| `new_gas.csv` | yes | worst-case across clients; one row per gas param; columns include `gas_param, client_name, runtime_ms, conf_int_low, conf_int_high, selected_test, selected_opcode, selected_model_coef_name, glue_adjustment, *model_by, new_gas_decimal, new_gas_rounded`. `new_gas_rounded` is a nullable integer column; unresolved rows leave it empty (§4.6). |
 | `runtime_estimation_autogenerated_report.md` | yes | per-spec regression report; plots embedded iff `output.plots: true` |
 | `glue_opcodes_autogenerated_report.md` | iff glue enabled | per-client joint regression summary; plots embedded iff `output.plots: true` |
-| `new_gas_proposal.md` | yes | final proposal, diff vs. raw fork fields (§4.6) with "no prior default" sentinel for newly proposed names, warnings section (collects config-load warnings from §2.5 plus the missing-glue warnings from §4.4) |
+| `new_gas_proposal.md` | yes | final proposal, diff vs. patched fork values + `new_params` integer defaults (§4.6) with "no prior default" sentinel for `new_params` entries declared as `null`. Sections: proposed-parameters diff table (fitted rows only), `## Unresolved (no fit)` subsection (no-fit / None-derived rows), warnings (collects config-load warnings from §2.5 plus missing-glue warnings from §4.4) |
 | `meta.json` | yes | run metadata: `evm_gasfit_version`, `run_started_at` (UTC ISO-8601), `inputs` (paths to config / runtimes / opcounts), `fixtures` (counts: `in_runtimes`, `in_opcounts`, `matched`, `dropped`), `dropped_fixtures` (sorted list of every fixture present in only one of the two inputs — the per-direction warnings on the `evm_gasfit` logger only report counts and point readers here), and `warnings` (every `WARNING+` record emitted on the `evm_gasfit` logger during the run, in emission order, formatted as `"<level> <logger>: <message>"` — same text as appears on stderr) |
 | `figs/*.png` | iff `output.plots: true` | regression, residual, bootstrap plots |
 
@@ -1050,12 +1104,17 @@ params) live in the YAML — the CLI is purely I/O paths plus `--out`. Exit code
 
 Mapping of the §2.5 validation outcomes onto these exit codes:
 
-- A `gas_costs.overrides` key that is not a raw fork field → exit 1 (config
-  error, surfaced at load time before any modeling work begins).
-- A `model_params` RHS value that is not a raw fork field, or a `derived:` key
-  that shadows a raw fork field → **warning, not exit 1**. The run proceeds; the
-  warning is written to stderr at load time and is included in the Warnings
-  section of `new_gas_proposal.md`.
+- A `gas_costs.overrides` key that is not a raw fork field → exit 1.
+- A `new_params` key that collides with a raw fork field, has an empty name,
+  or is declared but never referenced → exit 1.
+- A `model_params` RHS value that is neither a raw fork field nor a declared
+  `new_params` key → exit 1.
+- A `derived:` formula identifier that doesn't resolve in the universe
+  (raw fork fields ∪ `new_params` ∪ proposed-by-model_params ∪ earlier
+  derived keys) → exit 1.
+- A `derived:` key that shadows a raw fork field → **warning, not exit 1**.
+  The run proceeds; the warning is written to stderr at load time and
+  surfaces in the Warnings section of `new_gas_proposal.md`.
 
 ### Python API
 

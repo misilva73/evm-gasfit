@@ -73,6 +73,7 @@ def test_multi_model_with_target_param_and_groups(tmp_path: Path) -> None:
                 "model_params": {"target_coef": "GAS_WARM_ACCESS"},
             },
         ],
+        new_params={"OPCODE_GENERIC": None, "GAS_WARM_ACCESS": None},
     )
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path,
@@ -198,6 +199,7 @@ def test_multi_feature_regression_recovers_extra_coefficient(tmp_path: Path) -> 
                 },
             }
         ],
+        new_params={"STORAGE_WRITE_PER_VALUE": None},
     )
     config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
         tmp_path,

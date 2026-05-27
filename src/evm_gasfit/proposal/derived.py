@@ -82,7 +82,7 @@ def names_referenced(tree: ast.Expression) -> list[str]:
     return out
 
 
-def _eval(node: ast.AST, env: Mapping[str, int | float]) -> float:
+def _eval(node: ast.AST, env: Mapping[str, int | float | None]) -> float | None:
     if isinstance(node, ast.Expression):
         return _eval(node.body, env)
     if isinstance(node, ast.Constant):
@@ -94,13 +94,21 @@ def _eval(node: ast.AST, env: Mapping[str, int | float]) -> float:
     if isinstance(node, ast.BinOp):
         left = _eval(node.left, env)
         right = _eval(node.right, env)
+        if left is None or right is None:
+            return None
         if isinstance(node.op, (ast.Div, ast.FloorDiv)) and right == 0:
             raise ConfigError("division by zero in formula")
         return _BIN_OPS[type(node.op)](left, right)
     if isinstance(node, ast.UnaryOp):
-        return _UNARY_OPS[type(node.op)](_eval(node.operand, env))
+        operand = _eval(node.operand, env)
+        if operand is None:
+            return None
+        return _UNARY_OPS[type(node.op)](operand)
     _reject(node)
 
 
-def evaluate(tree: ast.Expression, env: Mapping[str, int | float]) -> float:
-    return float(_eval(tree, env))
+def evaluate(
+    tree: ast.Expression, env: Mapping[str, int | float | None]
+) -> float | None:
+    result = _eval(tree, env)
+    return None if result is None else float(result)

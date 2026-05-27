@@ -224,6 +224,10 @@ class Config(BaseModel):
     output: OutputSection = Field(default_factory=OutputSection)
     # ``derived`` values are either ``str`` (alias form) or ``{formula: str}``.
     derived: dict[str, Any] = Field(default_factory=dict)
+    # Names introduced by the user/preset that are not raw fork fields. ``None``
+    # value means "no prior default"; integer value renders as ``current_gas``
+    # in the proposal diff column.
+    new_params: dict[str, int | None] = Field(default_factory=dict)
     models: ModelsSection
 
     # Computed at validation time.
@@ -279,34 +283,47 @@ class Config(BaseModel):
             gc[key] = value
         self.gas_costs_obj = gc
 
-        # 5) Build the universe.
+        # 5) Strict new_params declaration check.
+        for key in self.new_params:
+            if not isinstance(key, str) or not key:
+                raise ConfigError("new_params keys must be non-empty strings")
+            if key in self.raw_fork_fields:
+                raise ConfigError(
+                    f"new_params[{key!r}] is already a raw fork field on "
+                    f"{self.gas_costs.fork!r}; use gas_costs.overrides to patch "
+                    f"it instead"
+                )
+        declared_new_params: set[str] = set(self.new_params)
+
+        # 6) Build the universe.
         proposed_by_model_params: set[str] = {
             v for spec in resolved for v in spec.model_params.values()
         }
         proposed_by_derived: set[str] = set(self.derived.keys())
         self.param_universe = frozenset(
-            self.raw_fork_fields | proposed_by_model_params | proposed_by_derived
+            self.raw_fork_fields
+            | proposed_by_model_params
+            | proposed_by_derived
+            | declared_new_params
         )
 
-        # 6) Lenient model_params RHS check.
+        # 7) Strict model_params RHS check: every non-raw RHS must be declared
+        # in new_params (typo guard + explicit proposal of new names).
+        allowed_rhs = self.raw_fork_fields | declared_new_params
         for spec in resolved:
             for coef_name, gas_param in spec.model_params.items():
-                if gas_param in self.raw_fork_fields:
+                if gas_param in allowed_rhs:
                     continue
-                candidates = (self.raw_fork_fields | proposed_by_model_params) - {
-                    gas_param
-                }
-                hint = get_close_matches(gas_param, list(candidates), n=1)
+                hint = get_close_matches(gas_param, list(allowed_rhs), n=1)
                 suffix = f"; did you mean {hint[0]!r}?" if hint else ""
-                msg = (
+                raise ConfigError(
                     f"{spec.source_label} (test_name={spec.test_name!r}): "
-                    f"model_params[{coef_name!r}] = {gas_param!r} is not a raw fork "
-                    f"field on {self.gas_costs.fork!r}{suffix}"
+                    f"model_params[{coef_name!r}] = {gas_param!r} is not a raw "
+                    f"fork field on {self.gas_costs.fork!r} and is not declared "
+                    f"in new_params{suffix}"
                 )
-                _log.warning(msg)
-                self.warnings.append(msg)
 
-        # 7) Lenient derived-shadowing check.
+        # 8) Lenient derived-shadowing check.
         for name in self.derived:
             if name in self.raw_fork_fields:
                 msg = (
@@ -316,7 +333,8 @@ class Config(BaseModel):
                 _log.warning(msg)
                 self.warnings.append(msg)
 
-        # 8) Derived-formula AST + identifier resolution. Declaration order.
+        # 9) Derived-formula AST + identifier resolution. Declaration order.
+        derived_referenced: set[str] = set()
         seen_derived: set[str] = set()
         for name, raw_or_formula in self.derived.items():
             if isinstance(raw_or_formula, str):
@@ -331,7 +349,12 @@ class Config(BaseModel):
                     f"derived[{name!r}] must be a string alias or {{formula: <expr>}} mapping"
                 )
             tree = parse_formula(raw)
-            universe = self.raw_fork_fields | proposed_by_model_params | seen_derived
+            universe = (
+                self.raw_fork_fields
+                | proposed_by_model_params
+                | declared_new_params
+                | seen_derived
+            )
             for ident in names_referenced(tree):
                 if ident not in universe:
                     hint = get_close_matches(ident, list(universe), n=1)
@@ -339,8 +362,20 @@ class Config(BaseModel):
                     raise ConfigError(
                         f"derived[{name!r}]: unknown identifier {ident!r}{suffix}"
                     )
+                derived_referenced.add(ident)
             self.derived_evaluated[name] = (raw, tree)
             seen_derived.add(name)
+
+        # 10) Dead-declaration check: every new_params key must be referenced
+        # by some model_params RHS, derived alias RHS, or derived formula.
+        referenced_names = proposed_by_model_params | derived_referenced
+        unreferenced = declared_new_params - referenced_names
+        if unreferenced:
+            names = ", ".join(repr(n) for n in sorted(unreferenced))
+            raise ConfigError(
+                f"new_params declared but never referenced by any model_params "
+                f"RHS or derived formula: {names}"
+            )
 
         return self
 

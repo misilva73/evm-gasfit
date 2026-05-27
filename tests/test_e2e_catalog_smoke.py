@@ -16,6 +16,7 @@ from typing import Iterable
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from _data_synth import (
     ClientModel,
@@ -32,6 +33,18 @@ from evm_gasfit.defaults.models import PRESETS
 
 _BLOCK_LIMITS = (30, 60, 90, 120, 150)
 _OPCOUNT_PER_MILLION = 500_000.0
+
+# Names the catalog's presets propose that are not raw osaka fork fields.
+# Any preset-only config must declare these in `new_params` for load to succeed.
+_CATALOG_NEW_PARAMS: dict[str, int | None] = {
+    "ACCOUNT_WRITE": None,
+    "COLD_ACCOUNT_CODE_ACCESS": None,
+    "COLD_ACCOUNT_NOCODE_ACCESS": None,
+    "OPCODE_CALLDATACOPY_PER_WORD": None,
+    "OPCODE_CODECOPY_PER_WORD": None,
+    "OPCODE_MCOPY_PER_WORD": None,
+    "STORAGE_WRITE": None,
+}
 
 
 # Representative values for known param columns when the preset declares them
@@ -215,7 +228,11 @@ def test_every_catalog_preset_fits_without_raising(tmp_path: Path) -> None:
     runtimes_df.to_csv(runtimes_csv, index=False)
     write_opcounts_json(opcounts_json, deduped_fixtures)
 
-    config = base_config(models_custom=[], models_presets=list(PRESETS.keys()))
+    config = base_config(
+        models_custom=[],
+        models_presets=list(PRESETS.keys()),
+        new_params=_CATALOG_NEW_PARAMS,
+    )
     write_config_yaml(config_yaml, config)
 
     from evm_gasfit import GasFit
@@ -243,28 +260,27 @@ def test_every_catalog_preset_fits_without_raising(tmp_path: Path) -> None:
     assert "OPCODE_ADD" in set(new_gas["gas_param"])
 
 
-def test_catalog_warnings_only_list_new_gas_param_names(tmp_path: Path) -> None:
-    """Every config-load warning from the catalog must be about a gas-param
-    name the catalog explicitly introduces (or its sibling) — not a typo."""
-    config = base_config(models_custom=[], models_presets=list(PRESETS.keys()))
-    config_yaml = tmp_path / "config.yaml"
-    write_config_yaml(config_yaml, config)
-
+def test_catalog_requires_new_params_declaration(tmp_path: Path) -> None:
+    """A preset-only config that doesn't declare the catalog's new names fails
+    to load with a hard `ConfigError`; declaring them lets the config load
+    cleanly with no warnings emitted."""
     from evm_gasfit.config import load_config
+    from evm_gasfit.errors import ConfigError
 
-    loaded = load_config(config_yaml)
+    # Without `new_params`, a preset writing a non-raw name is a hard error.
+    bare = base_config(models_custom=[], models_presets=list(PRESETS.keys()))
+    bare_yaml = tmp_path / "bare.yaml"
+    write_config_yaml(bare_yaml, bare)
+    with pytest.raises(ConfigError, match=r"not declared in new_params"):
+        load_config(bare_yaml)
 
-    # Catalog-introduced names (listed in the design doc as proposals).
-    new_names = {
-        "OPCODE_CALLDATACOPY_PER_WORD",
-        "OPCODE_CODECOPY_PER_WORD",
-        "OPCODE_MCOPY_PER_WORD",
-        "COLD_ACCOUNT_NOCODE_ACCESS",
-        "COLD_ACCOUNT_CODE_ACCESS",
-        "ACCOUNT_WRITE",
-        "STORAGE_WRITE",
-    }
-    for w in loaded.warnings:
-        assert any(n in w for n in new_names), (
-            f"unexpected warning from catalog config-load: {w}"
-        )
+    # With `new_params` declared, the catalog loads clean.
+    declared = base_config(
+        models_custom=[],
+        models_presets=list(PRESETS.keys()),
+        new_params=_CATALOG_NEW_PARAMS,
+    )
+    declared_yaml = tmp_path / "declared.yaml"
+    write_config_yaml(declared_yaml, declared)
+    loaded = load_config(declared_yaml)
+    assert loaded.warnings == []

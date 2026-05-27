@@ -279,7 +279,14 @@ def plot_proposal_heatmap(
     figs_dir = _ensure(out_dir, "proposal")
     path = figs_dir / "heatmap.png"
 
-    pivot = new_gas_all_df.pivot_table(
+    # ``new_gas_rounded`` is nullable Int64 to carry no-fit placeholders;
+    # matplotlib only handles float NaN, so cast before pivoting.
+    plot_df = new_gas_all_df.assign(
+        new_gas_rounded=new_gas_all_df["new_gas_rounded"]
+        .astype("Float64")
+        .astype(float)
+    )
+    pivot = plot_df.pivot_table(
         index="gas_param",
         columns="client_name",
         values="new_gas_rounded",
@@ -302,10 +309,15 @@ def plot_proposal_by_client(
     figs_dir = _ensure(out_dir, "proposal")
     path = figs_dir / "by_client.png"
 
-    width = max(_FIGSIZE[0], 1.0 * new_gas_all_df["gas_param"].nunique() + 4)
+    plot_df = new_gas_all_df.assign(
+        new_gas_rounded=new_gas_all_df["new_gas_rounded"]
+        .astype("Float64")
+        .astype(float)
+    )
+    width = max(_FIGSIZE[0], 1.0 * plot_df["gas_param"].nunique() + 4)
     fig, ax = plt.subplots(figsize=(width, _FIGSIZE[1]))
     sns.barplot(
-        data=new_gas_all_df,
+        data=plot_df,
         x="gas_param",
         y="new_gas_rounded",
         hue="client_name",
