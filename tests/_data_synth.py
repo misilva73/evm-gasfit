@@ -54,6 +54,9 @@ class FixtureSpec:
     extra_opcounts: dict[str, float] = field(default_factory=dict)
     count_source_opcode: str | None = None
     omit_opcode_token: bool = False
+    # Template for the trailing scan-axis token; `{n}` is replaced with
+    # `block_limit_million`. EEST's newer convention is `"benchmark_{n}M"`.
+    sweep_token_format: str = "block_limit_million_{n}"
 
     @property
     def fixture_name(self) -> str:
@@ -61,7 +64,7 @@ class FixtureSpec:
         if not self.omit_opcode_token:
             tokens.append(f"opcode_{self.target_opcode}")
         tokens.extend(f"{k}_{v}" for k, v in self.params.items())
-        tokens.append(f"block_limit_million_{self.block_limit_million}")
+        tokens.append(self.sweep_token_format.format(n=self.block_limit_million))
         return f"{self.test_file}.py__{self.test_name}[{'-'.join(tokens)}]"
 
 
@@ -168,6 +171,7 @@ def make_block_limit_fixtures(
     block_limits: Sequence[int] = (30, 60, 90, 120, 150, 180, 210, 240),
     target_opcount_per_million: float = 1_000_000.0,
     extra_opcount_per_million: Mapping[str, float] | None = None,
+    sweep_token_format: str = "block_limit_million_{n}",
 ) -> list[FixtureSpec]:
     """Build fixtures that vary only by block-limit.
 
@@ -190,6 +194,7 @@ def make_block_limit_fixtures(
                 extra_opcounts={
                     op: bl * per_m for op, per_m in extra_opcount_per_million.items()
                 },
+                sweep_token_format=sweep_token_format,
             )
         )
     return fixtures
@@ -204,6 +209,7 @@ def cross_product_fixtures(
     block_limits: Sequence[int] = (30, 60, 90, 120, 150, 180, 210, 240),
     target_opcount_per_million: float = 1_000_000.0,
     extra_opcount_per_million: Mapping[str, float] | None = None,
+    sweep_token_format: str = "block_limit_million_{n}",
 ) -> list[FixtureSpec]:
     """Cross-product over `param_grid`, one fixture set per combo.
 
@@ -232,6 +238,7 @@ def cross_product_fixtures(
                         op: bl * per_m
                         for op, per_m in extra_opcount_per_million.items()
                     },
+                    sweep_token_format=sweep_token_format,
                 )
             )
     return fixtures
@@ -239,6 +246,7 @@ def cross_product_fixtures(
 
 def make_glue_driver_fixtures(
     target_opcount_per_million: float = 2_000_000.0,
+    sweep_token_format: str = "block_limit_million_{n}",
 ) -> list[FixtureSpec]:
     """Driver fixtures for every priced glue spec with a driver test.
 
@@ -262,6 +270,7 @@ def make_glue_driver_fixtures(
                     target_opcode=member,
                     params={"opcode": member},
                     target_opcount_per_million=target_opcount_per_million,
+                    sweep_token_format=sweep_token_format,
                 )
             )
     return fixtures

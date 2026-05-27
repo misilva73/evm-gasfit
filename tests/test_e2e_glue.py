@@ -187,6 +187,53 @@ def test_glue_missing_required_test_raises(tmp_path: Path) -> None:
         run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
 
 
+def test_glue_works_with_benchmark_sweep_token(tmp_path: Path) -> None:
+    """The detector must not depend on a specific scan-axis token name.
+
+    Real EEST fixtures use `benchmark_<N>M` instead of
+    `block_limit_million_<N>`. Opcounts are a property of the fixture, so the
+    detector correlates over per-fixture rows regardless of which token names
+    the scan axis.
+    """
+    priced_glue = _active_priced_names()
+
+    main_fixtures = make_block_limit_fixtures(
+        test_file="test_arithmetic",
+        test_name="test_arithmetic",
+        target_opcode="ADD",
+        params={"opcode": "ADD"},
+        extra_opcount_per_million={"ISZERO": 500_000},
+        sweep_token_format="benchmark_{n}M",
+    )
+    all_fixtures = main_fixtures + make_glue_driver_fixtures(
+        sweep_token_format="benchmark_{n}M",
+    )
+    models = {"geth": ClientModel(intercept=50.0, slope=2.0e-5)}
+
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=all_fixtures,
+        models=models,
+        config=base_config(glue_enabled=True),
+        seed=7,
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+    # Sanity-check the new token shape actually landed on the fixture names.
+    runtimes = pd.read_csv(runtimes_csv)
+    assert runtimes["fixture_name"].str.contains("benchmark_30M").any()
+    assert not runtimes["fixture_name"].str.contains("block_limit_million_").any()
+
+    glue_by_test = pd.read_csv(out_dir / "glue_opcodes_by_test.csv")
+    # ISZERO is the contaminant we injected — it must show up as detected glue
+    # on the ADD test under the new token convention.
+    add_glue = glue_by_test[glue_by_test["test_name"] == "test_arithmetic"]
+    assert "ISZERO" in set(add_glue["glue_opcode"])
+
+    glue_results = pd.read_csv(out_dir / "glue_results.csv")
+    assert set(glue_results["glue_opcode"]) == priced_glue
+
+
 def test_glue_missing_optional_driver_does_not_raise(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

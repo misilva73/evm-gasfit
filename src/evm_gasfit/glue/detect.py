@@ -31,7 +31,7 @@ from .required import MEMBER_TO_CANONICAL, PRICED_GLUE_OPCODES
 
 _log = logging.getLogger("evm_gasfit.glue")
 
-_MIN_BLOCK_LIMIT_POINTS = 5
+_MIN_FIXTURE_POINTS = 5
 _RATIO_FLOOR = 5e-4
 # Columns on ``fixtures_df`` that are not per-opcode counts.
 _NON_OPCODE_COLUMNS: frozenset[str] = frozenset(
@@ -41,7 +41,6 @@ _NON_OPCODE_COLUMNS: frozenset[str] = frozenset(
         "test_file",
         "test_name",
         "test_runtime_ms",
-        "block_limit_million",
         "target_opcode",
         "opcount",
     }
@@ -149,14 +148,17 @@ def compute_glue_opcodes_by_test(
 
     for spec in model_specs:
         for group_values, group_df in _spec_groups(fixtures_df, spec):
+            # Opcounts are a property of the fixture, not the client — collapse
+            # to one row per fixture before correlating. Sorting by opcount
+            # keeps the endpoint-based ratio (np.diff().mean()) well-defined.
             agg = (
-                group_df.groupby("block_limit_million", sort=True)
-                .agg("mean", numeric_only=True)
-                .reset_index()
+                group_df.drop_duplicates(subset="fixture_name")
+                .sort_values("opcount", kind="mergesort")
+                .reset_index(drop=True)
             )
-            if len(agg) < _MIN_BLOCK_LIMIT_POINTS:
+            if len(agg) < _MIN_FIXTURE_POINTS:
                 continue
-            target_opcode = group_df["target_opcode"].iloc[0]
+            target_opcode = agg["target_opcode"].iloc[0]
             opcount = agg["opcount"].astype(float).to_numpy()
             for canonical, counts in _canonical_columns(
                 agg, target_opcode, spec.target_operation_count_source

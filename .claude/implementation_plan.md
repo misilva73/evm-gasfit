@@ -549,11 +549,20 @@ of the raw fixture name and so participate in `filter_by` substring tests.
 
 Params extracted into named columns on `fixtures_df` for every row:
 
-- Always: `test_name`, `test_file`, `block_limit_million`.
+- Always: `test_name`, `test_file`. Every parsed `key_value` token also lands as
+  its own (string-valued) column — the parser is name-agnostic and does not
+  coerce any specific param to a numeric type. Specs that need a numeric value
+  declare it via `fixture_params:` (§2.7), which handles the coercion per-spec.
 - For each model spec: the params named in `model_by` (one column each) and a
   `filter_by` column built by joining the matched `filter_by` tokens with `-`.
 - `target_opcode` is filled per row by either the literal `target_operation` or by
   reading `target_operation_param` from the parsed params.
+
+EEST has used more than one convention for the scan-axis token (older fixtures
+emit `block_limit_million_<N>`; newer ones use `benchmark_<N>M` or other
+test-specific names like `num_pairs_<N>` and `msg_size_<N>`). Downstream stages
+do not depend on any particular token name — the scan axis is whatever varies
+across the surviving fixtures.
 
 Implementation reuses logic from
 [src/data.py::extract_param_values](https://github.com/misilva73/evm-gas-repricings/blob/main/src/data.py) but reorganized into a pure
@@ -702,13 +711,16 @@ Per-fixture glue ratios are computed the same way as today
 
 - Group by `(test_name, target_opcode, *model_by)` — **no client axis**. Opcode
   counts are a property of the fixture (compiled bytecode + inputs), not of the
-  client running it, so the ratio table is computed once and reused unchanged
-  across every client in the adjustment formula below.
-- Drop groups with fewer than 5 distinct block-limit points.
+  client running it, so within a group the per-fixture rows are deduplicated on
+  `fixture_name` and the ratio table is computed once on those rows, then
+  reused unchanged across every client in the adjustment formula below.
+- Drop groups with fewer than 5 distinct fixtures. The scan axis is implicit in
+  the rows — whatever EEST varies across the fixtures (block limit, message
+  size, num pairs, …) — and no specific param name is referenced.
 - For every non-target opcode column, compute Pearson correlation with `opcount`
-  across the group. Keep opcodes with `corr ≥ 1 − eps`, where `eps` comes from
-  `glue_adjustment.ratio_corr_eps` (config, default 0.05), and
-  `mean(diff(count)) / mean(diff(opcount)) ≥ 5e-4`.
+  across the (opcount-sorted) per-fixture rows. Keep opcodes with
+  `corr ≥ 1 − eps`, where `eps` comes from `glue_adjustment.ratio_corr_eps`
+  (config, default 0.05), and `mean(diff(count)) / mean(diff(opcount)) ≥ 5e-4`.
 - For specs whose `target_operation_count_source` is set (§2.1, precompiles),
   the count-source column is also excluded from the candidate set — the
   invariant guarantees `count_source == opcount` row-for-row, so it would

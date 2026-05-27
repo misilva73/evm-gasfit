@@ -93,9 +93,6 @@ def build_fixtures_df(
 
     df = df.merge(parsed_df, on="fixture_name", how="left")
 
-    if "block_limit_million" in df.columns:
-        df["block_limit_million"] = df["block_limit_million"].astype(int)
-
     # Build a wide opcode-count table indexed by fixture_name and left-join it.
     opcounts_df = pd.DataFrame.from_dict(opcounts, orient="index")
     opcounts_df.index.name = "fixture_name"
