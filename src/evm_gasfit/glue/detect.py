@@ -74,18 +74,28 @@ def _spec_groups(
     return out
 
 
-def _canonical_columns(agg: pd.DataFrame, target_opcode: str) -> dict[str, np.ndarray]:
+def _canonical_columns(
+    agg: pd.DataFrame,
+    target_opcode: str,
+    count_source: str | None = None,
+) -> dict[str, np.ndarray]:
     """Fold per-mnemonic opcount columns into canonical-name sums.
 
     The target opcode is excluded from every family sum so a target that
     happens to be a family member (e.g. ``DUP3``) cannot spuriously match
-    its own canonical family.
+    its own canonical family. The count source, when set (precompile specs),
+    is also excluded — the invariant forces ``corr == 1`` against opcount,
+    so it would trivially match every threshold despite being the work being
+    measured rather than glue.
     """
+    excluded = {target_opcode}
+    if count_source is not None:
+        excluded.add(count_source)
     raw_cols = [
         c
         for c in agg.columns
         if c not in _NON_OPCODE_COLUMNS
-        and c != target_opcode
+        and c not in excluded
         and pd.api.types.is_numeric_dtype(agg[c])
     ]
     members_by_canonical: dict[str, list[str]] = {}
@@ -148,7 +158,9 @@ def compute_glue_opcodes_by_test(
                 continue
             target_opcode = group_df["target_opcode"].iloc[0]
             opcount = agg["opcount"].astype(float).to_numpy()
-            for canonical, counts in _canonical_columns(agg, target_opcode).items():
+            for canonical, counts in _canonical_columns(
+                agg, target_opcode, spec.target_operation_count_source
+            ).items():
                 keep, corr, ratio = _passes_thresholds(counts, opcount, eps)
                 if not keep:
                     continue

@@ -127,6 +127,13 @@ models:
       model_params:
         target_coef: COLD_STORAGE_ACCESS
         update: STORAGE_WRITE
+    # precompile shape: synthetic target_operation + count_source escape hatch
+    - test_name: test_bls12_381
+      target_operation: BLS12_G1ADD            # display name in results.csv
+      target_operation_count_source: STATICCALL # where to read the opcount column
+      filter_by: [bls12_g1add]
+      model_params:
+        target_coef: PRECOMPILE_BLS12_G1ADD
 ```
 
 Field semantics:
@@ -150,18 +157,38 @@ Each model spec — whether bundled as a preset or written under
   opcode to a literal (`SLOAD`), or name a fixture-param that varies it across
   fixtures (`opcode` → opcode is read from the fixture's `opcode_*` token).
   **Exactly one** must be set; setting both or neither is a config error.
+- `target_operation_count_source` — optional, only valid with
+  `target_operation`. Names an existing opcode column to read the per-fixture
+  opcount from when the target operation has no opcount column of its own.
+  This is the precompile escape hatch: precompiles (e.g. `BLS12_G1ADD`,
+  `BN128_ADD`) are invoked via `STATICCALL` and have no dedicated mnemonic in
+  `opcounts.json`, so `target_operation` carries the precompile's display
+  name (used as the row identity in `results.csv` / `new_gas.csv`) while
+  `target_operation_count_source` names the actual column the invariant
+  (§2.3) is checked against. The field is scoped to the invariant check and
+  the glue detector's candidate set (§4.4) — it is **not** propagated to any
+  output artifact and never replaces `target_opcode` in downstream rows. Set
+  this only when no opcount column matches `target_operation`; for ordinary
+  opcode targets, leave it unset and the invariant defaults to
+  `target_opcode` itself.
 - `filter_by` — string or list of strings, ANDed as substring matches against
   the raw fixture name. Scalar inputs are normalized to a one-element list and
   empty strings are rejected. After validation, `filter_by` is always a
   `list[str]` — never `None`. List entries are concatenated with `-` into an
   informational `filter_by` column on the parsed dataframe (the match itself
   is still substring).
-  - *Default when omitted:* if `target_operation: <X>` is set, the validated
-    config stores `filter_by = ["opcode_<X>"]` (matching the EEST convention
-    that fixtures targeting opcode `X` carry an `opcode_X` token).
+  - *Default when omitted:* if `target_operation: <X>` is set **and**
+    `target_operation_count_source` is unset, the validated config stores
+    `filter_by = ["opcode_<X>"]` (matching the EEST convention that fixtures
+    targeting opcode `X` carry an `opcode_X` token).
   - If `target_operation_param` is used instead, no default is applied —
     `filter_by` is an explicit empty list and the param assignment is the only
     selector.
+  - If `target_operation_count_source` is set, no default is applied either
+    — precompile display names like `BLS12_G1ADD` don't appear as fixture
+    tokens, so the user must supply the explicit selector (typically a
+    fixture-name substring like `bls12_g1add`). An empty `filter_by` under
+    this mode is a config error.
 - `model_by` — string or list of fixture-param names. Names resolve to raw
   parsed-param tokens or to derived names declared on the same spec's
   `fixture_params` (§2.7). The pipeline groups fixtures by every distinct
@@ -216,13 +243,18 @@ The remaining keys are the full per-opcode counts (used by glue adjustment).
 Per-opcode keys are the EVM opcode mnemonics in upper-case (e.g. `"ADD"`,
 `"SLOAD"`, `"STATICCALL"`).
 
-**Invariant:** for every fixture, `opcount` equals the count under the target
-opcode's mnemonic key — i.e. for a fixture whose resolved `target_opcode` is
-`SLOAD`, `data[fixture_name]["opcount"] == data[fixture_name]["SLOAD"]`. The
-opcounts loader has no spec context, so it cannot identify the target opcode
-on its own; the equality is enforced at model-estimation time, once each spec
-has resolved `target_opcode` per row, and raises a config error naming the
-offending fixture if the two disagree.
+**Invariant:** for every fixture, `opcount` equals the count under the
+**count-source** opcode's mnemonic key. The count source is normally the
+resolved `target_opcode` itself — i.e. for a fixture whose `target_opcode` is
+`SLOAD`, `data[fixture_name]["opcount"] == data[fixture_name]["SLOAD"]`. When
+the spec sets `target_operation_count_source` (§2.1, used for precompiles),
+the invariant is checked against that opcode column instead — e.g. for a
+BLS12 precompile spec with `target_operation: BLS12_G1ADD` and
+`target_operation_count_source: STATICCALL`,
+`data[fixture_name]["opcount"] == data[fixture_name]["STATICCALL"]`. The
+opcounts loader has no spec context, so the equality is enforced at
+model-estimation time and raises a config error naming the offending fixture
+if the two disagree.
 
 **Missing per-opcode keys** in any fixture's inner dict are treated as zero
 counts (sparse JSON is supported, no warning emitted). This applies to
@@ -316,7 +348,12 @@ Mechanics:
   aggregator in §4.6 routes them by that key). Two specs that share both
   `test_name` and target selection — e.g. same `target_operation_param`,
   same `model_by` — are not distinguishable by the aggregator and should
-  not be relied upon. Empty `presets:` *and* empty `custom:` → config error.
+  not be relied upon. This is the reason precompile specs (which share a
+  literal `target_operation_count_source` like `STATICCALL`) must each carry
+  a distinct `target_operation` display name — e.g. `BLS12_G1ADD` vs
+  `BLS12_G2ADD` — so the aggregator can tell them apart even though their
+  count source is identical. Empty `presets:` *and* empty `custom:` → config
+  error.
 - **Granularity.** Selection is per-preset, not per-gas-param. A preset's
   `model_params` may write several params (e.g. `account_access` →
   `COLD_ACCOUNT_ACCESS`, `COLD_ACCOUNT_WRITE`); listing it always contributes
@@ -336,6 +373,16 @@ of truth and the full catalog lands when the recipes are ported):
 | `arithmetic_add` | `test_arithmetic` | `ADD` | `OPCODE_ADD` |
 | `account_access` | `test_account_access` | param `opcode` | `COLD_ACCOUNT_ACCESS`, `COLD_ACCOUNT_WRITE` |
 | `storage_access` | `test_sload_bloated` | `SLOAD` | `COLD_STORAGE_ACCESS` |
+| `precompile_bls12_g1add` | `test_bls12_381` | `BLS12_G1ADD` (count via `STATICCALL`) | `PRECOMPILE_BLS12_G1ADD` |
+
+The last row illustrates the precompile shape: `target_operation` carries the
+precompile's display name (used as `target_opcode` in all output rows),
+`target_operation_count_source: STATICCALL` tells the §2.3 invariant which
+column actually backs `opcount`, and `filter_by` picks the variant out of the
+shared `test_bls12_381` fixture pool (e.g. `[bls12_g1add]`). The same shape
+covers the other BLS12 precompiles (`G2ADD`, `FP_TO_G1`, `FP_TO_G2`, …) and
+the BN128 precompiles (`BN128_ADD`, `BN128_MUL`, …) on
+`test_alt_bn128` / `test_alt_bn128_uncachable`.
 
 Preset definitions are auto-rendered into the docs site via mkdocstrings
 (§11); no CLI inspection subcommand ships (`evm-gasfit run` stays purely I/O
@@ -654,6 +701,12 @@ Per-fixture glue ratios are computed the same way as today
   across the group. Keep opcodes with `corr ≥ 1 − eps`, where `eps` comes from
   `glue_adjustment.ratio_corr_eps` (config, default 0.05), and
   `mean(diff(count)) / mean(diff(opcount)) ≥ 5e-4`.
+- For specs whose `target_operation_count_source` is set (§2.1, precompiles),
+  the count-source column is also excluded from the candidate set — the
+  invariant guarantees `count_source == opcount` row-for-row, so it would
+  match every threshold trivially and pollute the glue table with a
+  STATICCALL = 1.0 entry for every precompile target. That column counts the
+  work being measured, not glue.
 
 Adjustment formula (unchanged):
 

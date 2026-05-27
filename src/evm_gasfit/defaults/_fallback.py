@@ -132,6 +132,9 @@ _OSAKA: dict[str, int] = {
     "OPCODE_PUSH0": 2,
     "OPCODE_DUP": 3,
     "OPCODE_SWAP": 3,
+    "OPCODE_SELFBALANCE": 5,
+    "OPCODE_TLOAD": 100,
+    "OPCODE_TSTORE": 100,
     # Dynamic Opcode Components
     "OPCODE_RETURNDATACOPY_BASE": 3,
     "OPCODE_RETURNDATACOPY_PER_WORD": 3,

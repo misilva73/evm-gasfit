@@ -36,6 +36,13 @@ class FixtureSpec:
     `params` keys/values appear inside the `[...]` of the EEST fixture name,
     in insertion order. `extra_opcounts` lists glue/non-target opcodes used
     by this fixture; values are counts, not ratios.
+
+    `count_source_opcode` is the precompile escape hatch: when set, the
+    opcounts JSON entry uses that opcode as the opcount column (instead of
+    `target_opcode`, which is then treated as a synthetic display name with
+    no opcount column at all). `omit_opcode_token` likewise suppresses the
+    default `opcode_<target>` fixture-name token; precompile fixtures
+    identify their variant via a `params` entry instead (e.g. `bls12_g1add`).
     """
 
     test_file: str
@@ -45,10 +52,14 @@ class FixtureSpec:
     target_opcode: str
     target_opcount: float
     extra_opcounts: dict[str, float] = field(default_factory=dict)
+    count_source_opcode: str | None = None
+    omit_opcode_token: bool = False
 
     @property
     def fixture_name(self) -> str:
-        tokens = ["fork_Amsterdam", "benchmark_test", f"opcode_{self.target_opcode}"]
+        tokens = ["fork_Amsterdam", "benchmark_test"]
+        if not self.omit_opcode_token:
+            tokens.append(f"opcode_{self.target_opcode}")
         tokens.extend(f"{k}_{v}" for k, v in self.params.items())
         tokens.append(f"block_limit_million_{self.block_limit_million}")
         return f"{self.test_file}.py__{self.test_name}[{'-'.join(tokens)}]"
@@ -115,14 +126,23 @@ def write_runtimes_csv(
 def write_opcounts_json(path: Path, fixtures: Sequence[FixtureSpec]) -> None:
     payload: dict[str, dict[str, float]] = {}
     for spec in fixtures:
-        # The loader requires data[fixture]["opcount"] == data[fixture][target_opcode]
-        # — opcount and the target-opcode mnemonic must agree.
+        # The invariant requires data[fixture]["opcount"] == data[fixture][count_source]
+        # where count_source is target_opcode for opcode targets, or the
+        # spec's count_source_opcode for precompiles. When count_source_opcode
+        # is set, target_opcode is a synthetic display name and is NOT written
+        # as a separate opcount column.
+        count_key = spec.count_source_opcode or spec.target_opcode
         entry: dict[str, float] = {
             "opcount": spec.target_opcount,
-            spec.target_opcode: float(spec.target_opcount),
+            count_key: float(spec.target_opcount),
         }
         for op, n in spec.extra_opcounts.items():
-            if op == spec.target_opcode:
+            if op == count_key:
+                raise ValueError(
+                    f"extra_opcounts for {spec.fixture_name} duplicates the "
+                    f"count-source opcode {count_key!r}"
+                )
+            if op == spec.target_opcode and spec.count_source_opcode is None:
                 raise ValueError(
                     f"extra_opcounts for {spec.fixture_name} duplicates the "
                     f"target opcode {spec.target_opcode!r}"

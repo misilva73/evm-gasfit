@@ -102,20 +102,28 @@ def _resolve_target_opcode(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
 
 
 def _enforce_opcount_invariant(df: pd.DataFrame, spec: ModelSpec) -> None:
-    """Check ``opcount == row[target_opcode]`` per the input invariant."""
+    """Check ``opcount == row[count_source]`` per the input invariant.
+
+    For ordinary opcode targets the count source is the resolved target opcode
+    itself. For precompile specs (``target_operation_count_source`` set), the
+    target is a synthetic display name with no opcount column, so the
+    invariant is checked against the override column (typically ``STATICCALL``).
+    """
+    count_source_override = spec.target_operation_count_source
     for _, row in df.iterrows():
-        target = row["target_opcode"]
-        if target not in df.columns:
+        count_source = count_source_override or row["target_opcode"]
+        if count_source not in df.columns:
             raise ConfigError(
-                f"fixture {row['fixture_name']!r}: target opcode {target!r} "
+                f"fixture {row['fixture_name']!r}: count source {count_source!r} "
                 f"has no per-opcode count column"
             )
         expected = row["opcount"]
-        actual = row[target]
+        actual = row[count_source]
         if pd.isna(actual) or float(expected) != float(actual):
             raise ConfigError(
                 f"fixture {row['fixture_name']!r}: opcount={expected} disagrees with "
-                f"per-opcode count for {target!r}={actual} (spec test_name={spec.test_name!r})"
+                f"per-opcode count for {count_source!r}={actual} "
+                f"(spec test_name={spec.test_name!r})"
             )
 
 

@@ -114,6 +114,7 @@ class ModelSpec(BaseModel):
     test_name: str
     target_operation: str | None = None
     target_operation_param: str | None = None
+    target_operation_count_source: str | None = None
     filter_by: list[str] = Field(default_factory=list)
     model_by: list[str] = Field(default_factory=list)
     model_params: dict[str, str] = Field(default_factory=dict)
@@ -143,10 +144,24 @@ class ModelSpec(BaseModel):
             raise ValueError(
                 "exactly one of target_operation / target_operation_param must be set"
             )
+        # The precompile escape hatch only makes sense with a literal target.
+        has_count_source = self.target_operation_count_source is not None
+        if has_count_source and not has_op:
+            raise ValueError(
+                "target_operation_count_source is only valid alongside "
+                "target_operation (literal precompile display name)"
+            )
         # Default filter_by to the EEST opcode token when target_operation is
-        # literal and the user omitted the field.
-        if has_op and not self.filter_by:
+        # literal and the user omitted the field. Skip the default for
+        # precompile specs — there is no opcode_<display_name> fixture token.
+        if has_op and not has_count_source and not self.filter_by:
             self.filter_by = [f"opcode_{self.target_operation}"]
+        if has_count_source and not self.filter_by:
+            raise ValueError(
+                "target_operation_count_source requires an explicit filter_by; "
+                "no auto-default is applied because precompile display names "
+                "have no opcode_<X> fixture token"
+            )
         # model_params must be non-empty and carry a target_coef key.
         if not self.model_params:
             raise ValueError("model_params must be non-empty")
