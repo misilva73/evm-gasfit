@@ -118,6 +118,7 @@ def test_precompile_count_source_isolates_specs(tmp_path: Path) -> None:
             "PRECOMPILE_BLS12_G1ADD": None,
             "PRECOMPILE_BLS12_G2ADD": None,
         },
+        clients=("geth",),
     )
     write_config_yaml(config_yaml, config)
 

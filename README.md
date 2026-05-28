@@ -36,12 +36,19 @@ A minimal `tests.yaml`:
 ```yaml
 version: 1
 anchor_rate: 1.0e8
+clients:
+  - geth
+  - besu
 gas_costs:
   fork: osaka
 models:
   presets:
     - arithmetic_add
 ```
+
+`clients` is required: only rows whose `client_name` matches an entry here are
+kept from the runtimes CSV, and a configured client that produced no fits at
+all surfaces in the proposal report's `Partial fits (missing clients)` section.
 
 Any gas-param name that the model proposes but the fork's `GasCosts` doesn't
 already define must be declared up front under `new_params`. The value is

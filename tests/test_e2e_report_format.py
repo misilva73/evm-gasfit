@@ -413,6 +413,77 @@ def test_partial_fits_subsection_lists_missing_client_combos(tmp_path: Path) -> 
     )
 
 
+def test_partial_fits_subsection_calls_out_clients_with_no_fits(tmp_path: Path) -> None:
+    """A client declared in ``config.clients`` but absent from the runtimes
+    CSV surfaces under ``### Partial fits (missing clients)`` as a dedicated
+    ``Clients with no estimations at all`` callout (in addition to appearing
+    in every per-param row, since it has zero fits anywhere)."""
+    fixtures = make_block_limit_fixtures(
+        test_file="test_arithmetic",
+        test_name="test_arithmetic",
+        target_opcode="ADD",
+        params={"opcode": "ADD"},
+        target_opcount_per_million=500_000,
+    )
+    # ``nethermind`` is declared in clients but never appears in the runtimes
+    # CSV — base_config's default clients set is geth+besu, so we override.
+    models = {
+        "geth": ClientModel(intercept=80.0, slope=2.0e-3),
+        "besu": ClientModel(intercept=100.0, slope=3.0e-3),
+    }
+    config = base_config(
+        plots=False,
+        anchor_rate=1.0e8,
+        models_custom=[
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "ADD",
+                "model_params": {"target_coef": "OPCODE_ADD"},
+            },
+        ],
+        clients=("geth", "besu", "nethermind"),
+    )
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=list(fixtures),
+        models=models,
+        config=config,
+        noise_pct=0.001,
+        seed=11,
+    )
+    # ``write_standard_inputs`` overrides ``clients`` from ``models.keys()`` for
+    # ergonomics; re-write the yaml with the explicit 3-client list to set up
+    # the no-fit scenario.
+    import yaml as _yaml
+
+    cfg_dict = _yaml.safe_load(config_yaml.read_text())
+    cfg_dict["clients"] = ["geth", "besu", "nethermind"]
+    config_yaml.write_text(_yaml.safe_dump(cfg_dict, sort_keys=False))
+
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    idx_partial = proposal.find("### Partial fits (missing clients)")
+    assert idx_partial >= 0, "Partial fits subsection missing"
+    section_body = proposal[idx_partial:].split("###", 2)[1]
+
+    assert "Clients with no estimations at all:" in section_body, (
+        "no-fits callout should render when a configured client produced no estimations"
+    )
+    assert "`nethermind`" in section_body, (
+        "nethermind should be named in the no-fits callout"
+    )
+    # Per-param row must also list nethermind as missing for OPCODE_ADD.
+    add_row = next(
+        line
+        for line in section_body.splitlines()
+        if line.startswith("|") and "OPCODE_ADD" in line
+    )
+    assert "nethermind" in add_row, (
+        f"OPCODE_ADD row should list nethermind as missing: {add_row!r}"
+    )
+
+
 def _build_two_spec_shared_param(tmp_path: Path, *, plots: bool):
     """Two specs (ADD, SUB) writing to the same gas param ``OPCODE_GENERIC``
     plus one solo spec writing to ``OPCODE_MUL`` — exercises both the

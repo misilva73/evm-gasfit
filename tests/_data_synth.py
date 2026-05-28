@@ -328,6 +328,7 @@ def base_config(
     plots: bool = False,
     seed: int | None = None,
     anchor_rate: float = 1.0e8,
+    clients: Sequence[str] = ("geth", "besu"),
     extra: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a minimal config dict with sane defaults.
@@ -344,6 +345,7 @@ def base_config(
     cfg: dict[str, Any] = {
         "version": 1,
         "anchor_rate": anchor_rate,
+        "clients": list(clients),
         "gas_costs": gas_costs,
         "output": {"plots": plots},
         "models": {
@@ -387,6 +389,9 @@ def write_standard_inputs(
 
     write_runtimes_csv(runtimes_csv, fixtures, models, noise_pct=noise_pct, seed=seed)
     write_opcounts_json(opcounts_json, fixtures)
+    # The runtimes CSV is the ground truth for the client universe, so the
+    # config's mandatory `clients` field must match the keys of `models`.
+    config = {**config, "clients": list(models.keys())}
     write_config_yaml(config_yaml, config)
     return config_yaml, runtimes_csv, opcounts_json, out_dir
 

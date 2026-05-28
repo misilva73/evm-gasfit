@@ -236,6 +236,7 @@ def test_every_catalog_preset_fits_without_raising(tmp_path: Path) -> None:
         models_custom=[],
         models_presets=list(PRESETS.keys()),
         new_params=_CATALOG_NEW_PARAMS,
+        clients=("geth",),
     )
     write_config_yaml(config_yaml, config)
 
@@ -272,7 +273,9 @@ def test_catalog_requires_new_params_declaration(tmp_path: Path) -> None:
     from evm_gasfit.errors import ConfigError
 
     # Without `new_params`, a preset writing a non-raw name is a hard error.
-    bare = base_config(models_custom=[], models_presets=list(PRESETS.keys()))
+    bare = base_config(
+        models_custom=[], models_presets=list(PRESETS.keys()), clients=("geth",)
+    )
     bare_yaml = tmp_path / "bare.yaml"
     write_config_yaml(bare_yaml, bare)
     with pytest.raises(ConfigError, match=r"not declared in new_params"):
@@ -283,6 +286,7 @@ def test_catalog_requires_new_params_declaration(tmp_path: Path) -> None:
         models_custom=[],
         models_presets=list(PRESETS.keys()),
         new_params=_CATALOG_NEW_PARAMS,
+        clients=("geth",),
     )
     declared_yaml = tmp_path / "declared.yaml"
     write_config_yaml(declared_yaml, declared)

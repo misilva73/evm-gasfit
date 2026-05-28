@@ -99,7 +99,9 @@ def test_anchored_filter_excludes_prefix_sibling(
     merged.to_csv(runtimes_csv, index=False)
 
     write_opcounts_json(opcounts_json, target_fixtures + sibling_fixtures)
-    config = base_config(models_custom=[], models_presets=[preset_name])
+    config = base_config(
+        models_custom=[], models_presets=[preset_name], clients=("geth",)
+    )
     write_config_yaml(config_yaml, config)
 
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
@@ -188,6 +190,7 @@ def test_negation_token_excludes_overlapping_sibling(tmp_path: Path) -> None:
                 "model_params": {"target_coef": "OPCODE_ADD"},
             }
         ],
+        clients=("geth",),
     )
     write_config_yaml(config_yaml, config)
 

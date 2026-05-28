@@ -80,10 +80,14 @@ def _run_with_seed(
     runtimes_csv: Path,
     opcounts_json: Path,
     glue: bool,
+    clients: tuple[str, ...] = ("geth", "besu"),
 ) -> Path:
     out_dir = tmp_path / f"out_{label}"
     config_yaml = tmp_path / f"config_{label}.yaml"
-    write_config_yaml(config_yaml, base_config(seed=seed, glue_enabled=glue))
+    write_config_yaml(
+        config_yaml,
+        base_config(seed=seed, glue_enabled=glue, clients=clients),
+    )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=glue)
     return out_dir
 
@@ -187,6 +191,7 @@ def test_glue_on_pipeline_is_also_deterministic(tmp_path: Path) -> None:
         runtimes_csv=runtimes_csv,
         opcounts_json=opcounts_json,
         glue=True,
+        clients=("geth",),
     )
     out_b = _run_with_seed(
         tmp_path,
@@ -195,5 +200,6 @@ def test_glue_on_pipeline_is_also_deterministic(tmp_path: Path) -> None:
         runtimes_csv=runtimes_csv,
         opcounts_json=opcounts_json,
         glue=True,
+        clients=("geth",),
     )
     _assert_bytes_equal(out_a, out_b, ALWAYS_ON_ARTIFACTS + GLUE_ARTIFACTS)

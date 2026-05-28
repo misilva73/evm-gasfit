@@ -114,6 +114,7 @@ def _write_inputs(tmp_path: Path):
                 "model_params": {"target_coef": "OPCODE_ADD"},
             },
         ],
+        clients=tuple(models.keys()),
     )
 
     config_yaml = tmp_path / "config.yaml"

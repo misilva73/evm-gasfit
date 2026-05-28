@@ -206,6 +206,7 @@ class Config(BaseModel):
 
     version: Literal[1]
     anchor_rate: float
+    clients: list[str]
     gas_costs: GasCostsSection
     glue_adjustment: GlueAdjustmentSection = Field(
         default_factory=GlueAdjustmentSection
@@ -232,6 +233,17 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def _cross_validate(self) -> "Config":
+        # 0) Validate clients: non-empty list of non-empty unique strings.
+        if not self.clients:
+            raise ConfigError("clients must be a non-empty list")
+        seen_clients: set[str] = set()
+        for name in self.clients:
+            if not isinstance(name, str) or not name:
+                raise ConfigError("clients entries must be non-empty strings")
+            if name in seen_clients:
+                raise ConfigError(f"duplicate client name {name!r} in clients")
+            seen_clients.add(name)
+
         # 1) Resolve presets.
         from evm_gasfit.defaults.models import PRESETS  # local: avoid import cycle.
 

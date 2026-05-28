@@ -131,19 +131,23 @@ def _partition_warnings(warnings: list[str]) -> tuple[dict[str, list[str]], list
 
 def _build_partial_fit_rows(
     new_gas_all_df: pd.DataFrame,
+    configured_clients: list[str],
 ) -> list[dict[str, object]]:
     """Per-param list of clients with no estimation, for params that fit on
     *some* clients.
 
     Fully-unresolved params (no client fit) are filtered out — they surface
     under the ``Unresolved (no fit)`` subsection. Derived/placeholder rows
-    (empty ``client_name``) are likewise excluded.
+    (empty ``client_name``) are likewise excluded. The expected client
+    universe is ``configured_clients`` (from the config), not whichever
+    clients happened to produce a fit, so a configured client that produced
+    no estimation for a given param surfaces here even if it produced no
+    estimation for *any* param.
     """
     df = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
     df = df[df["new_gas_rounded"].notna()]
     if df.empty:
         return []
-    clients_seen = sorted(set(df["client_name"].astype(str)))
     rows: list[dict[str, object]] = []
     # ``new_gas_all_df`` arrives in config-declaration order; preserve that
     # by iterating unique values in first-appearance order rather than sorting.
@@ -151,10 +155,21 @@ def _build_partial_fit_rows(
         fitting_clients = set(
             df[df["gas_param"] == gas_param]["client_name"].astype(str)
         )
-        missing = [c for c in clients_seen if c not in fitting_clients]
+        missing = [c for c in configured_clients if c not in fitting_clients]
         if missing:
             rows.append({"gas_param": gas_param, "missing_clients": missing})
     return rows
+
+
+def _clients_with_no_fits(
+    new_gas_all_df: pd.DataFrame,
+    configured_clients: list[str],
+) -> list[str]:
+    """Configured clients that produced zero estimations across all params."""
+    df = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
+    df = df[df["new_gas_rounded"].notna()]
+    fitting = set(df["client_name"].astype(str)) if not df.empty else set()
+    return [c for c in configured_clients if c not in fitting]
 
 
 def _poor_fit_failure_label(
@@ -631,27 +646,47 @@ def write_proposal_report(
 
     # Partial fits: gas params with at least one client fit but missing on
     # others — the proposed value still stands but was selected from a
-    # smaller pool.
-    partial_rows = _build_partial_fit_rows(proposal_output.new_gas_all_df)
+    # smaller pool. The expected client universe is ``config.clients``, so a
+    # client that produced zero estimations across all params also surfaces
+    # in the per-param table (and in the dedicated callout above it).
+    configured_clients = list(config.clients)
+    partial_rows = _build_partial_fit_rows(
+        proposal_output.new_gas_all_df, configured_clients
+    )
+    no_fit_clients = _clients_with_no_fits(
+        proposal_output.new_gas_all_df, configured_clients
+    )
     lines.append("### Partial fits (missing clients)")
     lines.append("")
-    if not partial_rows:
+    if not partial_rows and not no_fit_clients:
         lines.append("_None._")
         lines.append("")
     else:
-        lines.append(
-            "These gas parameters were fit by at least one client but not "
-            "by every client — the listed clients produced no estimation, "
-            "so the worst-case value was selected from a smaller pool. "
-            "Inspect the `evm_gasfit` warnings in `meta.json` for the cause."
-        )
-        lines.append("")
-        lines.append("| Gas param | Missing clients |")
-        lines.append("| --- | --- |")
-        for row in partial_rows:
-            missing_cell = ", ".join(f"`{c}`" for c in row["missing_clients"])
-            lines.append(f"| `{row['gas_param']}` | {missing_cell} |")
-        lines.append("")
+        if no_fit_clients:
+            names = ", ".join(f"`{c}`" for c in no_fit_clients)
+            lines.append(
+                f"**Clients with no estimations at all:** {names}. These "
+                "configured clients produced no fits for any gas parameter — "
+                "check that the runtimes CSV contains their rows and that the "
+                "fixture-name conventions match. Inspect the `evm_gasfit` "
+                "warnings in `meta.json` for the cause."
+            )
+            lines.append("")
+        if partial_rows:
+            lines.append(
+                "These gas parameters were fit by at least one client but not "
+                "by every configured client — the listed clients produced no "
+                "estimation, so the worst-case value was selected from a "
+                "smaller pool. Inspect the `evm_gasfit` warnings in "
+                "`meta.json` for the cause."
+            )
+            lines.append("")
+            lines.append("| Gas param | Missing clients |")
+            lines.append("| --- | --- |")
+            for row in partial_rows:
+                missing_cell = ", ".join(f"`{c}`" for c in row["missing_clients"])
+                lines.append(f"| `{row['gas_param']}` | {missing_cell} |")
+            lines.append("")
     if missing_by_test or other_warnings:
         if missing_by_test:
             lines.append("### Missing glue opcodes")

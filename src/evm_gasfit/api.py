@@ -85,9 +85,22 @@ class GasFit:
         return fit
 
     def load_runtimes(self, path: Path) -> None:
-        """Load the runtimes CSV at ``path``."""
+        """Load the runtimes CSV at ``path``, restricted to ``config.clients``."""
         path = Path(path)
-        self.runtimes_df = load_runtimes(path)
+        df = load_runtimes(path)
+        configured = list(self.config.clients)
+        configured_set = set(configured)
+        present = set(df["client_name"].astype(str))
+        missing = sorted(configured_set - present)
+        if missing:
+            _log.warning(
+                "missing-client: %d configured client(s) absent from runtimes CSV: %s",
+                len(missing),
+                ", ".join(repr(c) for c in missing),
+            )
+        self.runtimes_df = df[
+            df["client_name"].astype(str).isin(configured_set)
+        ].reset_index(drop=True)
         self.runtimes_path = path
 
     def load_opcounts(self, path: Path) -> None:
