@@ -114,65 +114,72 @@ def write_runtime_report(
     lines: list[str] = ["# Runtime estimation report", ""]
     lines.append(
         "Per-spec NNLS fits of `test_runtime_ms` against `opcount`, one row per "
-        "(test, target opcode, model_by combo, client)."
+        "(target opcode, test, model_by combo, client)."
     )
     lines.append("")
 
-    # Group rows by test_name preserving spec order, dedup across overlapping
-    # specs by (test_name, target_opcode, *mb_values, client).
+    # Group rows by target_opcode preserving first-appearance order across
+    # specs, dedup by (test_name, target_opcode, *mb_values, client).
     all_mb = sorted({c for s in config.resolved_models for c in s.model_by})
-    grouped: dict[str, list[tuple[pd.Series, list[str], list[object]]]] = defaultdict(
-        list
+    grouped: dict[str, list[tuple[str, list[str], list[object], pd.Series]]] = (
+        defaultdict(list)
     )
     seen_keys: set[tuple] = set()
-    test_name_order: list[str] = []
+    opcode_order: list[str] = []
     for spec in config.resolved_models:
         spec_rows = _filter_spec_rows(results_df, spec, all_mb)
         if spec_rows.empty:
             continue
-        if spec.test_name not in test_name_order:
-            test_name_order.append(spec.test_name)
         for _, row in spec_rows.iterrows():
+            opcode = str(row["target_opcode"])
             mb_values = _model_by_values(row, spec.model_by)
             key = (
                 str(row["test_name"]),
-                str(row["target_opcode"]),
+                opcode,
                 *map(str, mb_values),
                 str(row["client_name"]),
             )
             if key in seen_keys:
                 continue
             seen_keys.add(key)
-            grouped[str(row["test_name"])].append((row, list(spec.model_by), mb_values))
+            if opcode not in opcode_order:
+                opcode_order.append(opcode)
+            grouped[opcode].append(
+                (str(row["test_name"]), list(spec.model_by), mb_values, row)
+            )
 
-    if not test_name_order:
+    if not opcode_order:
         out_path.write_text("\n".join(lines))
         return
 
     lines.append("## Contents")
     lines.append("")
-    for test_name in test_name_order:
-        lines.append(f"- [{test_name}](#{_anchor(test_name)})")
+    for opcode in opcode_order:
+        lines.append(f"- [{opcode}](#{_anchor(opcode)})")
     lines.append("")
 
-    for test_name in test_name_order:
-        lines.append(f"## {test_name}")
+    for opcode in opcode_order:
+        lines.append(f"## {opcode}")
         lines.append("")
 
-        # Sub-group within a test by (target_opcode, model_by_combo).
-        by_opcode: dict[tuple[str, str, tuple], list[pd.Series]] = defaultdict(list)
-        per_opcode_mb_cols: dict[tuple[str, str, tuple], list[str]] = {}
-        for row, mb_cols, mb_values in grouped[test_name]:
+        # Sub-group within an opcode by (test_name, model_by_combo),
+        # preserving first-appearance order.
+        by_test: dict[tuple[str, str, tuple], list[pd.Series]] = defaultdict(list)
+        per_key_mb_cols: dict[tuple[str, str, tuple], list[str]] = {}
+        key_order: list[tuple[str, str, tuple]] = []
+        for test_name, mb_cols, mb_values, row in grouped[opcode]:
             combo = _model_by_combo(mb_values)
-            opcode = str(row["target_opcode"])
-            key = (opcode, combo, tuple(mb_cols))
-            by_opcode[key].append(row)
-            per_opcode_mb_cols[key] = mb_cols
+            key = (test_name, combo, tuple(mb_cols))
+            if key not in by_test:
+                key_order.append(key)
+            by_test[key].append(row)
+            per_key_mb_cols[key] = mb_cols
 
-        for key, rows in by_opcode.items():
-            opcode, combo, _mb_tuple = key
-            mb_cols = per_opcode_mb_cols[key]
-            heading = f"### {opcode}"
+        for key in key_order:
+            test_name, combo, _mb_tuple = key
+            mb_cols = per_key_mb_cols[key]
+            rows = by_test[key]
+            heading = f"### {test_name}"
             if mb_cols:
                 heading += f" — combo `{combo}`"
             lines.append(heading)

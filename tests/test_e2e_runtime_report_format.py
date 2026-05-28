@@ -2,12 +2,13 @@
 
 Pins the layout of the per-spec runtime report:
 
-- a `## Contents` heading followed by a bulleted list, one bullet per test;
-- every TOC link target resolves to a real `## <test_name>` heading
+- a `## Contents` heading followed by a bulleted list, one bullet per
+  target opcode, in first-appearance order;
+- every TOC link target resolves to a real `## <opcode>` heading
   (i.e. anchors preserve underscores, matching GFM);
-- each `### <opcode>` heading is followed by the headline client table and
-  then one `<details>` block per client, with summary
-  ``<client> — NNLS regression summary``;
+- each `### <test_name>` heading (with optional ``— combo `<combo>``` suffix)
+  is followed by the headline client table and then one `<details>` block
+  per client, with summary ``<client> — NNLS regression summary``;
 - when plots are enabled, the three plot embeds (regression, bootstrap,
   diagnostics) live *inside* the same per-client `<details>` block.
 """
@@ -89,12 +90,13 @@ def test_contents_is_a_bulleted_toc(tmp_path: Path) -> None:
     assert "**Contents:**" not in report
 
     # The bullets immediately under '## Contents' (before the next heading)
-    # must be markdown list items, one per test, in spec order.
+    # must be markdown list items, one per target opcode, in first-appearance
+    # order across specs.
     contents_section = report.split("## Contents", 1)[1].split("\n## ", 1)[0]
     bullets = [line for line in contents_section.splitlines() if line.startswith("- [")]
     assert bullets == [
-        "- [test_arithmetic](#test_arithmetic)",
-        "- [test_storage_set](#test_storage_set)",
+        "- [ADD](#add)",
+        "- [SSTORE](#sstore)",
     ], f"unexpected TOC bullets: {bullets!r}"
 
 
@@ -131,10 +133,10 @@ def test_toc_anchors_point_at_real_headings(tmp_path: Path) -> None:
 
 
 def test_per_client_details_wrap_summary_and_plots(tmp_path: Path) -> None:
-    """For each `### ADD` block: the `#### besu` heading is gone; each
-    client appears once as `<details><summary>{client} — NNLS regression
-    summary</summary>` and the three plot embeds for that client all sit
-    inside that same `<details>...</details>` block."""
+    """For each `### test_arithmetic` block under `## ADD`: each client
+    appears once as `<details><summary>{client} — NNLS regression
+    summary</summary>` (no per-client h4) and the three plot embeds for
+    that client all sit inside that same `<details>...</details>` block."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_tests(
         tmp_path, plots=True
     )
@@ -156,19 +158,28 @@ def test_per_client_details_wrap_summary_and_plots(tmp_path: Path) -> None:
         client = summary.removesuffix(" — NNLS regression summary").strip()
         assert client in {"besu", "geth"}, f"unexpected client in summary: {client!r}"
 
-    # The three runtime plot embeds for the ADD/besu fit must fall inside
-    # a single <details>...</details> block whose summary names besu.
+    # The three runtime plot embeds for the ADD/test_arithmetic/besu fit must
+    # fall inside a single <details>...</details> block whose summary names
+    # besu, nested under the '## ADD' / '### test_arithmetic' subsection.
     add_besu_re = re.compile(
         r"<details><summary>besu — NNLS regression summary</summary>(.*?)</details>",
         re.DOTALL,
     )
-    # ADD section: everything between '### ADD' and the next '### ' or '## '.
-    add_section = re.search(
-        r"### ADD\b(.*?)(?=\n### |\n## |\Z)", report, flags=re.DOTALL
+    # ADD section: from '## ADD' to the next '## '.
+    add_section = re.search(r"## ADD\b(.*?)(?=\n## |\Z)", report, flags=re.DOTALL)
+    assert add_section, "missing '## ADD' section in report"
+    # test_arithmetic subsection within ADD: from '### test_arithmetic' to the
+    # next '### ' or end of the ADD section.
+    arith_subsection = re.search(
+        r"### test_arithmetic\b(.*?)(?=\n### |\Z)",
+        add_section.group(1),
+        flags=re.DOTALL,
     )
-    assert add_section, "missing '### ADD' section in report"
-    besu_block_match = add_besu_re.search(add_section.group(1))
-    assert besu_block_match, "no besu <details> block under '### ADD'"
+    assert arith_subsection, "missing '### test_arithmetic' subsection under '## ADD'"
+    besu_block_match = add_besu_re.search(arith_subsection.group(1))
+    assert besu_block_match, (
+        "no besu <details> block under '## ADD' / '### test_arithmetic'"
+    )
     besu_block = besu_block_match.group(1)
     for family in ("regression", "bootstrap", "diagnostics"):
         embed = f"![](figs/runtime/ADD__test_arithmetic__all__besu__{family}.png)"
