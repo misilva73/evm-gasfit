@@ -16,20 +16,34 @@ spec — when changing behavior, run the relevant test, watch it fail, make it p
 
 ## Source of truth
 
-[.claude/implementation_plan.md](.claude/implementation_plan.md) is the design
-document. Read it before adding code. It specifies, in order:
+Three design documents under `.claude/` together form the contract. Read the
+relevant ones before adding code, and when asked whether plans need changes,
+consider all three:
 
-- §2 input formats (YAML config, runtimes CSV, opcounts JSON, gas-cost defaults)
-- §3 pipeline architecture
-- §4 modeling (fixture parser, NNLS, glue adjustment, derived params)
-- §5 output artifacts (CSVs, markdown reports, figs)
-- §6 package layout (the canonical module tree)
-- §7 dependencies
-- §8 CLI contract (exit codes 0/1/2)
+- [.claude/implementation_plan.md](.claude/implementation_plan.md) — the
+  primary design document. Specifies, in order:
+  - §2 input formats (YAML config, runtimes CSV, opcounts JSON, gas-cost defaults)
+  - §3 pipeline architecture
+  - §4 modeling (fixture parser, NNLS, glue adjustment, derived params)
+  - §5 output artifacts (CSVs, markdown reports, figs)
+  - §6 package layout (the canonical module tree)
+  - §7 dependencies
+  - §8 CLI contract (exit codes 0/1/2)
+- [.claude/e2e_testing_plan.md](.claude/e2e_testing_plan.md) — the contract
+  between the implementation plan and the e2e suite under [tests/](tests/).
+  Enumerates every test file, every test function, and the plan rules each
+  one pins down. When a behavior rule in the implementation plan moves, the
+  corresponding tests here move with it.
+- [.claude/modelspec_catalog.md](.claude/modelspec_catalog.md) — the design
+  for the default `ModelSpec` preset catalog in
+  [src/evm_gasfit/defaults/models.py](src/evm_gasfit/defaults/models.py).
+  Documents the per-preset `test_name` / `target_operation` / `model_params`
+  choices, the anchoring rules for prefix-overlap opcodes, and the new
+  gas-param names introduced by the catalog.
 
-If you find yourself wanting to deviate from the plan, surface that **before**
-writing code — either the plan is wrong (update it) or the change isn't justified.
-Don't silently expand scope.
+If you find yourself wanting to deviate from any of these, surface that
+**before** writing code — either the document is wrong (update it) or the
+change isn't justified. Don't silently expand scope.
 
 ## Reference implementation
 
