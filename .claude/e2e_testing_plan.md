@@ -216,7 +216,9 @@ Plan rules pinned: the headline ordering, column headers, diff-cell rendering, s
 | `test_gas_params_follow_config_declaration_order` | Proposed-params table, client-comparison table, and `new_gas.csv` list gas params in the order each first appears in `models.custom` (then `derived` keys) — not alphabetically. Picks `SUB, ADD, MUL` as non-alphabetical opcodes to make the assertion meaningful. |
 | `test_provenance_section_present_with_per_param_heatmaps` | When `output.plots: true` and at least one gas param has ≥ 2 distinct model combos, a top-level `## Worst-case provenance per gas param` section sits between `## Client comparison` (after the overview heatmap embed) and `## Warnings`. Each qualifying gas param renders a `<details>` block whose `<summary>` carries the param name and whose body embeds `figs/proposal/provenance__<gas_param>.png`. The PNG exists for each qualifying param. |
 | `test_provenance_section_skips_single_combo_params` | Gas params with only one distinct combo (e.g. a derived alias, or a param fit by a single spec on a single client) do *not* get a `<details>` block; they are listed in a single italic line at the top of the section. No provenance PNG is written for them. |
-| `test_provenance_section_omitted_when_plots_disabled` | `output.plots: false` runs do not produce the `## Worst-case provenance per gas param` section nor any `provenance__*.png` figures, even when multiple combos are present. |
+| `test_provenance_section_renders_tables_when_plots_disabled` | `output.plots: false` still renders the `## Worst-case provenance per gas param` section: each qualifying gas param's `<details>` body carries a markdown table (combo rows × client columns, cells = `new_gas_rounded`) instead of a heatmap embed, and no `provenance__*.png` figures are written. The combo-row labels share the heatmap's labeling helper, so they match the plots-on output verbatim. |
+| `test_overview_table_replaces_heatmap_when_plots_disabled` | `output.plots: false` swaps the `figs/proposal/heatmap.png` embed inside `## Client comparison` for a markdown table whose header is `\| Gas param \| <client>... \|` (clients alphabetical) and whose rows are the per-client `new_gas_rounded` integers in config-declaration order. The PNG is not written. |
+| `test_contents_is_a_bulleted_toc` | The TOC at the top of `new_gas_proposal.md` renders as a `## Contents` heading followed by a markdown bullet list (`- [label](#anchor)`), in the order proposed-params → client-comparison → (optional) worst-case-provenance → warnings → poor-fit-selections. The `Worst-case provenance` bullet is present iff that section actually renders for the run. No leftover inline `**Contents:**` line. |
 
 ---
 
@@ -261,7 +263,7 @@ When the implementation pins any of the above, tighten the matching assertion to
 | §4.7 | `new_gas_decimal` + `new_gas_rounded` rounding | `test_e2e_happy_path`, `test_derived_alias_and_formula_evaluate` |
 | §4.8 | Derived params: alias, formula, AST whitelist, load-time identifier check | `test_derived_alias_and_formula_evaluate`, `test_derived_formula_unknown_identifier_is_load_time_error` |
 | §5 / §5.1 | Output artifacts table; figure naming/layout; plots toggle | multiple |
-| §5 (`new_gas_proposal.md`) | Section ordering, column headers, anchor-rate formatting, sentinel rendering, gas-param row order, heatmap colormap (`log2(proposed / current)` + `null`-baseline blank rows) | `test_e2e_report_format` (11 tests) |
+| §5 (`new_gas_proposal.md`) | Section ordering, bulleted `## Contents` TOC, column headers, anchor-rate formatting, sentinel rendering, gas-param row order, heatmap colormap (`log2(proposed / current)` + `null`-baseline blank rows) and the markdown-table fallbacks when `output.plots: false` | `test_e2e_report_format` (17 tests) |
 | §8 | CLI contract, exit codes | `test_e2e_cli` (4 tests) |
 | §11 | Docs site | out of scope for the e2e suite |
 

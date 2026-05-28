@@ -524,19 +524,75 @@ def test_provenance_section_skips_single_combo_params(tmp_path: Path) -> None:
     assert not (out_dir / "figs" / "proposal" / "provenance__OPCODE_MUL.png").exists()
 
 
-def test_provenance_section_omitted_when_plots_disabled(tmp_path: Path) -> None:
-    """`output.plots: false` runs do not produce the provenance section
-    nor any `provenance__*.png` figures."""
+def test_provenance_section_renders_tables_when_plots_disabled(
+    tmp_path: Path,
+) -> None:
+    """`output.plots: false` runs still surface the provenance section: each
+    qualifying gas param gets a `<details>` block carrying a markdown table
+    (combo rows × client columns) instead of an embedded PNG."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
         tmp_path, plots=False
     )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
-    assert "## Worst-case provenance per gas param" not in proposal
+    idx_provenance = proposal.find("## Worst-case provenance per gas param")
+    idx_warnings = proposal.find("## Warnings")
+    assert idx_provenance >= 0, "provenance section must render even with plots off"
+    section = proposal[idx_provenance:idx_warnings]
+    # The multi-combo param renders a markdown table under its <details>.
+    assert "<details>" in section and "OPCODE_GENERIC" in section
+    assert "| Combo |" in section, "expected combo × clients markdown table"
+    # No PNG embeds when plots are off.
+    assert "![](figs/proposal/provenance__" not in section
     figs_dir = out_dir / "figs" / "proposal"
     if figs_dir.exists():
         assert not list(figs_dir.glob("provenance__*.png"))
+
+
+def test_overview_table_replaces_heatmap_when_plots_disabled(
+    tmp_path: Path,
+) -> None:
+    """`output.plots: false` swaps the overview heatmap embed for a markdown
+    table (gas params as rows, clients as columns) inside `## Client
+    comparison`. The heatmap PNG is not written."""
+    config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
+        tmp_path, plots=False
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    idx_comparison = proposal.find("## Client comparison")
+    idx_provenance = proposal.find("## Worst-case provenance per gas param")
+    section = proposal[idx_comparison:idx_provenance]
+    assert "![](figs/proposal/heatmap.png)" not in section
+    # The overview table has a `Gas param` header column followed by client names.
+    assert "| Gas param | besu | geth | reth |" in section
+    assert not (out_dir / "figs" / "proposal" / "heatmap.png").exists()
+
+
+def test_contents_is_a_bulleted_toc(tmp_path: Path) -> None:
+    """The TOC at the top of the proposal renders as a `## Contents` heading
+    followed by a markdown bullet list. The provenance entry is conditional —
+    present only when the worst-case provenance section actually renders."""
+    config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
+        tmp_path, plots=False
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    assert "## Contents" in proposal
+    assert "**Contents:**" not in proposal, "no leftover inline-list TOC"
+
+    contents_section = proposal.split("## Contents", 1)[1].split("\n## ", 1)[0]
+    bullets = [line for line in contents_section.splitlines() if line.startswith("- [")]
+    assert bullets == [
+        "- [Proposed parameters](#proposed-gas-parameters)",
+        "- [Client comparison](#client-comparison)",
+        "- [Worst-case provenance](#worst-case-provenance-per-gas-param)",
+        "- [Warnings](#warnings)",
+        "- [Poor-fit selections](#poor-fit-selections)",
+    ]
 
 
 def test_gas_params_follow_config_declaration_order(tmp_path: Path) -> None:

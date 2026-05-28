@@ -391,27 +391,22 @@ def _combo_value(row: pd.Series, col: str) -> str:
     return str(val)
 
 
-def plot_proposal_provenance_heatmap(
-    gas_param: str,
+def build_provenance_pivot(
     slice_df: pd.DataFrame,
-    *,
-    current_value: float | int | None,
-    out_dir: Path,
-) -> tuple[Path, list[tuple[str, str]] | None]:
-    """Per-gas-param heatmap: rows are model combos, columns are clients,
-    colored by ``log2(proposed / current)`` against ``current_value``.
+) -> tuple[pd.DataFrame, list[tuple[str, str]] | None]:
+    """Build the (combos × clients) ``new_gas_rounded`` pivot for one gas
+    param, with the same row labels the provenance heatmap uses.
 
-    The y-axis label for each row drops combo components that are constant
-    across ``slice_df`` — so a param fitted by two specs sharing every field
-    except ``target_opcode`` shows labels like ``ADD`` / ``SUB`` rather than
-    the fully-qualified tuple. If any surviving label still exceeds
-    ``_PROVENANCE_LABEL_MAX`` characters, all labels collapse to ``M1, M2, …``
-    and the (short_label, full_label) mapping is returned for the caller to
-    render as a markdown legend.
+    Returns ``(pivot, legend)``. The pivot's index is the rendered short
+    label; the columns are client names. ``legend`` is non-``None`` only when
+    labels collapsed to ``M1, M2, …`` because at least one short label
+    exceeded ``_PROVENANCE_LABEL_MAX`` characters — callers should render it
+    as a `(short, full)` lookup table alongside the pivot.
+
+    Combo components that are constant across the slice are dropped from the
+    short label (so a param fit by two specs sharing every field except
+    ``target_opcode`` shows ``ADD`` / ``SUB`` rather than the full tuple).
     """
-    figs_dir = _ensure(out_dir, "proposal")
-    path = figs_dir / f"provenance__{slug(gas_param)}.png"
-
     id_cols = _combo_id_cols(slice_df)
     plot_df = slice_df.assign(
         new_gas_rounded=slice_df["new_gas_rounded"].astype("Float64").astype(float)
@@ -421,9 +416,6 @@ def plot_proposal_provenance_heatmap(
         lambda r: tuple(_combo_value(r, c) for c in id_cols), axis=1
     )
 
-    # Drop combo components that are constant across this param's slice; an
-    # all-None ``model_by`` column collapses to a single "" value and is
-    # treated as constant.
     column_values = {
         c: {_combo_value(r, c) for _, r in plot_df.iterrows()} for c in id_cols
     }
@@ -455,6 +447,26 @@ def plot_proposal_provenance_heatmap(
     )
     pivot = pivot.reindex(unique_keys)
     pivot.index = [label_by_key[k] for k in pivot.index]
+    return pivot, legend
+
+
+def plot_proposal_provenance_heatmap(
+    gas_param: str,
+    slice_df: pd.DataFrame,
+    *,
+    current_value: float | int | None,
+    out_dir: Path,
+) -> tuple[Path, list[tuple[str, str]] | None]:
+    """Per-gas-param heatmap: rows are model combos, columns are clients,
+    colored by ``log2(proposed / current)`` against ``current_value``.
+
+    Reuses :func:`build_provenance_pivot` for the pivot + label collapse, so
+    the rendered y-axis matches the markdown table fallback verbatim.
+    """
+    figs_dir = _ensure(out_dir, "proposal")
+    path = figs_dir / f"provenance__{slug(gas_param)}.png"
+
+    pivot, legend = build_provenance_pivot(slice_df)
 
     if (
         current_value is None
