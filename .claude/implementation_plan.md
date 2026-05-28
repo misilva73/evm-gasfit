@@ -654,6 +654,24 @@ contributes no row to `results.csv`:
 If every fit for the entire run is skipped, the run produces zero rows in
 `results.csv` and raises `ModelingError` per §4.0 (CLI exit 2).
 
+**Bootstrap-iteration failure mode.** Per-iteration `scipy.optimize.nnls` calls
+inside the bootstrap loop can raise even when the primary fit succeeds (e.g.
+the resample lands on a rank-deficient subset). Failed iterations contribute a
+NaN row and are excluded from std-error, confidence-interval, and p-value
+computation — they do not skew inference toward the boundary. The summary
+counter (`N of M iterations succeeded`) surfaces non-trivial failure rates.
+
+**P-value formula and floor.** For coefficients the primary NNLS fit leaves
+strictly positive, the bootstrap p-value is the fraction of successful
+iterations where the coefficient came out within ``1e-12`` of the
+non-negativity boundary, **floored at ``1 / n_success``**. The floor makes the
+reported value honest about the bootstrap's resolution — "zero of N draws hit
+the boundary" means *p below the bootstrap resolution*, not literally zero —
+without changing what passes the default `0.05` selector thresholds.
+Coefficients the primary fit pins at zero are reported with p = 1.0
+(unidentifiable). The Wald-style alternative is tracked in
+[issue #6](https://github.com/misilva73/evm-gasfit/issues/6).
+
 ### 4.3 Model formula
 
 For a given model spec with `model_params = {target_coef: G0, x1: G1, x2: G2, …}`:

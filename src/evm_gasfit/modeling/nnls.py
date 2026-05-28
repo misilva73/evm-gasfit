@@ -21,7 +21,9 @@ def fit_nnls(
     The intercept is fitted alongside every other coefficient under the same
     non-negativity constraint: a column of ones is prepended to the design
     matrix and passed through ``scipy.optimize.nnls``. Bootstrap iterations that
-    fail to converge contribute a row of zeros to the coefficient matrix.
+    raise leave a row of NaNs in the coefficient matrix; ``NNLSResults`` filters
+    those rows out before computing std errors, confidence intervals, and
+    p-values.
 
     Args:
         feature_df: Frame containing the regressors and the target column.
@@ -58,7 +60,10 @@ def fit_nnls(
     rng = np.random.default_rng(random_seed)
     n = len(y)
     n_features = X_with_const.shape[1]
-    bootstrap_coefs = np.zeros((n_bootstrap, n_features))
+    # NaN-initialized so failed iterations are distinguishable from a legitimate
+    # bootstrap draw of zero (which is the NNLS boundary). Downstream inference
+    # in NNLSResults filters NaN rows out of std-error / percentile / p-value.
+    bootstrap_coefs = np.full((n_bootstrap, n_features), np.nan)
     # Pre-draw all resample indices so seeding stays deterministic regardless
     # of how many iterations fail mid-fit.
     all_indices = rng.integers(0, n, size=(n_bootstrap, n))
@@ -68,7 +73,6 @@ def fit_nnls(
             coef_boot, _ = nnls(X_with_const[idx], y[idx])
             bootstrap_coefs[i] = coef_boot
         except Exception:
-            # Already zero-initialized; matches the reference implementation.
             continue
 
     return NNLSResults(

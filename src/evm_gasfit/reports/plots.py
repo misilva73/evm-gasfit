@@ -158,6 +158,7 @@ def plot_bootstrap(
     except ValueError:
         idx = len(fit._feature_names) - 1
     samples = fit._bootstrap_coefs[:, idx]
+    samples = samples[~np.isnan(samples)]
 
     fig, ax = plt.subplots(figsize=_FIGSIZE)
     sns.histplot(samples, kde=True, ax=ax)
@@ -234,6 +235,7 @@ def plot_glue_bootstrap(
     except ValueError:
         idx = len(fit._feature_names) - 1
     samples = fit._bootstrap_coefs[:, idx]
+    samples = samples[~np.isnan(samples)]
 
     fig, ax = plt.subplots(figsize=_FIGSIZE)
     sns.histplot(samples, kde=True, ax=ax)

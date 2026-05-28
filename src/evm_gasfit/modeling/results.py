@@ -46,6 +46,14 @@ class NNLSResults:
         self._rmse = float(np.sqrt(np.mean(self._resid**2)))
         self._mae = float(np.mean(np.abs(self._resid)))
 
+        # Successful-iteration mask: NNLS failures show up as all-NaN rows in
+        # bootstrap_coefs and are excluded from inference. Cached so that
+        # pvalues / conf_int / summary all see the same filtered population.
+        self._success_mask: np.ndarray = ~np.isnan(bootstrap_coefs).any(axis=1)
+        self._successful_bootstrap: np.ndarray = bootstrap_coefs[self._success_mask]
+        self._n_bootstrap_total: int = len(bootstrap_coefs)
+        self._n_bootstrap_success: int = int(self._success_mask.sum())
+
         # Lazy caches.
         self._params_series: pd.Series | None = None
         self._pvalues_series: pd.Series | None = None
@@ -88,19 +96,32 @@ class NNLSResults:
         return self._resid
 
     def _bootstrap_pvalues(self) -> np.ndarray:
-        # Cache std errs while we're walking the bootstrap matrix.
-        self._std_errors = np.std(self._bootstrap_coefs, axis=0)
         coefs = np.asarray(self._coefficients)
+        n_success = self._n_bootstrap_success
+        if n_success == 0:
+            self._std_errors = np.full(coefs.shape, np.nan)
+            return np.ones_like(coefs)
+
+        samples = self._successful_bootstrap
+        # Cache std errs while we're walking the bootstrap matrix.
+        self._std_errors = np.std(samples, axis=0)
         # Vectorized percentile-style p-value:
         #   constrained-to-zero coefficients → 1.0
-        #   else → mean(bootstrap_coef <= eps)
-        p_below = (self._bootstrap_coefs <= _EPS).mean(axis=0)
+        #   else → mean(bootstrap_coef <= eps), floored at 1/n_success since
+        #   "zero of n_success draws hit the boundary" means "p below the
+        #   bootstrap resolution", not literally zero.
+        p_below = (samples <= _EPS).mean(axis=0)
+        p_below = np.maximum(p_below, 1.0 / n_success)
         zero_mask = coefs == 0
         return np.where(zero_mask, 1.0, p_below)
 
     def conf_int(self, alpha: float = 0.05) -> pd.DataFrame:
-        lower = np.percentile(self._bootstrap_coefs, 100 * (alpha / 2), axis=0)
-        upper = np.percentile(self._bootstrap_coefs, 100 * (1 - alpha / 2), axis=0)
+        if self._n_bootstrap_success == 0:
+            nans = np.full(len(self._feature_names), np.nan)
+            return pd.DataFrame({0: nans, 1: nans}, index=self._feature_names)
+        samples = self._successful_bootstrap
+        lower = np.percentile(samples, 100 * (alpha / 2), axis=0)
+        upper = np.percentile(samples, 100 * (1 - alpha / 2), axis=0)
         return pd.DataFrame({0: lower, 1: upper}, index=self._feature_names)
 
     def summary(self) -> str:
@@ -148,9 +169,15 @@ class NNLSResults:
                 f"{ci_low:>12.4f}{ci_high:>12.4f}"
             )
         lines.append("=" * width)
+        if self._n_bootstrap_success == self._n_bootstrap_total:
+            iter_note = f"({self._n_bootstrap_total} iterations)"
+        else:
+            iter_note = (
+                f"({self._n_bootstrap_success} of "
+                f"{self._n_bootstrap_total} iterations succeeded)"
+            )
         lines.append(
-            "Notes: Non-negative least squares with bootstrap inference "
-            f"({len(self._bootstrap_coefs)} iterations)"
+            f"Notes: Non-negative least squares with bootstrap inference {iter_note}"
         )
         lines.append("=" * width)
         return "\n".join(lines)
