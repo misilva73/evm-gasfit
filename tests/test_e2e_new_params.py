@@ -222,7 +222,7 @@ def _build_inputs_with_missing_fit(
 def test_missing_fit_emits_unresolved_placeholder_row(tmp_path: Path) -> None:
     """A proposed name with no successful fit gets a placeholder row in
     `new_gas.csv` (empty `new_gas_rounded`) and surfaces under the
-    `## Unresolved (no fit)` section of the proposal report."""
+    `### Unresolved (no fit)` subsection of `## Warnings`."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build_inputs_with_missing_fit(
         tmp_path, new_params={"MY_UNFIT": None}
     )
@@ -235,21 +235,23 @@ def test_missing_fit_emits_unresolved_placeholder_row(tmp_path: Path) -> None:
     assert pd.isna(unfit.iloc[0]["runtime_ms"])
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
-    unresolved_heading = proposal.find("## Unresolved (no fit)")
-    assert unresolved_heading >= 0, "Unresolved subsection missing"
+    warnings_heading = proposal.find("## Warnings")
+    unresolved_heading = proposal.find("### Unresolved (no fit)")
+    assert warnings_heading >= 0, "Warnings section missing"
+    assert unresolved_heading > warnings_heading, (
+        "Unresolved subsection must sit under Warnings"
+    )
     after = proposal[unresolved_heading:]
     assert "MY_UNFIT" in after, "MY_UNFIT not listed under Unresolved"
 
     # Diff table must NOT contain MY_UNFIT — fitted rows only.
-    diff_section_end = unresolved_heading
-    diff_section = proposal[:diff_section_end]
-    diff_table = diff_section.split("## Proposed gas parameters")[1]
+    diff_table = proposal.split("## Proposed gas parameters")[1].split("##", 1)[0]
     assert "MY_UNFIT" not in diff_table
 
 
 def test_derived_formula_propagates_none(tmp_path: Path) -> None:
     """A derived formula that references an unresolved name evaluates to
-    `None` and surfaces in the same `## Unresolved (no fit)` section."""
+    `None` and surfaces in the same `### Unresolved (no fit)` subsection."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build_inputs_with_missing_fit(
         tmp_path,
         new_params={"MY_UNFIT": None},
@@ -264,7 +266,7 @@ def test_derived_formula_propagates_none(tmp_path: Path) -> None:
     assert pd.isna(doubled.iloc[0]["new_gas_decimal"])
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
-    after_unresolved = proposal[proposal.find("## Unresolved (no fit)") :]
+    after_unresolved = proposal[proposal.find("### Unresolved (no fit)") :]
     assert "MY_UNFIT" in after_unresolved
     assert "DOUBLED" in after_unresolved
 

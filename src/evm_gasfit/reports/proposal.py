@@ -12,7 +12,7 @@ import pandas as pd
 from evm_gasfit.config import Config
 from evm_gasfit.proposal.build import ProposalOutput
 
-from .plots import plot_proposal_by_client, plot_proposal_heatmap
+from .plots import plot_proposal_heatmap
 
 SENTINEL = "no prior default"
 
@@ -23,11 +23,31 @@ _MISSING_GLUE_RE = re.compile(
 )
 
 
+def _format_anchor_rate_mgas_s(anchor_rate: float) -> str:
+    """Render ``anchor_rate`` (gas/s) as a 3-sig-fig ``Mgas/s`` string."""
+    mgas = float(anchor_rate) / 1e6
+    if mgas == 0:
+        return "0 Mgas/s"
+    # 3 significant figures; strip trailing zeros after the decimal point so
+    # round numbers stay readable (100 Mgas/s, not 100. Mgas/s).
+    formatted = f"{mgas:.3g}"
+    return f"{formatted} Mgas/s"
+
+
 def _signed_diff(proposed: int, current: int) -> str:
     diff = proposed - current
     if diff == 0:
         return "0"
     return f"{diff:+d}"
+
+
+def _signed_pct(proposed: int, current: int) -> str:
+    if current == 0:
+        return "n/a"
+    pct = round((proposed - current) / current * 100)
+    if pct == 0:
+        return "0%"
+    return f"{pct:+d}%"
 
 
 def _direction_counts(
@@ -67,6 +87,44 @@ def _partition_warnings(warnings: list[str]) -> tuple[dict[str, list[str]], list
     return missing_by_test, other
 
 
+def _build_client_comparison_rows(
+    new_gas_all_df: pd.DataFrame,
+    fitted_params: list[str],
+) -> list[dict[str, object]]:
+    """Worst vs. second-worst client per gas param, fitted rows only.
+
+    Skips gas params with fewer than 2 fitted clients (nothing to compare).
+    """
+    df = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
+    df = df[df["new_gas_rounded"].notna()]
+    rows: list[dict[str, object]] = []
+    for gas_param in fitted_params:
+        sub = df[df["gas_param"] == gas_param]
+        if len(sub) < 2:
+            continue
+        ordered = sub.sort_values(
+            by=["new_gas_rounded", "client_name"],
+            ascending=[False, True],
+            kind="mergesort",
+        )
+        worst = ordered.iloc[0]
+        second = ordered.iloc[1]
+        worst_val = int(worst["new_gas_rounded"])
+        second_val = int(second["new_gas_rounded"])
+        rows.append(
+            {
+                "gas_param": gas_param,
+                "worst_client": str(worst["client_name"]),
+                "worst_value": worst_val,
+                "second_client": str(second["client_name"]),
+                "second_value": second_val,
+                "diff": _signed_diff(worst_val, second_val),
+                "diff_pct": _signed_pct(worst_val, second_val),
+            }
+        )
+    return rows
+
+
 def write_proposal_report(
     out_dir: Path,
     proposal_output: ProposalOutput,
@@ -90,9 +148,10 @@ def write_proposal_report(
 
     # Run metadata.
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+    anchor_label = _format_anchor_rate_mgas_s(config.anchor_rate)
     lines.append(
         f"_Generated {generated} · fork `{config.gas_costs.fork}` · "
-        f"anchor_rate {config.anchor_rate:g} gas/s_"
+        f"anchor_rate {anchor_label}_"
     )
     lines.append("")
 
@@ -109,12 +168,10 @@ def write_proposal_report(
     # TOC.
     toc_items = [
         "[Proposed parameters](#proposed-gas-parameters)",
-        "[Unresolved (no fit)](#unresolved-no-fit)",
+        "[Client comparison](#client-comparison)",
         "[Warnings](#warnings)",
         "[Poor-fit selections](#poor-fit-selections)",
     ]
-    if config.output.plots:
-        toc_items.append("[Plots](#plots)")
     lines.append("**Contents:** " + " · ".join(toc_items))
     lines.append("")
 
@@ -124,8 +181,8 @@ def write_proposal_report(
 
     lines.append("## Proposed gas parameters")
     lines.append("")
-    lines.append("| gas_param | proposed_gas | current_gas | diff |")
-    lines.append("| --- | --- | --- | --- |")
+    lines.append("| Gas param | Current gas | Proposed gas | Diff | Diff % |")
+    lines.append("| --- | --- | --- | --- | --- |")
     for _, row in fitted_df.iterrows():
         gas_param = str(row["gas_param"])
         proposed = int(row["new_gas_rounded"])
@@ -133,14 +190,61 @@ def write_proposal_report(
             current_int = int(current_values[gas_param])
             current_cell = str(current_int)
             diff_cell = _signed_diff(proposed, current_int)
+            diff_pct_cell = _signed_pct(proposed, current_int)
         else:
             current_cell = SENTINEL
             diff_cell = "n/a"
-        lines.append(f"| {gas_param} | {proposed} | {current_cell} | {diff_cell} |")
+            diff_pct_cell = "n/a"
+        lines.append(
+            f"| {gas_param} | {current_cell} | {proposed} | {diff_cell} | "
+            f"{diff_pct_cell} |"
+        )
     lines.append("")
 
-    # Unresolved (no fit) — placeholder rows from missing fits or None-derived.
-    lines.append("## Unresolved (no fit)")
+    # Client comparison: worst vs. second-worst per gas param, plus heatmap.
+    plots_enabled = config.output.plots
+    new_gas_all_df = proposal_output.new_gas_all_df
+    fitted_params = [str(p) for p in fitted_df["gas_param"]]
+    comparison_rows = _build_client_comparison_rows(new_gas_all_df, fitted_params)
+
+    lines.append("## Client comparison")
+    lines.append("")
+    if not comparison_rows:
+        lines.append(
+            "_Not enough clients to compare — every gas parameter was fitted "
+            "by a single client._"
+        )
+        lines.append("")
+    else:
+        lines.append(
+            "Worst client vs. second-worst client per gas parameter. The diff "
+            "columns quantify how much each parameter would drop if priced "
+            "against the second-worst client instead of the worst."
+        )
+        lines.append("")
+        lines.append(
+            "| Gas param | Worst client | Worst gas | Second-worst client | "
+            "Second-worst gas | Diff | Diff % |"
+        )
+        lines.append("| --- | --- | --- | --- | --- | --- | --- |")
+        for row in comparison_rows:
+            lines.append(
+                f"| {row['gas_param']} | {row['worst_client']} | "
+                f"{row['worst_value']} | {row['second_client']} | "
+                f"{row['second_value']} | {row['diff']} | {row['diff_pct']} |"
+            )
+        lines.append("")
+
+    plottable = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
+    if plots_enabled and not plottable.empty:
+        plot_proposal_heatmap(plottable, out_dir=out_dir)
+        lines.append("![](figs/proposal/heatmap.png)")
+        lines.append("")
+
+    # Warnings (with Unresolved as a subsection — always shown).
+    lines.append("## Warnings")
+    lines.append("")
+    lines.append("### Unresolved (no fit)")
     lines.append("")
     if unresolved_df.empty:
         lines.append("_None._")
@@ -154,19 +258,12 @@ def write_proposal_report(
             "Inspect the `evm_gasfit` warnings in `meta.json` for the cause."
         )
         lines.append("")
-        lines.append("| gas_param |")
+        lines.append("| Gas param |")
         lines.append("| --- |")
         for _, row in unresolved_df.iterrows():
             lines.append(f"| `{row['gas_param']}` |")
         lines.append("")
-
-    # Warnings.
-    lines.append("## Warnings")
-    lines.append("")
-    if not missing_by_test and not other_warnings:
-        lines.append("_None._")
-        lines.append("")
-    else:
+    if missing_by_test or other_warnings:
         if missing_by_test:
             lines.append("### Missing glue opcodes")
             lines.append("")
@@ -177,7 +274,7 @@ def write_proposal_report(
                 "re-designing the test to isolate the target opcode."
             )
             lines.append("")
-            lines.append("| test_name | non-priced opcodes |")
+            lines.append("| Test name | Non-priced opcodes |")
             lines.append("| --- | --- |")
             for test_name in sorted(missing_by_test):
                 opcodes = sorted(set(missing_by_test[test_name]))
@@ -207,27 +304,13 @@ def write_proposal_report(
             "before relying on the proposed value."
         )
         lines.append("")
-        lines.append("| gas_param | client | test_name |")
+        lines.append("| Gas param | Client | Test name |")
         lines.append("| --- | --- | --- |")
         for _, row in poor_fit_rows.iterrows():
             lines.append(
                 f"| `{row['gas_param']}` | `{row['client_name']}` | "
                 f"`{row['test_name']}` |"
             )
-        lines.append("")
-
-    # Plots.
-    plots_enabled = config.output.plots
-    new_gas_all_df = proposal_output.new_gas_all_df
-    plottable = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
-    if plots_enabled and not plottable.empty:
-        plot_proposal_heatmap(plottable, out_dir=out_dir)
-        plot_proposal_by_client(plottable, out_dir=out_dir)
-        lines.append("## Plots")
-        lines.append("")
-        lines.append("![](figs/proposal/heatmap.png)")
-        lines.append("")
-        lines.append("![](figs/proposal/by_client.png)")
         lines.append("")
 
     out_path.write_text("\n".join(lines))

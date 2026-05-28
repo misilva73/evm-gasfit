@@ -276,6 +276,14 @@ def plot_proposal_heatmap(
     *,
     out_dir: Path,
 ) -> Path:
+    """Row-normalized heatmap: per-row best-to-worst gradient.
+
+    For each ``gas_param`` row, the best (cheapest) client is green and the
+    worst is red, with a linear gradient in between — ``RdYlGn_r`` applied
+    to ``(value - row_min) / (row_max - row_min)``. Single-client rows (and
+    rows where every client has the same value) are left neutral. Cell
+    annotations carry the absolute proposed gas integer.
+    """
     figs_dir = _ensure(out_dir, "proposal")
     path = figs_dir / "heatmap.png"
 
@@ -293,40 +301,23 @@ def plot_proposal_heatmap(
         aggfunc="max",
     )
 
+    row_min = pivot.min(axis=1)
+    row_max = pivot.max(axis=1)
+    row_range = (row_max - row_min).replace(0, np.nan)
+    normalized = pivot.sub(row_min, axis=0).div(row_range, axis=0)
+
     width = max(_FIGSIZE[0], 1.2 * len(pivot.columns) + 4)
     height = max(_FIGSIZE[1], 0.4 * len(pivot.index) + 2)
     fig, ax = plt.subplots(figsize=(width, height))
-    sns.heatmap(pivot, annot=True, fmt=".0f", cmap="viridis", ax=ax)
-    ax.set_title("Proposed gas by parameter and client")
-    return _save(fig, path)
-
-
-def plot_proposal_by_client(
-    new_gas_all_df: pd.DataFrame,
-    *,
-    out_dir: Path,
-) -> Path:
-    figs_dir = _ensure(out_dir, "proposal")
-    path = figs_dir / "by_client.png"
-
-    plot_df = new_gas_all_df.assign(
-        new_gas_rounded=new_gas_all_df["new_gas_rounded"]
-        .astype("Float64")
-        .astype(float)
-    )
-    width = max(_FIGSIZE[0], 1.0 * plot_df["gas_param"].nunique() + 4)
-    fig, ax = plt.subplots(figsize=(width, _FIGSIZE[1]))
-    sns.barplot(
-        data=plot_df,
-        x="gas_param",
-        y="new_gas_rounded",
-        hue="client_name",
+    sns.heatmap(
+        normalized,
+        annot=pivot,
+        fmt=".0f",
+        cmap="RdYlGn_r",
+        vmin=0.0,
+        vmax=1.0,
+        cbar_kws={"label": "Row-normalized: 0 = best client, 1 = worst client"},
         ax=ax,
     )
-    ax.set_xlabel("Gas parameter")
-    ax.set_ylabel("Proposed gas")
-    ax.set_title("Per-client proposed gas")
-    for label in ax.get_xticklabels():
-        label.set_rotation(45)
-        label.set_ha("right")
+    ax.set_title("Proposed gas by parameter and client (row-normalized)")
     return _save(fig, path)

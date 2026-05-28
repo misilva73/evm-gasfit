@@ -20,12 +20,17 @@ from .plots import (
 
 
 def _anchor(text: str) -> str:
-    """GitHub-flavored anchor for a heading text."""
+    """GitHub-flavored anchor for a heading text.
+
+    Mirrors GFM: lowercase, drop punctuation, keep `_` and `-`, map spaces
+    to `-`. Underscores in identifiers like ``test_arithmetic`` survive so
+    the link points at the rendered heading id.
+    """
     out: list[str] = []
     for ch in text.lower():
-        if ch.isalnum() or ch == "-":
+        if ch.isalnum() or ch in "_-":
             out.append(ch)
-        elif ch in " _/":
+        elif ch == " ":
             out.append("-")
     return "".join(out)
 
@@ -144,10 +149,10 @@ def write_runtime_report(
         out_path.write_text("\n".join(lines))
         return
 
-    # TOC.
-    lines.append(
-        "**Contents:** " + " · ".join(f"[{t}](#{_anchor(t)})" for t in test_name_order)
-    )
+    lines.append("## Contents")
+    lines.append("")
+    for test_name in test_name_order:
+        lines.append(f"- [{test_name}](#{_anchor(test_name)})")
     lines.append("")
 
     for test_name in test_name_order:
@@ -183,34 +188,35 @@ def write_runtime_report(
                 mb_values = [row[c] for c in mb_cols]
                 fit_key = (test_name, opcode, *mb_values, client)
                 fit = fits.get(fit_key)
+                if fit is None:
+                    continue
 
-                lines.append(f"#### {client}")
+                lines.append(
+                    f"<details><summary>{client} — NNLS regression summary</summary>"
+                )
+                lines.append("")
+                lines.append("```")
+                lines.append(fit.summary())
+                lines.append("```")
                 lines.append("")
 
-                if fit is not None:
-                    lines.append("<details><summary>NNLS regression summary</summary>")
-                    lines.append("")
-                    lines.append("```")
-                    lines.append(fit.summary())
-                    lines.append("```")
-                    lines.append("")
-                    lines.append("</details>")
-                    lines.append("")
+                if plots_enabled:
+                    kwargs = dict(
+                        target_opcode=opcode,
+                        test_name=test_name,
+                        model_by_combo=combo,
+                        client=client,
+                        out_dir=out_dir,
+                    )
+                    plot_regression(fit, **kwargs)
+                    plot_bootstrap(fit, **kwargs)
+                    plot_diagnostics(fit, **kwargs)
+                    base = slug(opcode, test_name, combo, client)
+                    for family in ("regression", "bootstrap", "diagnostics"):
+                        lines.append(f"![](figs/runtime/{base}__{family}.png)")
+                        lines.append("")
 
-                    if plots_enabled:
-                        kwargs = dict(
-                            target_opcode=opcode,
-                            test_name=test_name,
-                            model_by_combo=combo,
-                            client=client,
-                            out_dir=out_dir,
-                        )
-                        plot_regression(fit, **kwargs)
-                        plot_bootstrap(fit, **kwargs)
-                        plot_diagnostics(fit, **kwargs)
-                        base = slug(opcode, test_name, combo, client)
-                        for family in ("regression", "bootstrap", "diagnostics"):
-                            lines.append(f"![](figs/runtime/{base}__{family}.png)")
-                            lines.append("")
+                lines.append("</details>")
+                lines.append("")
 
     out_path.write_text("\n".join(lines))
