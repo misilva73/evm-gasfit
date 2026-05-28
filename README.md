@@ -111,10 +111,12 @@ Everything else is internal. See the rendered API reference at
   heatmap when plots are on (red = more expensive than current,
   green = cheaper, blank rows for `new_params` declared without a baseline)
   or as a markdown table when plots are off, a `Worst-case provenance` section
-  with one collapsible block per gas param showing which
-  `(test_name, target_opcode, model_coef_name, model_by)` combo each client's
-  worst-case estimation came from (heatmaps when plots are on, markdown
-  tables when off), and a warnings section containing `Unresolved (no fit)`
+  with one collapsible block per gas param showing every per-client candidate
+  (one row per `(test_name, target_opcode, model_coef_name, model_by)` combo,
+  one column per client, cells = proposed gas); the cell the per-client
+  selector picked as that client's worst-case is highlighted (outlined on the
+  heatmap, bolded in the markdown-table fallback), and a warnings section
+  containing `Unresolved (no fit)`
   (proposed names that produced no value), `Partial fits (missing clients)`
   (proposed names fit for some clients but missing on others),
   `Missing glue opcodes`, and `Other`. A trailing `Poor-fit selections`

@@ -327,9 +327,11 @@ def _render_provenance_table(
     Returns ``(table_lines, legend)``. Rows are model combos (labeled the
     same way the heatmap labels them, including the ``M1, M2, …`` collapse
     when labels get too long); columns are clients alphabetically; cells are
-    ``new_gas_rounded`` integers, blank for missing combo/client pairs.
+    ``new_gas_rounded`` integers, blank for missing combo/client pairs. The
+    winning combo per client is rendered in **bold** so the chosen provenance
+    is readable without diffing against the proposal table.
     """
-    pivot, legend = build_provenance_pivot(slice_df)
+    pivot, legend, winners = build_provenance_pivot(slice_df)
     clients = sorted(str(c) for c in pivot.columns)
     header = ["Combo", *clients]
     lines = [
@@ -337,7 +339,12 @@ def _render_provenance_table(
         "| " + " | ".join(["---"] * len(header)) + " |",
     ]
     for combo_label, row in pivot.iterrows():
-        cells = [f"`{combo_label}`", *(_cell(row[c]) for c in clients)]
+        cells = [f"`{combo_label}`"]
+        for c in clients:
+            text = _cell(row[c])
+            if text and bool(winners.at[combo_label, c]):
+                text = f"**{text}**"
+            cells.append(text)
         lines.append("| " + " | ".join(cells) + " |")
     return lines, legend
 
@@ -368,20 +375,21 @@ def _append_provenance_section(
     lines.append("## Worst-case provenance per gas param")
     lines.append("")
     base_intro = (
-        "One collapsible block per gas parameter showing where each client's "
-        "worst-case estimation comes from. Rows are model combos (the source "
-        "regression's `test_name`, `target_opcode`, `model_coef_name`, and any "
-        "`model_by` factors — components constant within a parameter are "
-        "dropped from the label). Cells carry the per-combo proposed gas"
+        "One collapsible block per gas parameter showing every per-client "
+        "candidate that the worst-case selector saw. Rows are model combos "
+        "(the source regression's `test_name`, `target_opcode`, "
+        "`model_coef_name`, and any `model_by` factors — components constant "
+        "within a parameter are dropped from the label). Cells carry each "
+        "candidate's proposed gas; the cell the per-client selector picked is"
     )
     if plots_enabled:
         lines.append(
-            base_intro
-            + "; colors are `log2(proposed / current)` against that parameter's "
-            "baseline on a per-parameter symmetric scale."
+            base_intro + " outlined in black. Colors are `log2(proposed / current)` "
+            "against that parameter's baseline on a per-parameter symmetric "
+            "scale."
         )
     else:
-        lines.append(base_intro + ".")
+        lines.append(base_intro + " bolded.")
     lines.append("")
     if skipped:
         skipped_cell = ", ".join(f"`{p}`" for p in skipped)
@@ -481,10 +489,21 @@ def write_proposal_report(
     fitted_params = [str(p) for p in fitted_df["gas_param"]]
     plottable = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
     plottable = plottable[plottable["new_gas_rounded"].notna()]
-    combo_counts = _combo_counts_per_param(plottable)
+    # Provenance is sourced from the full per-client candidate set (every spec
+    # × row × coef expansion, not just the per-client winners), so each
+    # (combo, client) cell carries its proposed gas — winners get marked,
+    # losers stay visible for comparison.
+    candidates_df = proposal_output.candidates_df
+    plottable_candidates = candidates_df[
+        candidates_df["client_name"].astype(str).str.len() > 0
+    ]
+    plottable_candidates = plottable_candidates[
+        plottable_candidates["new_gas_rounded"].notna()
+    ]
+    combo_counts = _combo_counts_per_param(plottable_candidates)
     qualifying = [p for p in fitted_params if combo_counts.get(p, 0) >= 2]
     skipped = [p for p in fitted_params if 0 < combo_counts.get(p, 0) < 2]
-    has_provenance_section = bool(qualifying) and not plottable.empty
+    has_provenance_section = bool(qualifying) and not plottable_candidates.empty
 
     # TOC.
     lines.append("## Contents")
@@ -578,7 +597,7 @@ def write_proposal_report(
 
     _append_provenance_section(
         lines,
-        plottable,
+        plottable_candidates,
         qualifying,
         skipped,
         combo_counts,

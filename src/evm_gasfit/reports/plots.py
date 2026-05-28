@@ -398,15 +398,18 @@ def _combo_value(row: pd.Series, col: str) -> str:
 
 def build_provenance_pivot(
     slice_df: pd.DataFrame,
-) -> tuple[pd.DataFrame, list[tuple[str, str]] | None]:
+) -> tuple[pd.DataFrame, list[tuple[str, str]] | None, pd.DataFrame]:
     """Build the (combos × clients) ``new_gas_rounded`` pivot for one gas
     param, with the same row labels the provenance heatmap uses.
 
-    Returns ``(pivot, legend)``. The pivot's index is the rendered short
-    label; the columns are client names. ``legend`` is non-``None`` only when
-    labels collapsed to ``M1, M2, …`` because at least one short label
-    exceeded ``_PROVENANCE_LABEL_MAX`` characters — callers should render it
-    as a `(short, full)` lookup table alongside the pivot.
+    Returns ``(pivot, legend, winners)``. The pivot's index is the rendered
+    short label; the columns are client names. ``winners`` is a boolean
+    DataFrame aligned with ``pivot`` — ``True`` for the (combo, client) cell
+    that won that client's worst-case selection, ``False`` otherwise.
+    ``legend`` is non-``None`` only when labels collapsed to ``M1, M2, …``
+    because at least one short label exceeded ``_PROVENANCE_LABEL_MAX``
+    characters — callers should render it as a ``(short, full)`` lookup table
+    alongside the pivot.
 
     Combo components that are constant across the slice are dropped from the
     short label (so a param fit by two specs sharing every field except
@@ -452,7 +455,29 @@ def build_provenance_pivot(
     )
     pivot = pivot.reindex(unique_keys)
     pivot.index = [label_by_key[k] for k in pivot.index]
-    return pivot, legend
+
+    # Per (combo, client) cell, ``is_winner`` is True iff the per-client
+    # selector picked that candidate. Use ``max`` so duplicates collapse to
+    # True if any underlying row was a winner.
+    is_winner = (
+        plot_df["is_winner"].astype(bool)
+        if "is_winner" in plot_df.columns
+        else pd.Series(False, index=plot_df.index)
+    )
+    winners = (
+        plot_df.assign(_is_winner=is_winner)
+        .pivot_table(
+            index="_combo_key",
+            columns="client_name",
+            values="_is_winner",
+            aggfunc="max",
+        )
+        .reindex(unique_keys)
+        .reindex(columns=pivot.columns)
+    )
+    winners.index = pivot.index
+    winners = winners.fillna(False).astype(bool)
+    return pivot, legend, winners
 
 
 def plot_proposal_provenance_heatmap(
@@ -466,12 +491,14 @@ def plot_proposal_provenance_heatmap(
     colored by ``log2(proposed / current)`` against ``current_value``.
 
     Reuses :func:`build_provenance_pivot` for the pivot + label collapse, so
-    the rendered y-axis matches the markdown table fallback verbatim.
+    the rendered y-axis matches the markdown table fallback verbatim. Cells
+    flagged ``is_winner`` (the candidate the per-client selector picked) are
+    outlined in black so the chosen provenance reads at a glance.
     """
     figs_dir = _ensure(out_dir, "proposal")
     path = figs_dir / f"provenance__{slug(gas_param)}.png"
 
-    pivot, legend = build_provenance_pivot(slice_df)
+    pivot, legend, winners = build_provenance_pivot(slice_df)
 
     if (
         current_value is None
@@ -511,6 +538,10 @@ def plot_proposal_provenance_heatmap(
             ha="center",
             va="center",
             color=".15",
+        )
+    for y, x in zip(*np.where(winners.to_numpy())):
+        ax.add_patch(
+            plt.Rectangle((x, y), 1, 1, fill=False, edgecolor="black", lw=2.0, zorder=5)
         )
     ax.set_title(f"{gas_param}: proposed vs. current (log2 ratio)")
     return _save(fig, path), legend
