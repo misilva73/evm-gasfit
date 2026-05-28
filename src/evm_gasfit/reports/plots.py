@@ -300,6 +300,10 @@ def plot_proposal_heatmap(
         values="new_gas_rounded",
         aggfunc="max",
     )
+    # Preserve the caller's gas-param ordering (config declaration order, set
+    # in ``proposal/build.py``) — ``pivot_table`` re-sorts the index by default.
+    row_order = list(dict.fromkeys(plot_df["gas_param"].astype(str)))
+    pivot = pivot.reindex([p for p in row_order if p in pivot.index])
 
     row_min = pivot.min(axis=1)
     row_max = pivot.max(axis=1)

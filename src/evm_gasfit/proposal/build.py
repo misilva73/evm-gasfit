@@ -195,13 +195,37 @@ def build_proposal(
         "Int64"
     )
 
-    # Final sort + reset for determinism.
-    new_gas_all_df = new_gas_all_df.sort_values(
-        ["gas_param", "client_name", "test_name", "target_opcode", "model_coef_name"],
-        kind="mergesort",
-    ).reset_index(drop=True)
-    new_gas_df = new_gas_df.sort_values("gas_param", kind="mergesort").reset_index(
-        drop=True
+    # Final sort + reset for determinism. Gas params follow their first
+    # appearance in the config (presets + custom models, then derived); any
+    # name not declared in the config (shouldn't happen given the validators
+    # but kept defensive) falls to the end in alphabetical order.
+    order_index = _config_param_order_index(config)
+    fallback = len(order_index)
+
+    def _pos(series: pd.Series) -> pd.Series:
+        return series.astype(str).map(lambda n: order_index.get(n, fallback))
+
+    new_gas_all_df = (
+        new_gas_all_df.assign(_pos=_pos(new_gas_all_df["gas_param"]))
+        .sort_values(
+            [
+                "_pos",
+                "gas_param",
+                "client_name",
+                "test_name",
+                "target_opcode",
+                "model_coef_name",
+            ],
+            kind="mergesort",
+        )
+        .drop(columns="_pos")
+        .reset_index(drop=True)
+    )
+    new_gas_df = (
+        new_gas_df.assign(_pos=_pos(new_gas_df["gas_param"]))
+        .sort_values(["_pos", "gas_param"], kind="mergesort")
+        .drop(columns="_pos")
+        .reset_index(drop=True)
     )
     _ = np  # quiet linters; numpy imported for future use.
 
@@ -214,6 +238,26 @@ def build_proposal(
         missing_glue_pairs=missing_glue_pairs,
         glue_opcodes_by_test_df=glue_opcodes_by_test_df,
     )
+
+
+def _config_param_order_index(config: Config) -> dict[str, int]:
+    """Map each declared gas-param name to its first-appearance position.
+
+    Walks ``resolved_models`` in YAML declaration order (presets, then custom)
+    and records each ``model_params`` RHS on first sight, then appends
+    ``derived`` keys. The returned dict is consumed as a sort key so every
+    proposal artifact — CSV, markdown tables, heatmap rows — surfaces gas
+    params in the order the user declared them rather than alphabetically.
+    """
+    order: dict[str, int] = {}
+    for spec in config.resolved_models:
+        for gas_param in spec.model_params.values():
+            if gas_param not in order:
+                order[gas_param] = len(order)
+    for name in config.derived_evaluated:
+        if name not in order:
+            order[name] = len(order)
+    return order
 
 
 def _no_fit_summary_row(

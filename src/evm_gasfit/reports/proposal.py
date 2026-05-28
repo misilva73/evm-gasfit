@@ -103,7 +103,9 @@ def _build_partial_fit_rows(
         return []
     clients_seen = sorted(set(df["client_name"].astype(str)))
     rows: list[dict[str, object]] = []
-    for gas_param in sorted(set(df["gas_param"].astype(str))):
+    # ``new_gas_all_df`` arrives in config-declaration order; preserve that
+    # by iterating unique values in first-appearance order rather than sorting.
+    for gas_param in dict.fromkeys(df["gas_param"].astype(str)):
         fitting_clients = set(
             df[df["gas_param"] == gas_param]["client_name"].astype(str)
         )

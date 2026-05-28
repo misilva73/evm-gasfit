@@ -834,6 +834,19 @@ across-client max never blends fields from multiple per-client rows.
 Tie-break order is part of the determinism contract (§4.0) — never depend on
 pandas / numpy sort stability alone.
 
+**Gas-param row ordering.** Rows in `new_gas.csv`, `new_gas_all_params.csv`,
+and every gas-param-indexed table or plot in `new_gas_proposal.md` (the
+proposed-params diff table, the client-comparison table, the partial-fits
+subsection, the poor-fit selections table, and the heatmap rows) are emitted
+in the order each gas param first appears in the config: walk
+`resolved_models` (presets in YAML order, then `models.custom`) and record
+each `model_params` RHS on first sight, then append `derived` keys in
+declaration order. Any name that surfaces without a config declaration
+(should not happen given the §2.5 validators) falls to the end in
+alphabetical order. Within a single gas_param, `new_gas_all_params.csv` then
+sorts by `client_name, test_name, target_opcode, model_coef_name` for
+determinism.
+
 **Diff baseline.** The proposal is diffed against the **patched** fork values
 (raw fork fields with `gas_costs.overrides` applied) augmented by any integer
 value declared under `new_params`. A `new_params` entry with a `null` value

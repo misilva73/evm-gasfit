@@ -366,3 +366,94 @@ def test_partial_fits_subsection_lists_missing_client_combos(tmp_path: Path) -> 
         "OPCODE_SUB still has fits from geth + reth; it should appear in "
         "the Proposed gas parameters table"
     )
+
+
+def test_gas_params_follow_config_declaration_order(tmp_path: Path) -> None:
+    """Proposed-params table, client-comparison table, and ``new_gas.csv``
+    list gas params in the order their model first appears in ``models.custom``
+    (followed by ``derived`` keys) — not alphabetically.
+
+    Picks opcodes whose names are deliberately *not* in alphabetical order
+    (SUB, ADD, MUL) so the assertion would fail under the old behavior.
+    """
+    import pandas as pd
+
+    fixtures: list = []
+    for opcode in ("ADD", "SUB", "MUL"):
+        fixtures.extend(
+            make_block_limit_fixtures(
+                test_file="test_arithmetic",
+                test_name="test_arithmetic",
+                target_opcode=opcode,
+                params={"opcode": opcode},
+                target_opcount_per_million=500_000,
+            )
+        )
+    models = {
+        "geth": ClientModel(intercept=80.0, slope=2.0e-3),
+        "besu": ClientModel(intercept=100.0, slope=3.0e-3),
+        "reth": ClientModel(intercept=90.0, slope=2.2e-3),
+    }
+    config = base_config(
+        plots=False,
+        anchor_rate=1.0e8,
+        models_custom=[
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "SUB",
+                "model_params": {"target_coef": "OPCODE_SUB"},
+            },
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "ADD",
+                "model_params": {"target_coef": "OPCODE_ADD"},
+            },
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "MUL",
+                "model_params": {"target_coef": "OPCODE_MUL"},
+            },
+        ],
+        extra={"derived": {"OPCODE_FOO": "OPCODE_ADD"}},
+    )
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.001,
+        seed=5,
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    expected_order = ["OPCODE_SUB", "OPCODE_ADD", "OPCODE_MUL", "OPCODE_FOO"]
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+
+    proposed_section = proposal.split("## Proposed gas parameters", 1)[1].split(
+        "##", 1
+    )[0]
+    proposed_order = [name for name in expected_order if name in proposed_section]
+    proposed_positions = [proposed_section.find(name) for name in proposed_order]
+    assert proposed_positions == sorted(proposed_positions), (
+        f"Proposed gas parameters table out of config order: "
+        f"{proposed_order} appear at {proposed_positions}"
+    )
+
+    comparison_section = proposal.split("## Client comparison", 1)[1].split("##", 1)[0]
+    # Derived entries don't show in the comparison table (single placeholder
+    # client row); only the fitted opcodes should be ordered there.
+    fitted_order = [name for name in expected_order if name != "OPCODE_FOO"]
+    comparison_positions = [comparison_section.find(name) for name in fitted_order]
+    assert all(p >= 0 for p in comparison_positions), (
+        f"missing rows in client-comparison: {fitted_order} -> {comparison_positions}"
+    )
+    assert comparison_positions == sorted(comparison_positions), (
+        f"Client comparison table out of config order: positions {comparison_positions}"
+    )
+
+    new_gas = pd.read_csv(out_dir / "new_gas.csv")
+    csv_order = [str(p) for p in new_gas["gas_param"]]
+    assert csv_order == expected_order, (
+        f"new_gas.csv gas_param column out of config order: {csv_order}"
+    )
