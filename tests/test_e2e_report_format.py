@@ -199,12 +199,11 @@ def test_client_comparison_section_present_and_populated(tmp_path: Path) -> None
         "Worst gas",
         "Second-worst client",
         "Second-worst gas",
-        "Diff",
-        "Diff %",
+        "Ratio",
     ], f"unexpected client-comparison header order: {cells}"
 
     # The OPCODE_ADD row carries the worst (besu, highest slope) ahead of
-    # the second-worst (reth), with a non-zero diff.
+    # the second-worst (reth), with a ratio > 1×.
     add_row = next(
         line
         for line in section.splitlines()
@@ -214,9 +213,14 @@ def test_client_comparison_section_present_and_populated(tmp_path: Path) -> None
     assert add_cells[0] == "OPCODE_ADD"
     assert add_cells[1] == "besu"
     assert add_cells[3] == "reth"
-    assert int(add_cells[2]) > int(add_cells[4])  # worst gas > second-worst gas
-    assert add_cells[5].startswith("+")  # positive signed diff
-    assert add_cells[6].endswith("%")
+    worst_gas = int(add_cells[2])
+    second_worst_gas = int(add_cells[4])
+    assert worst_gas > second_worst_gas
+    ratio_cell = add_cells[5]
+    assert ratio_cell.endswith("×"), f"ratio cell missing ×: {ratio_cell!r}"
+    ratio_value = float(ratio_cell.rstrip("×"))
+    assert ratio_value > 1.0
+    assert abs(ratio_value - worst_gas / second_worst_gas) < 0.01
 
 
 def test_heatmap_embedded_in_client_comparison(tmp_path: Path) -> None:

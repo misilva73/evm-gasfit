@@ -139,6 +139,7 @@ def _build_client_comparison_rows(
         second = ordered.iloc[1]
         worst_val = int(worst["new_gas_rounded"])
         second_val = int(second["new_gas_rounded"])
+        ratio_cell = "n/a" if second_val == 0 else f"{worst_val / second_val:.2f}×"
         rows.append(
             {
                 "gas_param": gas_param,
@@ -146,8 +147,7 @@ def _build_client_comparison_rows(
                 "worst_value": worst_val,
                 "second_client": str(second["client_name"]),
                 "second_value": second_val,
-                "diff": _signed_diff(worst_val, second_val),
-                "diff_pct": _signed_pct(worst_val, second_val),
+                "ratio": ratio_cell,
             }
         )
     return rows
@@ -245,21 +245,22 @@ def write_proposal_report(
         lines.append("")
     else:
         lines.append(
-            "Worst client vs. second-worst client per gas parameter. The diff "
-            "columns quantify how much each parameter would drop if priced "
-            "against the second-worst client instead of the worst."
+            "Worst client vs. second-worst client per gas parameter. The "
+            "`Ratio` column is `worst gas / second-worst gas` — values close "
+            "to 1× mean the worst case sits next to the rest of the field, "
+            "while large ratios flag the worst client as an outlier."
         )
         lines.append("")
         lines.append(
             "| Gas param | Worst client | Worst gas | Second-worst client | "
-            "Second-worst gas | Diff | Diff % |"
+            "Second-worst gas | Ratio |"
         )
-        lines.append("| --- | --- | --- | --- | --- | --- | --- |")
+        lines.append("| --- | --- | --- | --- | --- | --- |")
         for row in comparison_rows:
             lines.append(
                 f"| {row['gas_param']} | {row['worst_client']} | "
                 f"{row['worst_value']} | {row['second_client']} | "
-                f"{row['second_value']} | {row['diff']} | {row['diff_pct']} |"
+                f"{row['second_value']} | {row['ratio']} |"
             )
         lines.append("")
 
