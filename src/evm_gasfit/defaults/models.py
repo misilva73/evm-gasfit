@@ -552,7 +552,7 @@ PRESETS: dict[str, ModelSpec] = {
         model_params={"target_coef": "OPCODE_CREATE_BASE"},
     ),
     # -------------------------------------------------------------------
-    # Precompiles (22)
+    # Precompiles (19)
     # -------------------------------------------------------------------
     "precompile_ecrecover": ModelSpec(
         test_name="test_ecrecover",
@@ -677,58 +677,44 @@ PRESETS: dict[str, ModelSpec] = {
     ),
     "precompile_bn128_add": ModelSpec(
         test_name="test_alt_bn128",
-        target_operation="BN128_ADD",
+        target_operation="ECADD",
         target_operation_count_source="STATICCALL",
-        filter_by=["bn128_add-"],
-        model_params={"target_coef": "PRECOMPILE_ECADD"},
-    ),
-    "precompile_bn128_add_negative": ModelSpec(
-        test_name="test_alt_bn128",
-        target_operation="BN128_ADD_NEGATIVE",
-        target_operation_count_source="STATICCALL",
-        filter_by=["bn128_add_negative"],
-        model_params={"target_coef": "PRECOMPILE_ECADD"},
-    ),
-    "precompile_bn128_add_infinities": ModelSpec(
-        test_name="test_alt_bn128",
-        target_operation="BN128_ADD_INFINITIES",
-        target_operation_count_source="STATICCALL",
-        filter_by=["bn128_add_infinities"],
-        model_params={"target_coef": "PRECOMPILE_ECADD"},
-    ),
-    "precompile_bn128_double": ModelSpec(
-        test_name="test_alt_bn128",
-        target_operation="BN128_DOUBLE",
-        target_operation_count_source="STATICCALL",
-        filter_by=["bn128_double"],
+        # The add-family covers four EEST variants (`bn128_add`,
+        # `bn128_add_negative`, `bn128_add_infinities`, `bn128_double`); the
+        # `!bn128_mul` negation excludes the mul-family which shares the
+        # `test_alt_bn128` test_name. The `bn128` fixture-param (parsed from
+        # the variant token) carries the variant label so NNLS fits one
+        # model per variant.
+        filter_by=["bn128_", "!bn128_mul"],
+        model_by=["bn128"],
         model_params={"target_coef": "PRECOMPILE_ECADD"},
     ),
     "precompile_bn128_mul": ModelSpec(
         test_name="test_alt_bn128",
-        target_operation="BN128_MUL",
+        target_operation="ECMUL",
         target_operation_count_source="STATICCALL",
         filter_by=["bn128_mul_"],
         model_params={"target_coef": "PRECOMPILE_ECMUL"},
     ),
     "precompile_bn128_add_uncachable": ModelSpec(
         test_name="test_alt_bn128_uncachable",
-        target_operation="BN128_ADD",
+        target_operation="ECADD",
         target_operation_count_source="STATICCALL",
         filter_by=["ec_add"],
         model_params={"target_coef": "PRECOMPILE_ECADD"},
     ),
     "precompile_bn128_mul_uncachable": ModelSpec(
         test_name="test_alt_bn128_uncachable",
-        target_operation="BN128_MUL",
+        target_operation="ECMUL",
         target_operation_count_source="STATICCALL",
         filter_by=["ec_mul_"],
         model_params={"target_coef": "PRECOMPILE_ECMUL"},
     ),
     "precompile_bn128_pairing": ModelSpec(
         test_name="test_alt_bn128_benchmark",
-        target_operation="BN128_PAIRING",
+        target_operation="ECPAIRING",
         target_operation_count_source="STATICCALL",
-        filter_by=["bn128_pairing"],
+        filter_by=["num_pairs"],
         model_params={
             "target_coef": "PRECOMPILE_ECPAIRING_BASE",
             "num_pairs": "PRECOMPILE_ECPAIRING_PER_POINT",
@@ -736,9 +722,8 @@ PRESETS: dict[str, ModelSpec] = {
     ),
     "precompile_bn128_pairing_alt": ModelSpec(
         test_name="test_ec_pairing",
-        target_operation="BN128_PAIRING",
+        target_operation="ECPAIRING",
         target_operation_count_source="STATICCALL",
-        filter_by=["ec_pairing"],
         model_params={
             "target_coef": "PRECOMPILE_ECPAIRING_BASE",
             "num_pairs": "PRECOMPILE_ECPAIRING_PER_POINT",

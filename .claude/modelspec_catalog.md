@@ -348,7 +348,7 @@ iteration" below.
 | --- | --- | --- | --- | --- |
 | `system_create` | `test_create` | param `opcode` | `[opcode]` | `OPCODE_CREATE_BASE` |
 
-### Precompiles — 22 presets
+### Precompiles — 19 presets
 
 Every precompile preset uses the §2.1 escape hatch: `target_operation` carries
 the precompile's display name (which lands on `target_opcode` in
@@ -375,15 +375,12 @@ not appear as a fixture token.
 | `precompile_p256verify_uncachable` | `test_p256verify_uncachable` | `P256VERIFY` (count via `STATICCALL`, `filter_by: ["p256verify"]`) | — | `PRECOMPILE_P256VERIFY` |
 | `precompile_point_evaluation` | `test_point_evaluation` | `POINT_EVALUATION` (count via `STATICCALL`, `filter_by: ["point_evaluation"]`) | — | `PRECOMPILE_POINT_EVALUATION` |
 | `precompile_point_evaluation_uncachable` | `test_point_evaluation_uncachable` | `POINT_EVALUATION` (count via `STATICCALL`, `filter_by: ["point_evaluation"]`) | — | `PRECOMPILE_POINT_EVALUATION` |
-| `precompile_bn128_add` | `test_alt_bn128` | `BN128_ADD` (count via `STATICCALL`, `filter_by: ["bn128_add-"]`) | — | `PRECOMPILE_ECADD` |
-| `precompile_bn128_add_negative` | `test_alt_bn128` | `BN128_ADD_NEGATIVE` (count via `STATICCALL`, `filter_by: ["bn128_add_negative"]`) | — | `PRECOMPILE_ECADD` |
-| `precompile_bn128_add_infinities` | `test_alt_bn128` | `BN128_ADD_INFINITIES` (count via `STATICCALL`, `filter_by: ["bn128_add_infinities"]`) | — | `PRECOMPILE_ECADD` |
-| `precompile_bn128_double` | `test_alt_bn128` | `BN128_DOUBLE` (count via `STATICCALL`, `filter_by: ["bn128_double"]`) | — | `PRECOMPILE_ECADD` |
-| `precompile_bn128_mul` | `test_alt_bn128` | `BN128_MUL` (count via `STATICCALL`, `filter_by: ["bn128_mul_"]`) | — | `PRECOMPILE_ECMUL` |
-| `precompile_bn128_add_uncachable` | `test_alt_bn128_uncachable` | `BN128_ADD` (count via `STATICCALL`, `filter_by: ["ec_add"]`) | — | `PRECOMPILE_ECADD` |
-| `precompile_bn128_mul_uncachable` | `test_alt_bn128_uncachable` | `BN128_MUL` (count via `STATICCALL`, `filter_by: ["ec_mul_"]`) | — | `PRECOMPILE_ECMUL` |
-| `precompile_bn128_pairing` | `test_alt_bn128_benchmark` | `BN128_PAIRING` (count via `STATICCALL`, `filter_by: ["bn128_pairing"]`) | — | `target_coef: PRECOMPILE_ECPAIRING_BASE`, `num_pairs: PRECOMPILE_ECPAIRING_PER_POINT` |
-| `precompile_bn128_pairing_alt` | `test_ec_pairing` | `BN128_PAIRING` (count via `STATICCALL`, `filter_by: ["ec_pairing"]`) | — | `target_coef: PRECOMPILE_ECPAIRING_BASE`, `num_pairs: PRECOMPILE_ECPAIRING_PER_POINT` |
+| `precompile_bn128_add` | `test_alt_bn128` | `ECADD` (count via `STATICCALL`, `filter_by: ["bn128_", "!bn128_mul"]`) | `[bn128]` | `PRECOMPILE_ECADD` |
+| `precompile_bn128_mul` | `test_alt_bn128` | `ECMUL` (count via `STATICCALL`, `filter_by: ["bn128_mul_"]`) | — | `PRECOMPILE_ECMUL` |
+| `precompile_bn128_add_uncachable` | `test_alt_bn128_uncachable` | `ECADD` (count via `STATICCALL`, `filter_by: ["ec_add"]`) | — | `PRECOMPILE_ECADD` |
+| `precompile_bn128_mul_uncachable` | `test_alt_bn128_uncachable` | `ECMUL` (count via `STATICCALL`, `filter_by: ["ec_mul_"]`) | — | `PRECOMPILE_ECMUL` |
+| `precompile_bn128_pairing` | `test_alt_bn128_benchmark` | `ECPAIRING` (count via `STATICCALL`, `filter_by: ["num_pairs"]`) | — | `target_coef: PRECOMPILE_ECPAIRING_BASE`, `num_pairs: PRECOMPILE_ECPAIRING_PER_POINT` |
+| `precompile_bn128_pairing_alt` | `test_ec_pairing` | `ECPAIRING` (count via `STATICCALL`) | — | `target_coef: PRECOMPILE_ECPAIRING_BASE`, `num_pairs: PRECOMPILE_ECPAIRING_PER_POINT` |
 
 Notes:
 
@@ -406,21 +403,25 @@ Notes:
   fit output. Switching to `model_by: []` with `num_pairs` as a
   `model_params` extra recovers `PRECOMPILE_ECPAIRING_PER_POINT` from the
   slope directly.
-- **BN128 add-family carved by anchored substrings.** `test_alt_bn128`
-  carries five distinct add-family tokens (`bn128_add`, `bn128_add_negative`,
-  `bn128_add_infinities`, `bn128_double`) and three mul-family tokens
-  (`bn128_mul_32_byte_coord_and_scalar`, `bn128_mul_32_byte_coord_and_2_scalar`,
-  `bn128_mul_infinities_32_byte_scalar`). Substring match on the bare
-  `bn128_add` would silently include the negative/infinities variants;
-  trailing-dash (`bn128_add-`) and trailing-underscore (`bn128_mul_`)
-  anchors restrict each filter to its intended sub-family. Each add-family
-  variant gets its own preset with a distinct `target_operation` display
-  name (`BN128_ADD`, `BN128_ADD_NEGATIVE`, `BN128_ADD_INFINITIES`,
-  `BN128_DOUBLE`), so the §4.6 aggregator routes each one to its own row
-  via the `(test_name, model_by-shape, target_opcode)` key; they all write
-  `PRECOMPILE_ECADD` and the per-gas-param worst-case selection picks the
-  slowest. Mul variants fold into one preset because they are not
-  distinguishable in cost semantics.
+- **BN128 add-family fit per-variant under one preset.** `test_alt_bn128`
+  carries four add-family variants (`bn128_add`, `bn128_add_negative`,
+  `bn128_add_infinities`, `bn128_double`) and three mul-family variants
+  (`bn128_mul_32_byte_coord_and_scalar`,
+  `bn128_mul_32_byte_coord_and_2_scalar`,
+  `bn128_mul_infinities_32_byte_scalar`). All four add variants are
+  invocations of the same `ECADD` precompile (address 0x06) with different
+  inputs, so they share a `target_operation: ECADD` and write
+  `PRECOMPILE_ECADD`. A single `precompile_bn128_add` preset groups them
+  via `model_by: [bn128]` — the EEST variant token is parsed into the
+  `bn128` fixture-param (`add` / `add_negative` / `add_infinities` /
+  `double`) — so NNLS fits one model per variant and the per-gas-param
+  worst-case selection picks the slowest. The `filter_by: ["bn128_",
+  "!bn128_mul"]` pair admits the four add fixtures while excluding the
+  mul-family that shares the same `test_name`; the trailing `!bn128_mul`
+  negation token is the same AND-substring matcher as positive tokens but
+  inverted. Mul variants stay in their own `precompile_bn128_mul` preset
+  (target `ECMUL`) — they share cost semantics and fit as one combined
+  regression.
 
 ### BLS12-381 precompiles — 6 presets
 

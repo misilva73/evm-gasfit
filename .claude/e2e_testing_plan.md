@@ -148,13 +148,14 @@ Plan rules pinned: a `fixture_params` entry may carry `transform: bytes_to_words
 | `test_bytes_to_words_transform_recovers_per_word_coefficient` | Copy-style sweep with `calldata_size ∈ {32, 64, 96, 128}`; spec declares `fixture_params.calldata_words = {source: calldata_size, transform: bytes_to_words}` and `model_params.calldata_words → OPCODE_CALLDATACOPY_PER_WORD`; the recovered `calldata_words_runtime_ms` matches the planted per-word slope; both BASE and PER_WORD gas params land in `new_gas.csv`. |
 | `test_transform_and_values_are_mutually_exclusive` | A spec setting both fields raises at config load. |
 
-### 2.7b [`tests/test_e2e_anchor_filter.py`](../tests/test_e2e_anchor_filter.py) — prefix-overlap `filter_by` anchors (§2.6 / catalog)
+### 2.7b [`tests/test_e2e_anchor_filter.py`](../tests/test_e2e_anchor_filter.py) — `filter_by` carve-out semantics (§2.6 / catalog)
 
-Plan rules pinned: when an opcode's `opcode_<X>` token is a prefix of another opcode's token in the same `test_name` slice, the catalog preset must carry a trailing `-` anchor (`filter_by: [opcode_<X>-]`) so the substring match cannot leak the sibling's fixtures into the fit.
+Plan rules pinned: (1) when an opcode's `opcode_<X>` token is a prefix of another opcode's token in the same `test_name` slice, the catalog preset must carry a trailing `-` anchor (`filter_by: [opcode_<X>-]`) so the substring match cannot leak the sibling's fixtures into the fit; (2) a `!`-prefixed token in `filter_by` inverts the substring match — `!foo` requires `foo` to be absent from the fixture name — and is ANDed with the positive tokens.
 
 | Test | Coverage |
 | --- | --- |
 | `test_anchored_filter_excludes_prefix_sibling[add_vs_addmod]` / `[mul_vs_mulmod]` / `[push0_vs_push1]` | Parametrized over the three documented overlap pairs. Synthesizes fixtures for *both* the target opcode and the sibling under one `test_name`, drives the corresponding catalog preset (`arithmetic_add`, `arithmetic_mul`, `stack_push0`), and asserts `results.csv` carries only the target opcode and the recovered slope matches the target's planted value — not the sibling's (5× larger). |
+| `test_negation_token_excludes_overlapping_sibling` | Synthesizes ADD + ADDMOD fixtures under `test_arithmetic` with distinct slopes (5× apart) and drives a custom spec whose `filter_by: ["opcode_ADD", "!opcode_ADDMOD"]` pairs a positive substring that would match both opcodes with a negation that excludes the sibling. Asserts `results.csv` carries only `ADD` and the recovered slope matches `ADD`'s planted value — had the negation been ignored, the fit would pull toward `ADDMOD`'s 5× slope. |
 
 ### 2.7d [`tests/test_e2e_param_opcode_collision.py`](../tests/test_e2e_param_opcode_collision.py) — parsed-param column name cannot collide with opcode mnemonic (§4.1)
 

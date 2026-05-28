@@ -106,6 +106,10 @@ def _filter_tokens_to_params(
     generated fixture name. Auto-generated tokens (``opcode_<X>``) are skipped
     because they're already produced by the target_opcode argument."""
     for token in spec.filter_by:
+        if token.startswith("!"):
+            # Negation tokens require absence; placeholder fixtures never
+            # contain real-fork variant labels, so nothing to inject.
+            continue
         if token.startswith("opcode_"):
             # Already covered by the target_opcode argument.
             continue

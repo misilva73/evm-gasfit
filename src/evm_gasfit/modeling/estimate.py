@@ -37,12 +37,19 @@ class EstimateOutput:
 
 
 def _apply_filters(df: pd.DataFrame, filter_by: list[str]) -> pd.DataFrame:
-    """AND-substring-match ``filter_by`` tokens against ``fixture_name``."""
+    """AND-substring-match ``filter_by`` tokens against ``fixture_name``.
+
+    A ``!``-prefixed token negates: ``!foo`` requires that ``foo`` is absent
+    from the fixture name. All tokens are ANDed together.
+    """
     if not filter_by:
         return df
     mask = pd.Series(True, index=df.index)
     for token in filter_by:
-        mask &= df["fixture_name"].str.contains(token, regex=False)
+        if token.startswith("!"):
+            mask &= ~df["fixture_name"].str.contains(token[1:], regex=False)
+        else:
+            mask &= df["fixture_name"].str.contains(token, regex=False)
     return df[mask]
 
 
