@@ -446,6 +446,8 @@ NEW_GAS_ALL_PARAMS_COLUMNS: frozenset[str] = frozenset(
         "target_opcode",
         "model_coef_name",
         "glue_adjustment",
+        "rsquared",
+        "rsquared_adj",
         "new_gas_decimal",
         "new_gas_rounded",
         "poor_fit",

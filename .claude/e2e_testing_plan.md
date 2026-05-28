@@ -75,7 +75,7 @@ Plan rules pinned: §2.1 config shape; §2.2/§2.3 input loaders; §4.2 single N
 
 | Test | Coverage |
 | --- | --- |
-| `test_minimal_pipeline_end_to_end` | One spec (`test_arithmetic` → `OPCODE_ADD`), two clients with distinct slopes, glue off, plots off. Asserts: always-on artifacts; no glue or fig artifacts; `results.csv` column set + 2 rows + slope-within-5% recovery + `rsquared > 0.95`; `new_gas_all_params.csv` schema + uniformly-zero `glue_adjustment` + boolean `poor_fit`; `new_gas.csv` schema + worst-case row equals one row in `new_gas_all_params.csv` verbatim (§4.6 provenance); `new_gas_decimal = anchor_rate · runtime_ms / 1000`; `new_gas_rounded == ceil(new_gas_decimal)`. |
+| `test_minimal_pipeline_end_to_end` | One spec (`test_arithmetic` → `OPCODE_ADD`), two clients with distinct slopes, glue off, plots off. Asserts: always-on artifacts; no glue or fig artifacts; `results.csv` column set + 2 rows + slope-within-5% recovery + `rsquared > 0.95`; `new_gas_all_params.csv` schema (including `rsquared` and `rsquared_adj` carried verbatim from `results.csv`) + uniformly-zero `glue_adjustment` + boolean `poor_fit`; `new_gas.csv` schema + worst-case row equals one row in `new_gas_all_params.csv` verbatim (§4.6 provenance); `new_gas_decimal = anchor_rate · runtime_ms / 1000`; `new_gas_rounded == ceil(new_gas_decimal)`. |
 
 ### 2.3 [`tests/test_e2e_multi_model.py`](../tests/test_e2e_multi_model.py) — multi-spec, groups, multi-feature (§2.1, §4.3, §4.6, §5.1)
 
@@ -190,6 +190,7 @@ Plan rules pinned (merged from three earlier files — see §3):
 - §2.5 lenient `model_params` RHS naming an unknown gas-param: pipeline runs, warning fires on the `evm_gasfit` logger, the name appears in `new_gas.csv` + the Warnings section of `new_gas_proposal.md`.
 - §4.6 "no prior default" sentinel co-located with the unknown name in either CSV or markdown; no isolated `| 0 |` table cell; a known fork field must NOT carry the sentinel.
 - §4.4 missing-glue detection: a non-priced opcode meeting corr/ratio thresholds emits a warning and surfaces in the proposal; a priced opcode does not.
+- §4.6 poor-fit thresholds: `### Winners with poor fit` lists winners whose `poor_fit = true` (the selector fell back because no candidate passed both thresholds); `### Other weak candidates` lists losing candidates that failed at least one threshold; `Failed` cell carries `p-value`, `R²`, or `both`.
 
 | Test | Coverage |
 | --- | --- |
@@ -197,6 +198,7 @@ Plan rules pinned (merged from three earlier files — see §3):
 | `test_known_gas_param_does_not_carry_sentinel` | Counterpart with `OPCODE_ADD`. Asserts the sentinel does NOT appear in the CSV row text or any markdown line mentioning `OPCODE_ADD`. |
 | `test_non_priced_glue_candidate_emits_warning_and_appears_in_proposal` | Main `test_arithmetic` / `ADD` fit contaminated with `ADDMOD` counts exactly proportional to the target opcount (corr ≈ 1.0), plus `make_glue_driver_fixtures()`. Glue enabled. Asserts: derived priced set from `PRICED_GLUE_OPCODES` does NOT contain `ADDMOD`; at least one WARNING on an `evm_gasfit`-namespaced logger naming `ADDMOD`; `ADDMOD` appears in `new_gas_proposal.md`. |
 | `test_priced_glue_opcode_does_not_emit_missing_glue_warning` | Sanity counterpart with `POP` (priced) as the contaminant. Asserts no `evm_gasfit`-namespaced WARNING names `POP`. |
+| `test_poor_fit_section_surfaces_winners_and_losing_candidates` | Two specs target the same gas param; one client gets a noisy fit that fails the R² threshold while passing p-value, and a second client has a low-R² candidate that loses selection to a clean alternative. Asserts: `new_gas_all_params.csv` carries `rsquared` / `rsquared_adj` columns; `poor_fit = true` on the noisy winner row; `## Poor-fit selections` → `### Winners with poor fit` lists that row with `Failed` = `R²`; `### Other weak candidates` lists the losing low-R² candidate with the same `Failed` cell; both subsections render `_None._` when the run carries no weak fits. |
 
 ### 2.10 [`tests/test_e2e_report_format.py`](../tests/test_e2e_report_format.py) — `new_gas_proposal.md` formatting + structural contract (§5)
 

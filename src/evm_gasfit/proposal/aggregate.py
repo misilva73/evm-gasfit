@@ -147,6 +147,8 @@ def expand_to_per_client(
                     "target_opcode": target_opcode,
                     "model_coef_name": coef_name,
                     "glue_adjustment": row_glue_adjustment,
+                    "rsquared": float(res_row["rsquared"]),
+                    "rsquared_adj": float(res_row["rsquared_adj"]),
                 }
                 for col in model_by_cols:
                     if col in spec.model_by:
@@ -156,6 +158,7 @@ def expand_to_per_client(
                 out["new_gas_decimal"] = new_gas_decimal
                 out["new_gas_rounded"] = new_gas_rounded
                 out["poor_fit"] = False
+                out["is_winner"] = False
                 rows.append(out)
 
     cols = (
@@ -170,9 +173,11 @@ def expand_to_per_client(
             "target_opcode",
             "model_coef_name",
             "glue_adjustment",
+            "rsquared",
+            "rsquared_adj",
         ]
         + model_by_cols
-        + ["new_gas_decimal", "new_gas_rounded", "poor_fit"]
+        + ["new_gas_decimal", "new_gas_rounded", "poor_fit", "is_winner"]
     )
     if not rows:
         return pd.DataFrame(columns=cols)
@@ -200,12 +205,19 @@ def _model_by_combo(row: pd.Series, model_by_cols: list[str]) -> str:
 
 def select_per_client_max(
     new_gas_all_df: pd.DataFrame,
-    poor_fit_threshold: float,
+    pvalue_threshold: float,
+    rsquared_threshold: float,
 ) -> pd.DataFrame:
     """Select the winning row per ``(gas_param, client_name)``.
 
-    Mutates ``new_gas_all_df['poor_fit']`` so winners chosen via the fallback
-    branch are flagged ``True`` on the original frame.
+    Qualified pool requires ``pvalue < pvalue_threshold`` **and**
+    ``rsquared >= rsquared_threshold``. On fallback (no candidate qualifies)
+    the winner is flagged ``poor_fit = True`` — equivalently, the winner
+    failed at least one of the two thresholds.
+
+    Mutates the input frame: sets ``poor_fit = True`` on fallback winners
+    and ``is_winner = True`` on every chosen row, so callers can route
+    losing candidates downstream.
     """
     if new_gas_all_df.empty:
         return new_gas_all_df.copy()
@@ -225,9 +237,12 @@ def select_per_client_max(
             "target_opcode",
             "model_coef_name",
             "glue_adjustment",
+            "rsquared",
+            "rsquared_adj",
             "new_gas_decimal",
             "new_gas_rounded",
             "poor_fit",
+            "is_winner",
         }
     ]
 
@@ -237,7 +252,10 @@ def select_per_client_max(
 
     chosen_indices: list[int] = []
     for (_gp, _client), group in df.groupby(["gas_param", "client_name"], sort=True):
-        qualified = group[group["pvalue"] < poor_fit_threshold]
+        qualified = group[
+            (group["pvalue"] < pvalue_threshold)
+            & (group["rsquared"] >= rsquared_threshold)
+        ]
         if not qualified.empty:
             sub = qualified
             poor = False
@@ -258,6 +276,7 @@ def select_per_client_max(
         )
         winner_idx = int(sub.iloc[0]["_idx"])
         chosen_indices.append(winner_idx)
+        new_gas_all_df.loc[winner_idx, "is_winner"] = True
         if poor:
             new_gas_all_df.loc[winner_idx, "poor_fit"] = True
 
@@ -301,9 +320,12 @@ def select_across_client_max(per_client_df: pd.DataFrame) -> pd.DataFrame:
             "target_opcode",
             "model_coef_name",
             "glue_adjustment",
+            "rsquared",
+            "rsquared_adj",
             "new_gas_decimal",
             "new_gas_rounded",
             "poor_fit",
+            "is_winner",
         }
     ]
 

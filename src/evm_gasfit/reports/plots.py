@@ -369,9 +369,12 @@ _PROVENANCE_RESERVED = frozenset(
         "target_opcode",
         "model_coef_name",
         "glue_adjustment",
+        "rsquared",
+        "rsquared_adj",
         "new_gas_decimal",
         "new_gas_rounded",
         "poor_fit",
+        "is_winner",
     }
 )
 # Above this rendered width, the y-axis legend collapses to ``M1, M2, …`` and

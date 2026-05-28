@@ -41,6 +41,10 @@ class ProposalOutput:
     warnings: list[str]
     missing_glue_pairs: list[tuple[str, str]]
     glue_opcodes_by_test_df: pd.DataFrame = field(default_factory=pd.DataFrame)
+    # Every per-client candidate row from the expansion step, annotated with
+    # ``is_winner`` (set by ``select_per_client_max``) and ``poor_fit``.
+    # Consumed by the report to surface losing candidates with weak fits.
+    candidates_df: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def _empty_glue_opcodes_by_test() -> pd.DataFrame:
@@ -88,12 +92,21 @@ def build_proposal(
 
     expanded_df = expand_to_per_client(results_df, config, glue_adjustment_df)
     per_client_df = select_per_client_max(
-        expanded_df, config.modeling.poor_fit_p_value_threshold
+        expanded_df,
+        config.modeling.poor_fit_p_value_threshold,
+        config.modeling.poor_fit_rsquared_threshold,
     )
+    # ``select_per_client_max`` mutates ``expanded_df`` in place, tagging
+    # ``is_winner`` and ``poor_fit`` on each chosen row. ``candidates_df``
+    # carries the full expanded set so the report can surface losing
+    # candidates that failed either fit-quality threshold.
+    candidates_df = expanded_df
     # ``new_gas_all_params.csv`` is the per-client max selection (one row per
     # ``(gas_param, client_name)``); also publishes ``selected_*`` aliases so
-    # downstream provenance checks can match either naming.
-    new_gas_all_df = per_client_df.copy()
+    # downstream provenance checks can match either naming. ``is_winner`` is
+    # an internal marker for the candidates_df workflow — drop it here so the
+    # canonical CSV schema stays focused on the winning row's contents.
+    new_gas_all_df = per_client_df.drop(columns="is_winner", errors="ignore").copy()
     new_gas_all_df["selected_test"] = new_gas_all_df["test_name"]
     new_gas_all_df["selected_opcode"] = new_gas_all_df["target_opcode"]
     new_gas_all_df["selected_model_coef_name"] = new_gas_all_df["model_coef_name"]
@@ -114,9 +127,12 @@ def build_proposal(
             "target_opcode",
             "model_coef_name",
             "glue_adjustment",
+            "rsquared",
+            "rsquared_adj",
             "new_gas_decimal",
             "new_gas_rounded",
             "poor_fit",
+            "is_winner",
         }
     ]
 
@@ -225,6 +241,23 @@ def build_proposal(
         .drop(columns="_pos")
         .reset_index(drop=True)
     )
+    if not candidates_df.empty:
+        candidates_df = (
+            candidates_df.assign(_pos=_pos(candidates_df["gas_param"]))
+            .sort_values(
+                [
+                    "_pos",
+                    "gas_param",
+                    "client_name",
+                    "test_name",
+                    "target_opcode",
+                    "model_coef_name",
+                ],
+                kind="mergesort",
+            )
+            .drop(columns="_pos")
+            .reset_index(drop=True)
+        )
     _ = np  # quiet linters; numpy imported for future use.
 
     # Null-baseline warning: any new_params entry with `null` baseline that
@@ -252,6 +285,7 @@ def build_proposal(
         warnings=warnings_list,
         missing_glue_pairs=missing_glue_pairs,
         glue_opcodes_by_test_df=glue_opcodes_by_test_df,
+        candidates_df=candidates_df,
     )
 
 
@@ -311,6 +345,8 @@ def _no_fit_all_row(name: str, columns, model_by_cols: list[str]) -> dict[str, o
         "selected_opcode": NO_FIT_LABEL,
         "selected_model_coef_name": NO_FIT_LABEL,
         "glue_adjustment": float("nan"),
+        "rsquared": float("nan"),
+        "rsquared_adj": float("nan"),
         "new_gas_decimal": float("nan"),
         "new_gas_rounded": pd.NA,
         "poor_fit": False,
@@ -368,6 +404,8 @@ def _derived_all_row(
         "selected_opcode": label,
         "selected_model_coef_name": label,
         "glue_adjustment": float("nan") if value is None else 0.0,
+        "rsquared": float("nan"),
+        "rsquared_adj": float("nan"),
         "new_gas_decimal": float("nan") if value is None else float(value),
         "new_gas_rounded": pd.NA if rounded is None else int(rounded),
         "poor_fit": False,

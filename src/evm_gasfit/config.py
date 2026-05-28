@@ -73,6 +73,7 @@ class ModelingSection(BaseModel):
 
     bootstrap_iterations: int = 1000
     poor_fit_p_value_threshold: float = 0.05
+    poor_fit_rsquared_threshold: float = 0.7
     random_seed: int = 42
 
 

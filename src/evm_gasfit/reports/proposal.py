@@ -28,9 +28,12 @@ _PROVENANCE_NON_ID_COLS = frozenset(
         "conf_int_low",
         "conf_int_high",
         "glue_adjustment",
+        "rsquared",
+        "rsquared_adj",
         "new_gas_decimal",
         "new_gas_rounded",
         "poor_fit",
+        "is_winner",
     }
 )
 
@@ -152,6 +155,89 @@ def _build_partial_fit_rows(
         if missing:
             rows.append({"gas_param": gas_param, "missing_clients": missing})
     return rows
+
+
+def _poor_fit_failure_label(
+    pvalue: float, rsquared: float, pv_thresh: float, r2_thresh: float
+) -> str:
+    """Return ``p-value``, ``R²``, ``both`` — or empty if the row passes both
+    thresholds. ``NaN`` on either metric counts as failing it (defensive: the
+    winner selector never produces a NaN on these columns for fitted rows).
+    """
+    fails_p = pd.isna(pvalue) or float(pvalue) >= pv_thresh
+    fails_r2 = pd.isna(rsquared) or float(rsquared) < r2_thresh
+    if fails_p and fails_r2:
+        return "both"
+    if fails_p:
+        return "p-value"
+    if fails_r2:
+        return "R²"
+    return ""
+
+
+def _weak_losing_candidates(
+    candidates_df: pd.DataFrame,
+    pv_thresh: float,
+    r2_thresh: float,
+) -> pd.DataFrame:
+    """Return losing candidates (``is_winner == False``) that failed at least
+    one fit-quality threshold. Pre-sorted upstream by ``_pos`` /
+    ``gas_param`` / ``client_name`` / ``test_name`` / ``target_opcode`` /
+    ``model_coef_name`` so callers can iterate without re-sorting.
+
+    Multiple ``ModelSpec`` presets can map the same ``results.csv`` row to the
+    same gas-param (e.g. several ``cold_account_*`` presets all writing
+    ``ACCOUNT_WRITE``), so the expander emits one candidate per (spec × row).
+    The dedupe below collapses those into a single entry per distinct fit so
+    the report doesn't double-count what is really the same weak regression.
+    """
+    if candidates_df.empty or "is_winner" not in candidates_df.columns:
+        return candidates_df.iloc[0:0]
+    losers = candidates_df[candidates_df["is_winner"] == False]  # noqa: E712
+    weak_mask = (losers["pvalue"] >= pv_thresh) | (losers["rsquared"] < r2_thresh)
+    weak = losers[weak_mask]
+    dedupe_cols = [
+        "gas_param",
+        "client_name",
+        "test_name",
+        "target_opcode",
+        "model_coef_name",
+        "runtime_ms",
+        "pvalue",
+        "rsquared",
+    ]
+    dedupe_cols = [c for c in dedupe_cols if c in weak.columns]
+    return weak.drop_duplicates(subset=dedupe_cols, keep="first")
+
+
+def _render_poor_fit_table(
+    rows_df: pd.DataFrame, pv_thresh: float, r2_thresh: float
+) -> list[str]:
+    """Markdown table rendering for a poor-fit subsection.
+
+    Columns: ``Gas param | Client | Test | Target opcode | Coef | runtime_ms
+    | pvalue | rsquared | Failed``. Numeric cells use 4-significant-figure
+    formatting so very small p-values still read as e.g. ``3.21e-05`` and
+    R² stays compact (``0.273``).
+    """
+    lines = [
+        "| Gas param | Client | Test | Target opcode | Coef | "
+        "runtime_ms | pvalue | rsquared | Failed |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for _, row in rows_df.iterrows():
+        failed = _poor_fit_failure_label(
+            row["pvalue"], row["rsquared"], pv_thresh, r2_thresh
+        )
+        lines.append(
+            f"| `{row['gas_param']}` | `{row['client_name']}` | "
+            f"`{row['test_name']}` | `{row['target_opcode']}` | "
+            f"`{row['model_coef_name']}` | "
+            f"{float(row['runtime_ms']):.4g} | "
+            f"{float(row['pvalue']):.4g} | "
+            f"{float(row['rsquared']):.4g} | {failed} |"
+        )
+    return lines
 
 
 def _build_client_comparison_rows(
@@ -573,28 +659,38 @@ def write_proposal_report(
             lines.append("")
 
     # Poor-fit.
+    pv_thresh = config.modeling.poor_fit_p_value_threshold
+    r2_thresh = config.modeling.poor_fit_rsquared_threshold
+    weak_losers_df = _weak_losing_candidates(
+        proposal_output.candidates_df, pv_thresh, r2_thresh
+    )
     lines.append("## Poor-fit selections")
+    lines.append("")
+    lines.append(
+        f"Rows where the winning fit's p-value exceeded "
+        f"`modeling.poor_fit_p_value_threshold` ({pv_thresh:g}) or its "
+        f"R² fell below `modeling.poor_fit_rsquared_threshold` ({r2_thresh:g}). "
+        f"The `Failed` column names the failing threshold(s); selections in "
+        f"`### Winners with poor fit` still drive the proposal, while "
+        f"`### Other weak candidates` lists losing candidates that the "
+        f"selector dropped in favor of a qualified alternative."
+    )
+    lines.append("")
+    lines.append("### Winners with poor fit")
     lines.append("")
     if poor_fit_rows.empty:
         lines.append("_None._")
         lines.append("")
     else:
-        lines.append(
-            "Rows where the winning fit's p-value exceeded "
-            f"`modeling.poor_fit_p_value_threshold` "
-            f"({config.modeling.poor_fit_p_value_threshold:g}). The selection "
-            "still stands but the headline coefficient is not statistically "
-            "distinguishable from zero — review the underlying regression "
-            "before relying on the proposed value."
-        )
+        lines.extend(_render_poor_fit_table(poor_fit_rows, pv_thresh, r2_thresh))
         lines.append("")
-        lines.append("| Gas param | Client | Test name |")
-        lines.append("| --- | --- | --- |")
-        for _, row in poor_fit_rows.iterrows():
-            lines.append(
-                f"| `{row['gas_param']}` | `{row['client_name']}` | "
-                f"`{row['test_name']}` |"
-            )
+    lines.append("### Other weak candidates")
+    lines.append("")
+    if weak_losers_df.empty:
+        lines.append("_None._")
+        lines.append("")
+    else:
+        lines.extend(_render_poor_fit_table(weak_losers_df, pv_thresh, r2_thresh))
         lines.append("")
 
     out_path.write_text("\n".join(lines))

@@ -106,6 +106,7 @@ glue_adjustment:
 modeling:
   bootstrap_iterations: 1000        # default 1000
   poor_fit_p_value_threshold: 0.05  # optional, default 0.05
+  poor_fit_rsquared_threshold: 0.7  # optional, default 0.7
   random_seed: 42                   # optional, default 42 — controls bootstrap sampling
 
 # output controls
@@ -875,10 +876,13 @@ compares.
 Aggregation:
 
 1. **Per client**: across all `(test, model_by-combo)` rows that map to the same
-   `(gas_param, client)`, keep the row with the largest `runtime_ms`. If any of
-   the candidates has `pvalue < poor_fit_p_value_threshold` (config, default
-   0.05), restrict the max to those; otherwise pick the max across all and set
-   `poor_fit = true` on that row.
+   `(gas_param, client)`, keep the row with the largest `runtime_ms`. Restrict
+   the candidate pool to rows that pass **both** fit-quality thresholds —
+   `pvalue < poor_fit_p_value_threshold` (config, default 0.05) **and**
+   `rsquared >= poor_fit_rsquared_threshold` (config, default 0.7). If at
+   least one row qualifies, pick the max-runtime row from the qualified pool;
+   otherwise fall back to the max-runtime row across all candidates and set
+   `poor_fit = true` on it (the winner failed either threshold, or both).
 2. **Across clients**: the proposal value for `gas_param` is the max of the
    per-client picks. `new_gas_all_params.csv` records all per-client values
    before this collapse; `new_gas.csv` holds the across-client maxes.
@@ -905,7 +909,8 @@ pandas / numpy sort stability alone.
 **Gas-param row ordering.** Rows in `new_gas.csv`, `new_gas_all_params.csv`,
 and every gas-param-indexed table or plot in `new_gas_proposal.md` (the
 proposed-params diff table, the client-comparison table, the partial-fits
-subsection, the poor-fit selections table, and the heatmap rows) are emitted
+subsection, both poor-fit subsections — `### Winners with poor fit` and
+`### Other weak candidates` — and the heatmap rows) are emitted
 in the order each gas param first appears in the config: walk
 `resolved_models` (presets in YAML order, then `models.custom`) and record
 each `model_params` RHS on first sight, then append `derived` keys in
@@ -944,8 +949,17 @@ The proposal report (§5) renders these rows under a dedicated
 table, so the "proposed gas parameters" table is always numeric.
 
 The `poor_fit` flag is serialized as a boolean column on `new_gas_all_params.csv`
-(one row per `(gas_param, client)`). It also surfaces in `new_gas_proposal.md`
-under the warnings section — but the CSV is the canonical record.
+(one row per `(gas_param, client)`). It is `true` when the winning row's
+`pvalue >= poor_fit_p_value_threshold` **or** `rsquared < poor_fit_rsquared_threshold`
+— equivalently, when the per-client selector fell back to the unqualified pool.
+The flag also surfaces in `new_gas_proposal.md` under `## Poor-fit selections`
+→ `### Winners with poor fit`. The CSV is the canonical record.
+
+The proposal report's `## Poor-fit selections` carries a second subsection,
+`### Other weak candidates`, listing rows that lost the per-client selection
+but failed at least one threshold. These rows do not appear on
+`new_gas_all_params.csv` (which is per-`(gas_param, client)` winners) — they
+flow from the per-client expansion in-memory only, and only into the report.
 
 ### 4.7 Rounding
 
@@ -1005,11 +1019,11 @@ identifier errors fire mid-pipeline.
 | `results.csv` | yes | one row per `(model_spec, model_by-combo, client)`; no `glue_adjustment` column (that lives on `new_gas_all_params.csv`) |
 | `glue_results.csv` | iff glue enabled | per `(client, glue_opcode)`: `nobs, glue_runtime_ms, p_value, rsquared` |
 | `glue_opcodes_by_test.csv` | iff glue enabled | per `(test, target_opcode, *model_by)`: `glue_opcode, corr, ratio` |
-| `new_gas_all_params.csv` | yes | per-client values; columns include `gas_param, client_name, runtime_ms, pvalue, conf_int_low, conf_int_high, test_name, target_opcode, model_coef_name, glue_adjustment, *model_by, new_gas_decimal, new_gas_rounded, poor_fit`. `pvalue` is the p-value of the regression coefficient identified by `model_coef_name` on the source `results.csv` row (i.e. `target_coef_pvalue` when `model_coef_name == "target_coef"`, else `<model_coef_name>_pvalue`). The CI bounds come from the same coefficient. `new_gas_rounded` is a nullable integer column; unresolved (no-fit) rows leave it empty (§4.6). |
+| `new_gas_all_params.csv` | yes | per-client values; columns include `gas_param, client_name, runtime_ms, pvalue, conf_int_low, conf_int_high, test_name, target_opcode, model_coef_name, glue_adjustment, *model_by, rsquared, rsquared_adj, new_gas_decimal, new_gas_rounded, poor_fit`. `pvalue` is the p-value of the regression coefficient identified by `model_coef_name` on the source `results.csv` row (i.e. `target_coef_pvalue` when `model_coef_name == "target_coef"`, else `<model_coef_name>_pvalue`). The CI bounds come from the same coefficient. `rsquared` and `rsquared_adj` are carried verbatim from the source `results.csv` row (regression-level, identical across coefficient expansions of one source row). `new_gas_rounded` is a nullable integer column; unresolved (no-fit) rows leave it empty (§4.6). |
 | `new_gas.csv` | yes | worst-case across clients; one row per gas param; columns include `gas_param, client_name, runtime_ms, conf_int_low, conf_int_high, selected_test, selected_opcode, selected_model_coef_name, glue_adjustment, *model_by, new_gas_decimal, new_gas_rounded`. `new_gas_rounded` is a nullable integer column; unresolved rows leave it empty (§4.6). |
 | `runtime_estimation_autogenerated_report.md` | yes | per-spec regression report. Opens with a `## Contents` bulleted list (one bullet per `target_opcode` in first-appearance order across specs, anchors GFM-compatible). Each target opcode gets a `## <opcode>` section; within it, each `(test_name, model_by-combo)` has a headline `### <test_name>` (with optional `— combo <combo>` suffix), the cross-client headline metrics table, and one `<details>` block per client with summary `"<client> — NNLS regression summary"` wrapping the NNLS summary plus, when `output.plots: true`, the three per-fit plot embeds (regression, bootstrap, diagnostics). |
 | `glue_opcodes_autogenerated_report.md` | iff glue enabled | per-client joint regression summary; plots embedded iff `output.plots: true` |
-| `new_gas_proposal.md` | yes | final proposal, diff vs. patched fork values + `new_params` integer defaults (§4.6) with "no prior default" sentinel for `new_params` entries declared as `null`. Anchor rate is rendered as `<N> Mgas/s` (3 significant figures over `anchor_rate / 1e6`) in the run-metadata line. Opens with a `## Contents` heading followed by a markdown bullet list — one bullet per top-level section in render order, anchors GFM-compatible; the Worst-case provenance bullet is included only when that section renders. Sections, in order: `## Proposed gas parameters` diff table with columns `gas_param \| current_gas \| proposed_gas \| diff \| diff %` (column headers are title-cased — `Gas param`, `Current gas`, `Proposed gas`, `Diff`, `Diff %`) and fitted rows only; `## Client comparison` (one combined table with one row per gas_param: worst client + value, second-worst client + value, and a `Ratio` column `worst gas / second-worst gas` formatted as `1.23×` — values near `1×` mean the worst case sits next to the rest of the field, large ratios flag the worst client as an outlier; renders `n/a` when the second-worst value is `0`; gas params fitted by a single client are omitted; an overview of per-client proposed values follows the table — as the `figs/proposal/heatmap.png` embed colored by `log2(proposed / current)` when `output.plots: true`, or as a markdown table — gas params as rows in config-declaration order, clients as columns alphabetically, cells = `new_gas_rounded`, blank where a (param, client) pair has no fit — when `output.plots: false`); `## Worst-case provenance per gas param` (rendered whenever at least one gas param carries ≥ 2 distinct model combos, irrespective of `output.plots`), with one `<details>` block per qualifying gas_param — each block embeds the per-param heatmap (`figs/proposal/provenance__<gas_param>.png`) with clients on the x-axis and model combos on the y-axis, colored by `log2(proposed / current)` against that param's current baseline using the same per-param symmetric `±max(|log2|)` scale (floored at `±1`) as the overview heatmap when `output.plots: true`, or a markdown table sharing the same combo-labeling logic (combo rows × client columns, cells = `new_gas_rounded`) when `output.plots: false`; gas params with only one distinct combo are listed in a single italic line at the top of the section; `## Warnings` containing `### Unresolved (no fit)` (always present — `_None._` body when empty; lists no-fit / None-derived rows), `### Partial fits (missing clients)` (always present — `_None._` body when empty; one row per gas_param fit for at least one client but missing on others, with the missing clients listed), `### Missing glue opcodes` (when populated; §4.4 missing-glue warnings), and `### Other` (when populated; config-load warnings from §2.5 and anything else); `## Poor-fit selections`. |
+| `new_gas_proposal.md` | yes | final proposal, diff vs. patched fork values + `new_params` integer defaults (§4.6) with "no prior default" sentinel for `new_params` entries declared as `null`. Anchor rate is rendered as `<N> Mgas/s` (3 significant figures over `anchor_rate / 1e6`) in the run-metadata line. Opens with a `## Contents` heading followed by a markdown bullet list — one bullet per top-level section in render order, anchors GFM-compatible; the Worst-case provenance bullet is included only when that section renders. Sections, in order: `## Proposed gas parameters` diff table with columns `gas_param \| current_gas \| proposed_gas \| diff \| diff %` (column headers are title-cased — `Gas param`, `Current gas`, `Proposed gas`, `Diff`, `Diff %`) and fitted rows only; `## Client comparison` (one combined table with one row per gas_param: worst client + value, second-worst client + value, and a `Ratio` column `worst gas / second-worst gas` formatted as `1.23×` — values near `1×` mean the worst case sits next to the rest of the field, large ratios flag the worst client as an outlier; renders `n/a` when the second-worst value is `0`; gas params fitted by a single client are omitted; an overview of per-client proposed values follows the table — as the `figs/proposal/heatmap.png` embed colored by `log2(proposed / current)` when `output.plots: true`, or as a markdown table — gas params as rows in config-declaration order, clients as columns alphabetically, cells = `new_gas_rounded`, blank where a (param, client) pair has no fit — when `output.plots: false`); `## Worst-case provenance per gas param` (rendered whenever at least one gas param carries ≥ 2 distinct model combos, irrespective of `output.plots`), with one `<details>` block per qualifying gas_param — each block embeds the per-param heatmap (`figs/proposal/provenance__<gas_param>.png`) with clients on the x-axis and model combos on the y-axis, colored by `log2(proposed / current)` against that param's current baseline using the same per-param symmetric `±max(|log2|)` scale (floored at `±1`) as the overview heatmap when `output.plots: true`, or a markdown table sharing the same combo-labeling logic (combo rows × client columns, cells = `new_gas_rounded`) when `output.plots: false`; gas params with only one distinct combo are listed in a single italic line at the top of the section; `## Warnings` containing `### Unresolved (no fit)` (always present — `_None._` body when empty; lists no-fit / None-derived rows), `### Partial fits (missing clients)` (always present — `_None._` body when empty; one row per gas_param fit for at least one client but missing on others, with the missing clients listed), `### Missing glue opcodes` (when populated; §4.4 missing-glue warnings), and `### Other` (when populated; config-load warnings from §2.5 and anything else); `## Poor-fit selections` containing `### Winners with poor fit` (rows where `poor_fit = true` on `new_gas_all_params.csv` — winners selected via the fallback branch because they failed at least one threshold) and `### Other weak candidates` (rows that lost the per-client selection but failed at least one threshold — they do not appear on `new_gas_all_params.csv`). Each row carries a `Failed` cell naming the failing threshold(s): `p-value`, `R²`, or `both`. Both subsections render `_None._` when empty. |
 | `meta.json` | yes | run metadata: `evm_gasfit_version`, `run_started_at` (UTC ISO-8601), `inputs` (paths to config / runtimes / opcounts), `fixtures` (counts: `in_runtimes`, `in_opcounts`, `matched`, `dropped`), `dropped_fixtures` (sorted list of every fixture present in only one of the two inputs — the per-direction warnings on the `evm_gasfit` logger only report counts and point readers here), and `warnings` (every `WARNING+` record emitted on the `evm_gasfit` logger during the run, in emission order, formatted as `"<level> <logger>: <message>"` — same text as appears on stderr) |
 | `figs/*.png` | iff `output.plots: true` | regression, residual, bootstrap plots |
 
