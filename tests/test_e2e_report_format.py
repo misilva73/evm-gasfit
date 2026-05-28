@@ -411,6 +411,129 @@ def test_partial_fits_subsection_lists_missing_client_combos(tmp_path: Path) -> 
     )
 
 
+def _build_two_spec_shared_param(tmp_path: Path, *, plots: bool):
+    """Two specs (ADD, SUB) writing to the same gas param ``OPCODE_GENERIC``
+    plus one solo spec writing to ``OPCODE_MUL`` — exercises both the
+    multi-combo (provenance heatmap) and single-combo (skip + italic) paths.
+    """
+    fixtures: list = []
+    for opcode in ("ADD", "SUB", "MUL"):
+        fixtures.extend(
+            make_block_limit_fixtures(
+                test_file="test_arithmetic",
+                test_name="test_arithmetic",
+                target_opcode=opcode,
+                params={"opcode": opcode},
+                target_opcount_per_million=500_000,
+            )
+        )
+    models = {
+        "geth": ClientModel(intercept=80.0, slope=2.0e-3),
+        "besu": ClientModel(intercept=100.0, slope=3.0e-3),
+        "reth": ClientModel(intercept=90.0, slope=2.2e-3),
+    }
+    config = base_config(
+        plots=plots,
+        anchor_rate=1.0e8,
+        new_params={"OPCODE_GENERIC": 1},
+        models_custom=[
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "ADD",
+                "model_params": {"target_coef": "OPCODE_GENERIC"},
+            },
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "SUB",
+                "model_params": {"target_coef": "OPCODE_GENERIC"},
+            },
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "MUL",
+                "model_params": {"target_coef": "OPCODE_MUL"},
+            },
+        ],
+    )
+    return write_standard_inputs(
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.001,
+        seed=5,
+    )
+
+
+def test_provenance_subsection_present_with_per_param_heatmaps(tmp_path: Path) -> None:
+    """Multi-combo gas params surface in `### Worst-case provenance per gas
+    param` as a `<details>` block embedding a per-param heatmap PNG."""
+    config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
+        tmp_path, plots=True
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    idx_comparison = proposal.find("## Client comparison")
+    idx_provenance = proposal.find("### Worst-case provenance per gas param")
+    idx_warnings = proposal.find("## Warnings")
+    idx_overview_img = proposal.find("![](figs/proposal/heatmap.png)")
+    assert idx_comparison >= 0 and idx_provenance >= 0 and idx_warnings >= 0
+    assert idx_comparison < idx_overview_img < idx_provenance < idx_warnings, (
+        "provenance subsection must sit after the overview heatmap embed "
+        "and before ## Warnings"
+    )
+
+    section = proposal[idx_provenance:idx_warnings]
+    # The multi-combo param renders as a <details> block embedding its PNG.
+    assert "<details>" in section and "</details>" in section
+    assert "OPCODE_GENERIC" in section
+    assert "![](figs/proposal/provenance__OPCODE_GENERIC.png)" in section
+    assert (out_dir / "figs" / "proposal" / "provenance__OPCODE_GENERIC.png").exists()
+
+
+def test_provenance_subsection_skips_single_combo_params(tmp_path: Path) -> None:
+    """Single-combo params do not get a `<details>` block or PNG; they are
+    listed in a single italic line at the top of the subsection."""
+    config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
+        tmp_path, plots=True
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    idx_provenance = proposal.find("### Worst-case provenance per gas param")
+    idx_warnings = proposal.find("## Warnings")
+    section = proposal[idx_provenance:idx_warnings]
+    # OPCODE_MUL is fitted by a single spec → single combo → must be in the
+    # skipped-params italic list, not a <details> block.
+    skipped_line = next(
+        line
+        for line in section.splitlines()
+        if line.startswith("_") and "OPCODE_MUL" in line
+    )
+    assert skipped_line.startswith("_") and skipped_line.rstrip().endswith("_")
+    # No <summary> for OPCODE_MUL — the param does not get a collapsible.
+    assert "<summary>" not in "\n".join(
+        line for line in section.splitlines() if "OPCODE_MUL" in line
+    )
+    # No provenance PNG produced for it.
+    assert not (out_dir / "figs" / "proposal" / "provenance__OPCODE_MUL.png").exists()
+
+
+def test_provenance_subsection_omitted_when_plots_disabled(tmp_path: Path) -> None:
+    """`output.plots: false` runs do not produce the provenance subsection
+    nor any `provenance__*.png` figures."""
+    config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
+        tmp_path, plots=False
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    assert "### Worst-case provenance per gas param" not in proposal
+    figs_dir = out_dir / "figs" / "proposal"
+    if figs_dir.exists():
+        assert not list(figs_dir.glob("provenance__*.png"))
+
+
 def test_gas_params_follow_config_declaration_order(tmp_path: Path) -> None:
     """Proposed-params table, client-comparison table, and ``new_gas.csv``
     list gas params in the order their model first appears in ``models.custom``

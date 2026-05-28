@@ -354,3 +354,146 @@ def plot_proposal_heatmap(
         )
     ax.set_title("Proposed gas vs. current (log2 ratio)")
     return _save(fig, path)
+
+
+_COMBO_ID_FIXED = ("test_name", "target_opcode", "model_coef_name")
+_PROVENANCE_RESERVED = frozenset(
+    {
+        "gas_param",
+        "client_name",
+        "runtime_ms",
+        "pvalue",
+        "conf_int_low",
+        "conf_int_high",
+        "test_name",
+        "target_opcode",
+        "model_coef_name",
+        "glue_adjustment",
+        "new_gas_decimal",
+        "new_gas_rounded",
+        "poor_fit",
+    }
+)
+# Above this rendered width, the y-axis legend collapses to ``M1, M2, …`` and
+# the full tuple is emitted as a markdown legend table next to the embed.
+_PROVENANCE_LABEL_MAX = 40
+
+
+def _combo_id_cols(slice_df: pd.DataFrame) -> list[str]:
+    model_by = [c for c in slice_df.columns if c not in _PROVENANCE_RESERVED]
+    return [*_COMBO_ID_FIXED, *model_by]
+
+
+def _combo_value(row: pd.Series, col: str) -> str:
+    val = row[col]
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return ""
+    return str(val)
+
+
+def plot_proposal_provenance_heatmap(
+    gas_param: str,
+    slice_df: pd.DataFrame,
+    *,
+    current_value: float | int | None,
+    out_dir: Path,
+) -> tuple[Path, list[tuple[str, str]] | None]:
+    """Per-gas-param heatmap: rows are model combos, columns are clients,
+    colored by ``log2(proposed / current)`` against ``current_value``.
+
+    The y-axis label for each row drops combo components that are constant
+    across ``slice_df`` — so a param fitted by two specs sharing every field
+    except ``target_opcode`` shows labels like ``ADD`` / ``SUB`` rather than
+    the fully-qualified tuple. If any surviving label still exceeds
+    ``_PROVENANCE_LABEL_MAX`` characters, all labels collapse to ``M1, M2, …``
+    and the (short_label, full_label) mapping is returned for the caller to
+    render as a markdown legend.
+    """
+    figs_dir = _ensure(out_dir, "proposal")
+    path = figs_dir / f"provenance__{slug(gas_param)}.png"
+
+    id_cols = _combo_id_cols(slice_df)
+    plot_df = slice_df.assign(
+        new_gas_rounded=slice_df["new_gas_rounded"].astype("Float64").astype(float)
+    )
+    plot_df = plot_df[plot_df["client_name"].astype(str).str.len() > 0].copy()
+    plot_df["_combo_key"] = plot_df.apply(
+        lambda r: tuple(_combo_value(r, c) for c in id_cols), axis=1
+    )
+
+    # Drop combo components that are constant across this param's slice; an
+    # all-None ``model_by`` column collapses to a single "" value and is
+    # treated as constant.
+    column_values = {
+        c: {_combo_value(r, c) for _, r in plot_df.iterrows()} for c in id_cols
+    }
+    varying = [c for c in id_cols if len(column_values[c]) > 1]
+    if not varying:
+        varying = id_cols
+
+    def _short_label(key: tuple[str, ...]) -> str:
+        parts = [v for v, c in zip(key, id_cols) if c in varying and v != ""]
+        return " / ".join(parts)
+
+    def _full_label(key: tuple[str, ...]) -> str:
+        return " / ".join(f"{c}={v}" for v, c in zip(key, id_cols) if v != "")
+
+    unique_keys = list(dict.fromkeys(plot_df["_combo_key"].tolist()))
+    short_labels = [_short_label(k) for k in unique_keys]
+    legend: list[tuple[str, str]] | None = None
+    if any(len(lbl) > _PROVENANCE_LABEL_MAX for lbl in short_labels):
+        numbered = [f"M{i + 1}" for i in range(len(unique_keys))]
+        legend = list(zip(numbered, [_full_label(k) for k in unique_keys]))
+        short_labels = numbered
+    label_by_key = dict(zip(unique_keys, short_labels))
+
+    pivot = plot_df.pivot_table(
+        index="_combo_key",
+        columns="client_name",
+        values="new_gas_rounded",
+        aggfunc="max",
+    )
+    pivot = pivot.reindex(unique_keys)
+    pivot.index = [label_by_key[k] for k in pivot.index]
+
+    if (
+        current_value is None
+        or not np.isfinite(float(current_value))
+        or float(current_value) == 0.0
+    ):
+        normalized = pd.DataFrame(np.nan, index=pivot.index, columns=pivot.columns)
+    else:
+        ratio = pivot / float(current_value)
+        normalized = np.log2(ratio.where(ratio > 0))
+        normalized = normalized.replace([np.inf, -np.inf], np.nan)
+
+    finite = normalized.to_numpy()
+    finite = finite[np.isfinite(finite)]
+    bound = max(float(np.max(np.abs(finite))) if finite.size else 1.0, 1.0)
+
+    width = max(_FIGSIZE[0], 1.2 * len(pivot.columns) + 4)
+    height = max(_FIGSIZE[1], 0.4 * len(pivot.index) + 2)
+    fig, ax = plt.subplots(figsize=(width, height))
+    sns.heatmap(
+        normalized,
+        annot=pivot,
+        fmt=".0f",
+        cmap="RdYlGn_r",
+        vmin=-bound,
+        vmax=bound,
+        center=0.0,
+        cbar_kws={"label": "log2(proposed / current)"},
+        ax=ax,
+    )
+    nan_mask = normalized.isna() & pivot.notna()
+    for y, x in zip(*np.where(nan_mask.to_numpy())):
+        ax.text(
+            x + 0.5,
+            y + 0.5,
+            f"{pivot.iat[y, x]:.0f}",
+            ha="center",
+            va="center",
+            color=".15",
+        )
+    ax.set_title(f"{gas_param}: proposed vs. current (log2 ratio)")
+    return _save(fig, path), legend

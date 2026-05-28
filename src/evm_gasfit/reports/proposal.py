@@ -12,7 +12,45 @@ import pandas as pd
 from evm_gasfit.config import Config
 from evm_gasfit.proposal.build import ProposalOutput
 
-from .plots import plot_proposal_heatmap
+from .plots import (
+    plot_proposal_heatmap,
+    plot_proposal_provenance_heatmap,
+    slug,
+)
+
+_PROVENANCE_NON_ID_COLS = frozenset(
+    {
+        "gas_param",
+        "client_name",
+        "runtime_ms",
+        "pvalue",
+        "conf_int_low",
+        "conf_int_high",
+        "glue_adjustment",
+        "new_gas_decimal",
+        "new_gas_rounded",
+        "poor_fit",
+    }
+)
+
+
+def _combo_counts_per_param(plottable: pd.DataFrame) -> dict[str, int]:
+    """Number of distinct (test_name, target_opcode, model_coef_name, *model_by)
+    tuples per gas_param across ``plottable``.
+
+    Rows whose ``client_name`` is empty or whose ``new_gas_rounded`` is null
+    are filtered upstream by the caller; this function assumes the slice it
+    receives only carries plottable rows.
+    """
+    id_cols = [c for c in plottable.columns if c not in _PROVENANCE_NON_ID_COLS]
+    if plottable.empty or not id_cols:
+        return {}
+    keys = (
+        plottable[id_cols].astype(object).where(plottable[id_cols].notna(), "")
+    ).agg(tuple, axis=1)
+    df = pd.DataFrame({"gas_param": plottable["gas_param"].astype(str), "_key": keys})
+    return df.groupby("gas_param")["_key"].nunique().to_dict()
+
 
 SENTINEL = "no prior default"
 
@@ -153,6 +191,76 @@ def _build_client_comparison_rows(
     return rows
 
 
+def _append_provenance_subsection(
+    lines: list[str],
+    plottable: pd.DataFrame,
+    fitted_params: list[str],
+    current_values: dict[str, int],
+    out_dir: Path,
+) -> None:
+    """Append `### Worst-case provenance per gas param` with one `<details>`
+    block per multi-combo gas param.
+
+    No-op when no qualifying gas param exists. ``plottable`` must already be
+    filtered to rows with a non-empty ``client_name`` and a non-null
+    ``new_gas_rounded`` — i.e. the same slice the overview heatmap consumes.
+    """
+    combo_counts = _combo_counts_per_param(plottable)
+    qualifying = [p for p in fitted_params if combo_counts.get(p, 0) >= 2]
+    skipped = [p for p in fitted_params if 0 < combo_counts.get(p, 0) < 2]
+    if not qualifying:
+        return
+
+    lines.append("### Worst-case provenance per gas param")
+    lines.append("")
+    lines.append(
+        "One collapsible block per gas parameter showing where each client's "
+        "worst-case estimation comes from. Rows are model combos (the source "
+        "regression's `test_name`, `target_opcode`, `model_coef_name`, and any "
+        "`model_by` factors — components constant within a parameter are "
+        "dropped from the label). Cells carry the per-combo proposed gas; "
+        "colors are `log2(proposed / current)` against that parameter's "
+        "baseline on a per-parameter symmetric scale."
+    )
+    lines.append("")
+    if skipped:
+        skipped_cell = ", ".join(f"`{p}`" for p in skipped)
+        lines.append(
+            f"_Single-combo parameters omitted (see proposal table for the "
+            f"sole estimation): {skipped_cell}._"
+        )
+        lines.append("")
+
+    for gas_param in qualifying:
+        slice_df = plottable[plottable["gas_param"].astype(str) == gas_param]
+        current = current_values.get(gas_param)
+        _, legend = plot_proposal_provenance_heatmap(
+            gas_param,
+            slice_df,
+            current_value=current,
+            out_dir=out_dir,
+        )
+        n_combos = combo_counts[gas_param]
+        n_clients = slice_df["client_name"].astype(str).nunique()
+        summary = (
+            f"<summary><code>{gas_param}</code> — {n_combos} combos × "
+            f"{n_clients} client{'s' if n_clients != 1 else ''}</summary>"
+        )
+        lines.append("<details>")
+        lines.append(summary)
+        lines.append("")
+        if legend:
+            lines.append("| Label | Combo |")
+            lines.append("| --- | --- |")
+            for short, full in legend:
+                lines.append(f"| `{short}` | {full} |")
+            lines.append("")
+        lines.append(f"![](figs/proposal/provenance__{slug(gas_param)}.png)")
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+
 def write_proposal_report(
     out_dir: Path,
     proposal_output: ProposalOutput,
@@ -265,6 +373,7 @@ def write_proposal_report(
         lines.append("")
 
     plottable = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
+    plottable = plottable[plottable["new_gas_rounded"].notna()]
     if plots_enabled and not plottable.empty:
         plot_proposal_heatmap(plottable, current_values=current_values, out_dir=out_dir)
         lines.append(
@@ -278,6 +387,9 @@ def write_proposal_report(
         lines.append("")
         lines.append("![](figs/proposal/heatmap.png)")
         lines.append("")
+        _append_provenance_subsection(
+            lines, plottable, fitted_params, current_values, out_dir
+        )
 
     # Warnings (with Unresolved as a subsection — always shown).
     lines.append("## Warnings")

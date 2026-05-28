@@ -108,7 +108,10 @@ Everything else is internal. See the rendered API reference at
   second-worst client and a `worst / second-worst` ratio (large ratios
   flag the worst client as an outlier; with the `log2(proposed / current)`
   heatmap when plots are on — red = more expensive than current,
-  green = cheaper, blank rows for `new_params` declared without a baseline),
+  green = cheaper, blank rows for `new_params` declared without a baseline;
+  followed by per-parameter `Worst-case provenance` collapsibles that show
+  which `(test_name, target_opcode, model_coef_name, model_by)` combo each
+  client's worst-case estimation came from),
   and a warnings section containing `Unresolved (no fit)` (proposed names
   that produced no value), `Partial fits (missing clients)` (proposed names
   fit for some clients but missing on others), `Missing glue opcodes`, and
