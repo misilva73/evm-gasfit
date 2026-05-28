@@ -97,13 +97,9 @@ def _emit_opcode_block(
     lines.append("")
 
     if fit is not None and show_summary:
-        lines.append("<details><summary>NNLS regression summary</summary>")
-        lines.append("")
         lines.append("```")
         lines.append(fit.summary())
         lines.append("```")
-        lines.append("")
-        lines.append("</details>")
         lines.append("")
 
     if fit is not None and plots_enabled:
