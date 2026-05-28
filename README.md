@@ -105,7 +105,9 @@ Everything else is internal. See the rendered API reference at
 - `new_gas_proposal.md` — final proposal: diff table for fitted rows
   (against patched fork values + `new_params` integer baselines),
   a `Client comparison` section pricing each parameter against its
-  second-worst client (with the row-normalized heatmap when plots are on),
+  second-worst client (with the `log2(proposed / current)` heatmap when
+  plots are on — red = more expensive than current, green = cheaper, blank
+  rows for `new_params` declared without a baseline),
   and a warnings section containing `Unresolved (no fit)` (proposed names
   that produced no value), `Partial fits (missing clients)` (proposed names
   fit for some clients but missing on others), `Missing glue opcodes`, and

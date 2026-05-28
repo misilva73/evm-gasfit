@@ -16,6 +16,7 @@ Three angles covered:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -51,10 +52,23 @@ def _two_client_models():
     }
 
 
+# `new_gas_proposal.md` embeds a wall-clock `_Generated YYYY-MM-DD HH:MM:SSZ`
+# header so two runs spanning a second boundary diverge in that one line. The
+# determinism contract is about *computed* content, not wall-clock metadata,
+# so normalize the timestamp before byte-comparing markdown artifacts.
+_TIMESTAMP_RE = re.compile(rb"_Generated \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z")
+
+
+def _normalize_for_compare(name: str, data: bytes) -> bytes:
+    if name.endswith(".md"):
+        return _TIMESTAMP_RE.sub(b"_Generated <TIMESTAMP>", data)
+    return data
+
+
 def _assert_bytes_equal(out_a: Path, out_b: Path, artifacts: tuple[str, ...]) -> None:
     for name in artifacts:
-        a = (out_a / name).read_bytes()
-        b = (out_b / name).read_bytes()
+        a = _normalize_for_compare(name, (out_a / name).read_bytes())
+        b = _normalize_for_compare(name, (out_b / name).read_bytes())
         assert a == b, f"{name} differs between runs (len {len(a)} vs {len(b)})"
 
 

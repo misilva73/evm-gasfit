@@ -265,7 +265,16 @@ def write_proposal_report(
 
     plottable = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
     if plots_enabled and not plottable.empty:
-        plot_proposal_heatmap(plottable, out_dir=out_dir)
+        plot_proposal_heatmap(plottable, current_values=current_values, out_dir=out_dir)
+        lines.append(
+            "Per-client proposed gas for each parameter. Cells are colored by "
+            "`log2(proposed / current)` — red means the proposal is more "
+            "expensive than the current gas cost, green means cheaper, and "
+            "white sits at unchanged. Annotations show the absolute proposed "
+            "gas value; blank rows are parameters with no prior baseline (see "
+            "warnings below)."
+        )
+        lines.append("")
         lines.append("![](figs/proposal/heatmap.png)")
         lines.append("")
 

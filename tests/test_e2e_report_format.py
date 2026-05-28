@@ -243,6 +243,45 @@ def test_heatmap_embedded_in_client_comparison(tmp_path: Path) -> None:
     assert "## Plots" not in proposal
 
 
+def test_null_baseline_param_in_heatmap_emits_warning(tmp_path: Path) -> None:
+    """A ``new_params`` entry with a ``null`` baseline that lands in the
+    heatmap (i.e. a per-client fit produces a row for it) surfaces a
+    ``null-baseline:`` warning under ``## Warnings``. The heatmap row itself
+    will render blank since there is no current gas to ratio against."""
+    import yaml
+
+    config_yaml, runtimes_csv, opcounts_json, out_dir = _build(
+        tmp_path, anchor_rate=1.0e8, plots=True
+    )
+    cfg = yaml.safe_load(config_yaml.read_text())
+    cfg["models"]["custom"][0]["model_params"]["target_coef"] = "BRAND_NEW_PARAM"
+    cfg["new_params"] = {"BRAND_NEW_PARAM": None}
+    config_yaml.write_text(yaml.safe_dump(cfg, sort_keys=False))
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    warnings_section = proposal.split("## Warnings", 1)[1]
+    assert "null-baseline: new_params['BRAND_NEW_PARAM']" in warnings_section, (
+        "expected null-baseline warning for BRAND_NEW_PARAM under ## Warnings"
+    )
+    assert (out_dir / "figs" / "proposal" / "heatmap.png").exists()
+
+
+def test_null_baseline_warning_absent_when_all_baselines_known(
+    tmp_path: Path,
+) -> None:
+    """Without any ``null`` ``new_params`` declarations, no ``null-baseline:``
+    warning is emitted (the standard config writes to raw fork fields which
+    always have a baseline)."""
+    config_yaml, runtimes_csv, opcounts_json, out_dir = _build(
+        tmp_path, anchor_rate=1.0e8, plots=True
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    assert "null-baseline:" not in proposal
+
+
 def test_anchor_rate_three_sig_fig_smart_format(tmp_path: Path) -> None:
     """1.23e+08 gas/s -> 123 Mgas/s; 1.234e+08 -> 123 Mgas/s (3 sig figs)."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build(

@@ -274,15 +274,18 @@ def plot_glue_diagnostics(
 def plot_proposal_heatmap(
     new_gas_all_df: pd.DataFrame,
     *,
+    current_values: dict[str, int],
     out_dir: Path,
 ) -> Path:
-    """Row-normalized heatmap: per-row best-to-worst gradient.
+    """Heatmap colored by ``log2(proposed / current)`` per cell.
 
-    For each ``gas_param`` row, the best (cheapest) client is green and the
-    worst is red, with a linear gradient in between — ``RdYlGn_r`` applied
-    to ``(value - row_min) / (row_max - row_min)``. Single-client rows (and
-    rows where every client has the same value) are left neutral. Cell
-    annotations carry the absolute proposed gas integer.
+    Red cells are more expensive than the current gas cost for that parameter,
+    green cells are cheaper, and white sits at ``log2 = 0`` (unchanged). Rows
+    whose ``gas_param`` has no entry in ``current_values`` — e.g. ``new_params``
+    declared with a ``null`` baseline — render as blank cells with only the
+    proposed integer annotation. The colorbar scale is symmetric and auto-sized
+    to the largest absolute log2 ratio in the data (floored at ``±1`` so
+    near-uniform runs still get a visible gradient).
     """
     figs_dir = _ensure(out_dir, "proposal")
     path = figs_dir / "heatmap.png"
@@ -305,10 +308,20 @@ def plot_proposal_heatmap(
     row_order = list(dict.fromkeys(plot_df["gas_param"].astype(str)))
     pivot = pivot.reindex([p for p in row_order if p in pivot.index])
 
-    row_min = pivot.min(axis=1)
-    row_max = pivot.max(axis=1)
-    row_range = (row_max - row_min).replace(0, np.nan)
-    normalized = pivot.sub(row_min, axis=0).div(row_range, axis=0)
+    current = pd.Series(
+        {idx: current_values.get(idx, np.nan) for idx in pivot.index},
+        index=pivot.index,
+        dtype="float64",
+    )
+    # log2(0) and log2(x/0) are non-finite; mask them so the colorbar stays
+    # bounded and seaborn renders the cells as blank.
+    ratio = pivot.div(current, axis=0)
+    normalized = np.log2(ratio.where(ratio > 0))
+    normalized = normalized.replace([np.inf, -np.inf], np.nan)
+
+    finite = normalized.to_numpy()
+    finite = finite[np.isfinite(finite)]
+    bound = max(float(np.max(np.abs(finite))) if finite.size else 1.0, 1.0)
 
     width = max(_FIGSIZE[0], 1.2 * len(pivot.columns) + 4)
     height = max(_FIGSIZE[1], 0.4 * len(pivot.index) + 2)
@@ -318,10 +331,11 @@ def plot_proposal_heatmap(
         annot=pivot,
         fmt=".0f",
         cmap="RdYlGn_r",
-        vmin=0.0,
-        vmax=1.0,
-        cbar_kws={"label": "Row-normalized: 0 = best client, 1 = worst client"},
+        vmin=-bound,
+        vmax=bound,
+        center=0.0,
+        cbar_kws={"label": "log2(proposed / current)"},
         ax=ax,
     )
-    ax.set_title("Proposed gas by parameter and client (row-normalized)")
+    ax.set_title("Proposed gas vs. current (log2 ratio)")
     return _save(fig, path)

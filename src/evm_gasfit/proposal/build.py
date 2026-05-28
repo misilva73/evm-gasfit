@@ -229,6 +229,23 @@ def build_proposal(
     )
     _ = np  # quiet linters; numpy imported for future use.
 
+    # Null-baseline warning: any new_params entry with `null` baseline that
+    # also lands in the heatmap will render as a blank row (no current gas to
+    # ratio against). Flag it so users notice the lost coloring.
+    plotted_params = set(
+        new_gas_all_df.loc[
+            new_gas_all_df["client_name"].astype(str).str.len() > 0, "gas_param"
+        ].astype(str)
+    )
+    for name, value in config.new_params.items():
+        if value is None and name in plotted_params:
+            msg = (
+                f"null-baseline: new_params[{name!r}] has no prior default; "
+                f"its heatmap row will be blank (no current gas to ratio against)"
+            )
+            _log.warning(msg)
+            warnings_list.append(msg)
+
     return ProposalOutput(
         new_gas_all_df=new_gas_all_df,
         new_gas_df=new_gas_df,
