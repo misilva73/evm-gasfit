@@ -45,6 +45,16 @@ def _fmt(value, ndigits: int = 4) -> str:
     return str(value)
 
 
+def _fmt_pvalue(value, ndigits: int = 2) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float) and np.isnan(value):
+        return "n/a"
+    if isinstance(value, float):
+        return f"{value:.{ndigits}e}"
+    return str(value)
+
+
 def _model_by_values(row: pd.Series, model_by: list[str]) -> list[object]:
     return [row[c] for c in model_by]
 
@@ -95,7 +105,7 @@ def _client_headline_table(rows: list[pd.Series]) -> list[str]:
             f"| `{row['client_name']}` | {nobs_cell} | "
             f"{_fmt(row.get('rsquared'))} | "
             f"{_fmt(row.get('target_coef_runtime_ms'))} | "
-            f"{_fmt(row.get('target_coef_pvalue'))} | "
+            f"{_fmt_pvalue(row.get('target_coef_pvalue'))} | "
             f"{ci_cell} |"
         )
     return lines

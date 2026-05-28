@@ -43,6 +43,16 @@ def _fmt(value, ndigits: int = 4) -> str:
     return str(value)
 
 
+def _fmt_pvalue(value, ndigits: int = 2) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float) and np.isnan(value):
+        return "n/a"
+    if isinstance(value, float):
+        return f"{value:.{ndigits}e}"
+    return str(value)
+
+
 def _headline_table(rows: list[pd.Series]) -> list[str]:
     """Render a compact metrics table for a list of glue-result rows."""
     lines = [
@@ -55,7 +65,7 @@ def _headline_table(rows: list[pd.Series]) -> list[str]:
         lines.append(
             f"| `{row['glue_opcode']}` | {nobs_cell} | "
             f"{_fmt(row.get('glue_runtime_ms'))} | "
-            f"{_fmt(row.get('p_value'))} | "
+            f"{_fmt_pvalue(row.get('p_value'))} | "
             f"{_fmt(row.get('rsquared'))} |"
         )
     return lines
@@ -79,7 +89,7 @@ def _emit_opcode_block(
         f"- nobs: {int(row['nobs']) if not pd.isna(row.get('nobs')) else 'n/a'}"
     )
     lines.append(f"- glue_runtime_ms: {_fmt(row.get('glue_runtime_ms'))}")
-    lines.append(f"- p_value: {_fmt(row.get('p_value'))}")
+    lines.append(f"- p_value: {_fmt_pvalue(row.get('p_value'))}")
     lines.append(f"- rsquared: {_fmt(row.get('rsquared'))}")
     lines.append("")
 
