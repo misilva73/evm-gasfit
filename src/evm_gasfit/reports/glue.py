@@ -127,7 +127,11 @@ def write_glue_report(
     lines.append(
         "Per-client NNLS fits of priced glue opcodes against their driver "
         "fixtures. Cycle-tier opcodes share one joint regression per client "
-        "(shown once); pure-tier opcodes each get a single-feature fit."
+        "(shown once); pure-tier and mixed-tier opcodes each get a "
+        "single-feature fit. Mixed-tier fits pre-adjust the LHS by "
+        "subtracting the contribution of every priced upstream partner "
+        "selected by the detector (pure ∪ cycle for `mixed_a`, plus "
+        "`mixed_a` for `mixed_b`)."
     )
     lines.append("")
 
@@ -157,6 +161,16 @@ def write_glue_report(
             r
             for r in client_rows
             if _TIER_BY_NAME.get(str(r["glue_opcode"])) == "cycle"
+        ]
+        mixed_a_rows = [
+            r
+            for r in client_rows
+            if _TIER_BY_NAME.get(str(r["glue_opcode"])) == "mixed_a"
+        ]
+        mixed_b_rows = [
+            r
+            for r in client_rows
+            if _TIER_BY_NAME.get(str(r["glue_opcode"])) == "mixed_b"
         ]
 
         # Headline metrics for the whole client.
@@ -207,6 +221,42 @@ def write_glue_report(
             lines.append(f"### Pure glue · {client}")
             lines.append("")
             for row in pure_rows:
+                glue_opcode = str(row["glue_opcode"])
+                fit = glue_fits.get((client, glue_opcode))
+                _emit_opcode_block(
+                    lines,
+                    row=row,
+                    fit=fit,
+                    client=client,
+                    glue_opcode=glue_opcode,
+                    plots_enabled=plots_enabled,
+                    out_dir=out_dir,
+                    show_summary=True,
+                )
+
+        # Mixed-A tier — single-feature fit, partners drawn from pure + cycle.
+        if mixed_a_rows:
+            lines.append(f"### Mixed glue (tier A) · {client}")
+            lines.append("")
+            for row in mixed_a_rows:
+                glue_opcode = str(row["glue_opcode"])
+                fit = glue_fits.get((client, glue_opcode))
+                _emit_opcode_block(
+                    lines,
+                    row=row,
+                    fit=fit,
+                    client=client,
+                    glue_opcode=glue_opcode,
+                    plots_enabled=plots_enabled,
+                    out_dir=out_dir,
+                    show_summary=True,
+                )
+
+        # Mixed-B tier — also allows mixed-A partners.
+        if mixed_b_rows:
+            lines.append(f"### Mixed glue (tier B) · {client}")
+            lines.append("")
+            for row in mixed_b_rows:
                 glue_opcode = str(row["glue_opcode"])
                 fit = glue_fits.get((client, glue_opcode))
                 _emit_opcode_block(

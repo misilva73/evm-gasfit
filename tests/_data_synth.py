@@ -72,16 +72,28 @@ class FixtureSpec:
 class ClientModel:
     """The true linear model for one client.
 
-    `runtime = intercept + slope * opcount + Σ_i extra_coef_i * opcount * param_i`
+    `runtime = intercept + slope * opcount
+               + Σ_i extra_coef_i * opcount * param_i
+               + Σ_j glue_coef_j * extra_opcounts[op_j]`
 
     `extra_coefs` maps a fixture-param name to a coefficient. The param value
     is coerced to float and multiplied by opcount when generating runtimes,
     matching the regression form in plan §4.3.
+
+    `glue_coefs` maps an opcode mnemonic (matching keys in
+    `FixtureSpec.extra_opcounts`) to its per-count runtime contribution in
+    ms. This models real glue-opcode contamination: when a benchmark
+    fixture's bytecode emits ``count_p`` instances of opcode ``p``, the
+    measured runtime includes ``glue_coef_p · count_p``. Mixed-tier glue
+    fits subtract these contributions on the LHS using the partner's
+    estimated coefficient, so synthesizing them lets tests assert recovery
+    of the planted target slope.
     """
 
     intercept: float
     slope: float
     extra_coefs: dict[str, float] = field(default_factory=dict)
+    glue_coefs: dict[str, float] = field(default_factory=dict)
 
 
 def runtime_for(
@@ -95,6 +107,16 @@ def runtime_for(
             continue
         param_val = float(spec.params[param_name])
         val += coef * spec.target_opcount * param_val
+    for op_name, ms_per_count in model.glue_coefs.items():
+        if op_name == spec.target_opcode:
+            # Target-opcode contribution: count is target_opcount (the
+            # mnemonic and target_opcount are the same column for a
+            # well-formed fixture, per the §2.3 invariant).
+            val += ms_per_count * spec.target_opcount
+        else:
+            count = spec.extra_opcounts.get(op_name, 0.0)
+            if count:
+                val += ms_per_count * count
     if noise_pct > 0:
         val *= 1.0 + rng.normal(0.0, noise_pct)
     return float(val)
@@ -248,19 +270,29 @@ def make_glue_driver_fixtures(
     target_opcount_per_million: float = 2_000_000.0,
     sweep_token_format: str = "block_limit_million_{n}",
 ) -> list[FixtureSpec]:
-    """Driver fixtures for every priced glue spec with a driver test.
+    """Driver fixtures for every pure or cycle priced glue spec.
 
     Walks `evm_gasfit.glue.required.PRICED_GLUE_SPECS`, generating one
-    block-limit sweep per family member. Family specs (DUP/SWAP/PUSH)
-    therefore produce one sweep per `DUPn`/`SWAPn`/`PUSHn`; the e2e
-    pipeline collapses them into one canonical estimate. Specs without
-    a driver test (POP, STOP) are skipped.
+    block-limit sweep per family member of the **pure** and **cycle**
+    tiers. Family specs (DUP/SWAP/PUSH) therefore produce one sweep per
+    `DUPn`/`SWAPn`/`PUSHn`; the e2e pipeline collapses them into one
+    canonical estimate. Specs without a driver test (POP, STOP) are
+    skipped.
+
+    Mixed-tier specs (`mixed_a`, `mixed_b`) are intentionally excluded:
+    their canonical names (`ADD`, `MSTORE`, `KECCAK256`, ...) are also
+    modelspec targets, so the driver fixtures come from the same test
+    slices the modelspec pipeline already populates. Generating them
+    here would collide on `fixture_name` and overwrite caller-provided
+    contamination.
     """
     from evm_gasfit.glue.required import PRICED_GLUE_SPECS
 
     fixtures: list[FixtureSpec] = []
     for spec in PRICED_GLUE_SPECS:
         if spec.test_name is None:
+            continue
+        if spec.tier not in ("pure", "cycle"):
             continue
         for member in spec.members:
             fixtures.extend(

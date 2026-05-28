@@ -12,7 +12,6 @@ import pandas as pd
 from evm_gasfit.config import Config
 from evm_gasfit.glue import (
     compute_glue_adjustment,
-    compute_glue_opcodes_by_test,
     detect_missing_glue,
 )
 
@@ -64,11 +63,10 @@ def build_proposal(
 
     glue_enabled = config.glue_adjustment.enabled and glue_estimate_output is not None
     if glue_enabled and fixtures_df is not None:
-        glue_opcodes_by_test_df = compute_glue_opcodes_by_test(
-            fixtures_df,
-            config.resolved_models,
-            config.glue_adjustment.ratio_corr_eps,
-        )
+        # Reuse the table the glue estimator already built; rebuilding here
+        # would duplicate ~O(N·specs) work and risk drift between the table
+        # the mixed-tier fits saw and the table the proposal subtracts from.
+        glue_opcodes_by_test_df = glue_estimate_output.glue_opcodes_by_test_df
         glue_adjustment_df = compute_glue_adjustment(
             results_df,
             glue_estimate_output.results_df,

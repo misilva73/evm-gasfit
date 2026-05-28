@@ -697,45 +697,106 @@ statistics. No `glue_adjustment` column on
 
 **Off by default.** Enabled by `glue_adjustment.enabled: true`.
 
-Two-tier estimation, replacing the single regression-per-client used today
+Four-tier static estimation, replacing the single regression-per-client used
+today
 ([src/glue.py](https://github.com/misilva73/evm-gas-repricings/blob/main/src/glue.py)).
 Each priced opcode is described by a `GlueOpcodeSpec` in `glue/required.py`
-that binds a **canonical name** (e.g. `DUP`) to the driver `test_name`, the
-opcode mnemonics that belong to the family (`DUP1`..`DUP16`), and an
-optional `test_opcode_filter` for tests that drive multiple opcodes (e.g.
-`MLOAD` inside `test_memory_access`).
+that binds a **canonical name** (e.g. `DUP`, `ADD`, `KECCAK256`) to the driver
+`test_name`, the opcode mnemonics that belong to the family
+(`DUP1`..`DUP16`), and an optional `test_opcode_filter` for tests that drive
+multiple opcodes (e.g. `MLOAD` inside `test_memory_access`, `ADD` inside
+`test_arithmetic`).
 
-1. **Pure glue opcodes** — opcodes that have no glue dependency of their own.
-   Fit one **single-feature** NNLS per `(client, canonical_name)`:
+The four passes run **in fixed declaration order** per client; each pass
+sees the fits the earlier passes produced. The tier sequence is the
+dependency declaration — there is no per-spec dependency list and no
+topological sort. Acyclicity is structural: a tier-N fit never reads from a
+tier-N or later fit.
+
+1. **Pure glue opcodes (`tier="pure"`)** — opcodes that have no glue
+   dependency of their own. Fit one **single-feature** NNLS per
+   `(client, canonical_name)`:
    `test_runtime_ms = intercept + glue_runtime_ms · canonical_count`, where
    `canonical_count` is the row-wise sum of the spec's family members.
    Canonical names: `ISZERO`, `JUMPDEST`, `POP`, `STOP`, `SWAP`
    (`SWAP1`..`SWAP16` collapse into one `SWAP` feature).
 
-2. **Cycle glue opcodes** — opcodes that appear as both glue and target with a
-   shared dependency. Fit one **joint** NNLS per client with one feature per
-   canonical name, again summed over family members (matches the structure
-   of today's `estimate_run_time_for_glue_opcodes`). Canonical names:
-   `CALLDATASIZE`, `DUP`, `GAS`, `MLOAD`, `PUSH`, `PUSH0`, `STATICCALL`
+2. **Cycle glue opcodes (`tier="cycle"`)** — opcodes that appear as both
+   glue and target with a shared dependency. Fit one **joint** NNLS per
+   client with one feature per canonical name, again summed over family
+   members (matches the structure of today's
+   `estimate_run_time_for_glue_opcodes`). Canonical names: `CALLDATASIZE`,
+   `DUP`, `GAS`, `MLOAD`, `PUSH`, `PUSH0`, `STATICCALL`
    (`DUP1`..`DUP16` and `PUSH1`..`PUSH32` each collapse to one feature;
    `PUSH0` is split off as its own spec).
 
-These 12 canonical names are the **only opcodes the tool will ever price as
-glue.** This is a deliberate departure from the existing `src/glue.py`, which
-detects glue opcodes dynamically per group via correlation/ratio thresholds.
-In `evm-gasfit` the set is hardcoded — if a future test introduces a new
-glue opcode, extending the set requires a code change and a new package
-release (a new `GlueOpcodeSpec` entry in `glue/required.py`).
+3. **Mixed glue A (`tier="mixed_a"`)** — 16 opcodes that appear both as
+   targets and as glues, with partner contributions drawn entirely from
+   `pure ∪ cycle`. Each spec gets a per-`(client, canonical_name)`
+   single-feature NNLS, with the LHS **pre-adjusted** by subtracting
+   priced upstream partner contributions before the fit
+   (`adjusted_runtime[i] = test_runtime_ms[i] − Σ_p partner_runtime_ms_p ·
+   partner_count_p[i]`), where the sum is over priced upstream partners
+   drawn from
+   `pure ∪ cycle`. Partner selection comes from the existing detector
+   ratio table (`compute_glue_opcodes_by_test`): only canonical names
+   already present as a partner of `(spec.test_name, spec.name)` in that
+   table contribute, and only when their per-client fit has
+   `pvalue < glue_contribution_p_value_threshold`. The single-feature
+   fit then runs on `(adjusted_runtime, canonical_count)`, and the
+   resulting coefficient is the spec's priced glue value. Subtracting on
+   the LHS (rather than on the post-fit target coefficient) means the
+   intercept, p-value, and CI all reflect the partner correction.
+   Canonical names: `ADD`, `AND`, `CALLDATACOPY`, `CALLDATALOAD`, `DIV`,
+   `EXP`, `GT`, `JUMPI`, `LT`, `MSTORE`, `MSTORE8`, `MUL`, `PC`,
+   `RETURNDATASIZE`, `SELFBALANCE`, `SUB`.
+
+4. **Mixed glue B (`tier="mixed_b"`)** — 2 opcodes whose driver bytecode
+   uses one or more `mixed_a` partners (`JUMP` reads `ADD`/`PC` from
+   `test_jump_benchmark`; `KECCAK256` reads `MSTORE` from
+   `test_keccak_diff_mem_msg_sizes`). Same fit shape as `mixed_a` but
+   partner selection draws from `pure ∪ cycle ∪ mixed_a` — the `mixed_a`
+   fits exist by the time pass 4 runs.
+
+The four-tier passes are guarded by an `allowed_partner_tiers` set
+(`{pure, cycle}` for `mixed_a`, `{pure, cycle, mixed_a}` for `mixed_b`)
+so the detector cannot reintroduce a same-tier or later-tier partner via
+a stray correlation row. There is no topological sort and no cycle
+detection — the static four-pass order is the contract.
+
+These **30 canonical names are the only opcodes the tool will ever price
+as glue.** This is a deliberate departure from the existing
+`src/glue.py`, which detects glue opcodes dynamically per group via
+correlation/ratio thresholds. In `evm-gasfit` the set is hardcoded — if a
+future test introduces a new glue opcode, extending the set requires a
+code change and a new package release (a new `GlueOpcodeSpec` entry in
+`glue/required.py`).
+
+**Subtraction-on-LHS vs. post-fit subtraction.** The mixed-tier LHS
+subtraction and the post-fit `compute_glue_adjustment` (used for modelspec
+target coefficients, see below) are algebraically equivalent under the
+detector's `corr ≈ 1` assumption: `count_p[i] ≈ ratio_p · opcount[i]`, and
+NNLS is shift-equivariant on the response, so subtracting `Σ ratio_p ·
+glue_ms_p` from the fitted coefficient post-hoc produces the same
+`true_target_coef` as subtracting `Σ glue_ms_p · count_p[i]` from the
+response before the fit. The mixed tier uses the per-row form because the
+fit's CIs and p-value need to reflect the correction directly — there is
+no further coefficient-space step to clip post-hoc.
 
 When `glue_adjustment.enabled: true`, every spec with a non-null
 `test_name` is estimated and emitted as one row per `(client, canonical_name)`
-in `glue_results.csv`; the loader checks the runtime CSV contains those
-fixtures and raises a config error if any **required** driver test is missing.
-Specs whose driver does not exist in any current dataset (currently `POP` and
-`STOP`) are marked `required=False`; their absence is tolerated silently and
-no row is emitted, so their adjustment contribution is treated as zero. Adding
-the driver fixtures later is a single edit — flip `test_name=None` to the new
-driver name in `glue/required.py`.
+in `glue_results.csv`. Pure and cycle drivers are required: the loader
+checks the runtime CSV contains those fixtures and raises a config error
+if any **required** driver test is missing. Specs whose driver does not
+exist in any current dataset (`POP` and `STOP` in the pure tier) are
+marked `required=False`; their absence is tolerated silently and no row
+is emitted, so their adjustment contribution is treated as zero. Adding
+the driver fixtures later is a single edit — flip `test_name=None` to the
+new driver name in `glue/required.py`. Mixed-tier drivers are **never
+required**: their canonical names overlap with modelspec targets, so the
+driver fixtures come from whichever model tests the user configured. A
+missing mixed-tier driver yields no row and no warning — it's a no-op
+rather than a misconfiguration.
 
 **Family aggregation in detection.** `compute_glue_opcodes_by_test` and
 `detect_missing_glue` fold per-mnemonic opcode columns (`DUP3`, `SWAP9`,
@@ -780,8 +841,8 @@ adjustment and clipped identically.
 **Missing-glue warning.** "Uses a glue opcode" is defined operationally: for a
 fitted model's `(test_name, target_opcode, *model_by)` group, run the same
 correlation pass described above and flag any opcode column that meets the
-`corr ≥ 1 − eps` and ratio-floor thresholds but is **not** in the 12-opcode
-estimation set. Those are the opcodes the tool would have wanted to price but
+`corr ≥ 1 − eps` and ratio-floor thresholds but is **not** in the 30-opcode
+priced set. Those are the opcodes the tool would have wanted to price but
 cannot. Emit a warning via the `evm_gasfit` logger **and** include it in the
 final `new_gas_proposal.md` under a "Warnings" section, naming the
 (test, glue_opcode) pair. The target coefficient is left unadjusted for that
@@ -1211,8 +1272,9 @@ corresponding e2e tests pass.
 3. **Defaults module** (`defaults/`). Wire `ethereum/execution-specs`; fall back
    to the literal table if the dep is unavailable. Test override patching and
    the `EVM_GASFIT_USE_FALLBACK` env var.
-4. **Glue estimation** (`glue/*.py`). Implement the two-tier scheme. Add the
-   missing-required-test config error.
+4. **Glue estimation** (`glue/*.py`). Implement the four-tier scheme
+   (pure → cycle → mixed_a → mixed_b). Add the missing-required-test
+   config error (pure+cycle only; mixed tiers are silently optional).
 5. **Proposal** (`proposal/*.py`) + derived expression evaluator with its own
    tests (rejects `__import__`, attribute access, calls).
 6. **Reports** (`reports/*.py`) — runtime, glue, proposal. Plot-skip branch.

@@ -234,6 +234,271 @@ def test_glue_works_with_benchmark_sweep_token(tmp_path: Path) -> None:
     assert set(glue_results["glue_opcode"]) == priced_glue
 
 
+def test_glue_mixed_a_recovers_planted_slope_after_partner_subtraction(
+    tmp_path: Path,
+) -> None:
+    """Mixed-A fits must subtract priced upstream partners on the LHS.
+
+    Plant a real ISZERO contribution into the ADD runtimes; the modelspec
+    fit absorbs both costs into target_coef (biased to 2.5e-5), but the
+    mixed-A fit subtracts ISZERO using the pure-tier ISZERO coefficient
+    and recovers the clean ADD slope (2e-5).
+    """
+    add_per_count = 2.0e-5
+    iszero_per_count = 1.0e-5
+    main_fixtures = _main_fixtures(extra_per_million={"ISZERO": 500_000})
+    all_fixtures = main_fixtures + make_glue_driver_fixtures()
+    models = {
+        "geth": ClientModel(
+            intercept=50.0,
+            slope=0.0,
+            glue_coefs={
+                "ADD": add_per_count,
+                "ISZERO": iszero_per_count,
+                # Small non-zero slopes for the rest keep pure/cycle fits
+                # well-conditioned (constant-zero counts would skip them).
+                "JUMPDEST": 5e-6,
+                "SWAP": 5e-6,
+                "DUP": 5e-6,
+                "PUSH": 5e-6,
+                "PUSH0": 5e-6,
+                "GAS": 5e-6,
+                "MLOAD": 5e-6,
+                "STATICCALL": 5e-6,
+                "CALLDATASIZE": 5e-6,
+            },
+        )
+    }
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=all_fixtures,
+        models=models,
+        config=base_config(glue_enabled=True),
+        noise_pct=0.001,
+        seed=11,
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+    glue_results = pd.read_csv(out_dir / "glue_results.csv")
+    iszero_row = glue_results[glue_results["glue_opcode"] == "ISZERO"].iloc[0]
+    add_row = glue_results[glue_results["glue_opcode"] == "ADD"].iloc[0]
+
+    assert float(iszero_row["glue_runtime_ms"]) == pytest.approx(
+        iszero_per_count, rel=0.05
+    )
+    assert float(add_row["glue_runtime_ms"]) == pytest.approx(add_per_count, rel=0.05)
+
+    # Sanity contrast: the modelspec target_coef for ADD absorbs both the
+    # planted ADD cost AND the ISZERO contribution (no subtraction at the
+    # modelspec level), so it sits near 2.5e-5 — visibly biased compared to
+    # the mixed-A recovery above.
+    results = pd.read_csv(out_dir / "results.csv")
+    add_modelspec = results[results["target_opcode"] == "ADD"].iloc[0]
+    assert float(add_modelspec["target_coef_runtime_ms"]) == pytest.approx(
+        add_per_count + 0.5 * iszero_per_count, rel=0.05
+    )
+
+
+def test_glue_mixed_b_recovers_planted_slope_after_mixed_a_partner(
+    tmp_path: Path,
+) -> None:
+    """Mixed-B fits draw partners from mixed_a too.
+
+    Plant a real MSTORE contribution into the KECCAK256 runtimes plus a
+    matching MSTORE driver slice. The mixed-A fit for MSTORE estimates
+    its per-count cost; the mixed-B fit for KECCAK256 must then subtract
+    it (using the MSTORE coefficient produced earlier in the same pass)
+    to recover the clean KECCAK256 slope.
+    """
+    keccak_per_count = 3.0e-5
+    mstore_per_count = 1.5e-5
+    iszero_per_count = 1.0e-5
+
+    keccak_fixtures = make_block_limit_fixtures(
+        test_file="test_keccak",
+        test_name="test_keccak_diff_mem_msg_sizes",
+        target_opcode="KECCAK256",
+        params={"opcode": "KECCAK256"},
+        extra_opcount_per_million={"MSTORE": 500_000},
+    )
+    mstore_fixtures = make_block_limit_fixtures(
+        test_file="test_memory_access",
+        test_name="test_memory_access",
+        target_opcode="MSTORE",
+        params={"opcode": "MSTORE"},
+    )
+    # Keep the canonical ADD/test_arithmetic happy path so the existing
+    # plumbing (default OPCODE_ADD modelspec, glue drivers) is exercised.
+    add_main = _main_fixtures(extra_per_million={"ISZERO": 500_000})
+    all_fixtures = (
+        add_main + keccak_fixtures + mstore_fixtures + make_glue_driver_fixtures()
+    )
+
+    models = {
+        "geth": ClientModel(
+            intercept=50.0,
+            slope=0.0,
+            glue_coefs={
+                "ADD": 1e-5,
+                "MSTORE": mstore_per_count,
+                "KECCAK256": keccak_per_count,
+                "ISZERO": iszero_per_count,
+                "JUMPDEST": 5e-6,
+                "SWAP": 5e-6,
+                "DUP": 5e-6,
+                "PUSH": 5e-6,
+                "PUSH0": 5e-6,
+                "GAS": 5e-6,
+                "MLOAD": 5e-6,
+                "STATICCALL": 5e-6,
+                "CALLDATASIZE": 5e-6,
+            },
+        )
+    }
+
+    cfg = base_config(
+        models_custom=[
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "ADD",
+                "model_params": {"target_coef": "OPCODE_ADD"},
+            },
+            {
+                "test_name": "test_memory_access",
+                "target_operation": "MSTORE",
+                "filter_by": ["opcode_MSTORE-"],
+                "model_params": {"target_coef": "OPCODE_MSTORE_BASE"},
+            },
+            {
+                "test_name": "test_keccak_diff_mem_msg_sizes",
+                "target_operation": "KECCAK256",
+                "model_params": {"target_coef": "OPCODE_KECCAK256_BASE"},
+            },
+        ],
+        glue_enabled=True,
+    )
+
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=all_fixtures,
+        models=models,
+        config=cfg,
+        seed=13,
+        noise_pct=0.001,
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+    glue_results = pd.read_csv(out_dir / "glue_results.csv")
+    mstore_row = glue_results[glue_results["glue_opcode"] == "MSTORE"].iloc[0]
+    keccak_row = glue_results[glue_results["glue_opcode"] == "KECCAK256"].iloc[0]
+
+    assert float(mstore_row["glue_runtime_ms"]) == pytest.approx(
+        mstore_per_count, rel=0.05
+    )
+    assert float(keccak_row["glue_runtime_ms"]) == pytest.approx(
+        keccak_per_count, rel=0.05
+    )
+
+
+def test_glue_mixed_a_does_not_subtract_other_mixed_a_partners(
+    tmp_path: Path,
+) -> None:
+    """The static four-pass order is enforced by ``allowed_partner_tiers``.
+
+    Contaminate the ADD slice with MSTORE counts (a real partner cost). The
+    detector will list MSTORE as a partner of ADD, but the mixed-A fit for
+    ADD must **not** subtract MSTORE — both are tier ``mixed_a``, and the
+    static order requires mixed-A partners come from ``pure ∪ cycle`` only.
+    If the tier guard regressed, ADD's mixed-A slope would recover the
+    clean 2e-5; with the guard in place it absorbs the MSTORE contamination
+    and lands at 2e-5 + 0.5·1.5e-5 = 2.75e-5.
+    """
+    add_per_count = 2.0e-5
+    mstore_per_count = 1.5e-5
+
+    add_contaminated = make_block_limit_fixtures(
+        test_file="test_arithmetic",
+        test_name="test_arithmetic",
+        target_opcode="ADD",
+        params={"opcode": "ADD"},
+        extra_opcount_per_million={"MSTORE": 500_000},
+    )
+    mstore_clean = make_block_limit_fixtures(
+        test_file="test_memory_access",
+        test_name="test_memory_access",
+        target_opcode="MSTORE",
+        params={"opcode": "MSTORE"},
+    )
+    all_fixtures = add_contaminated + mstore_clean + make_glue_driver_fixtures()
+    models = {
+        "geth": ClientModel(
+            intercept=50.0,
+            slope=0.0,
+            glue_coefs={
+                "ADD": add_per_count,
+                "MSTORE": mstore_per_count,
+                "ISZERO": 1e-5,
+                "JUMPDEST": 5e-6,
+                "SWAP": 5e-6,
+                "DUP": 5e-6,
+                "PUSH": 5e-6,
+                "PUSH0": 5e-6,
+                "GAS": 5e-6,
+                "MLOAD": 5e-6,
+                "STATICCALL": 5e-6,
+                "CALLDATASIZE": 5e-6,
+            },
+        )
+    }
+    cfg = base_config(
+        models_custom=[
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "ADD",
+                "model_params": {"target_coef": "OPCODE_ADD"},
+            },
+            {
+                "test_name": "test_memory_access",
+                "target_operation": "MSTORE",
+                "filter_by": ["opcode_MSTORE-"],
+                "model_params": {"target_coef": "OPCODE_MSTORE_BASE"},
+            },
+        ],
+        glue_enabled=True,
+    )
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=all_fixtures,
+        models=models,
+        config=cfg,
+        seed=17,
+        noise_pct=0.001,
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+    # The detector still surfaces MSTORE as an ADD partner (the contamination
+    # creates a real corr ≈ 1 row); the tier guard is what prevents it from
+    # contributing to the mixed-A fit.
+    glue_by_test = pd.read_csv(out_dir / "glue_opcodes_by_test.csv")
+    add_partners = set(
+        glue_by_test.loc[
+            (glue_by_test["test_name"] == "test_arithmetic")
+            & (glue_by_test["target_opcode"] == "ADD"),
+            "glue_opcode",
+        ]
+    )
+    assert "MSTORE" in add_partners
+
+    # ADD's mixed-A slope absorbs the MSTORE contamination because the tier
+    # guard blocked the subtraction; the clean value (2e-5) is NOT recovered.
+    glue_results = pd.read_csv(out_dir / "glue_results.csv")
+    add_row = glue_results[glue_results["glue_opcode"] == "ADD"].iloc[0]
+    contaminated_slope = add_per_count + 0.5 * mstore_per_count
+    assert float(add_row["glue_runtime_ms"]) == pytest.approx(
+        contaminated_slope, rel=0.05
+    )
+
+
 def test_glue_missing_optional_driver_does_not_raise(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

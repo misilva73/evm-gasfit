@@ -1,10 +1,20 @@
-"""Two-tier glue-opcode regression.
+"""Four-tier glue-opcode regression.
 
 Pure-glue opcodes are fit one at a time as single-feature NNLS per
 ``(client, spec)``. Cycle-glue opcodes are fit jointly per client: a single
 NNLS over the union of their driver fixtures with one feature per cycle
 spec, where each feature is the row-wise sum of that spec's family
 members (so DUP1..DUP16 collapse into one ``DUP`` feature).
+
+Mixed-glue opcodes appear both as targets and as glues. They are fit per
+``(client, spec)`` with the same single-feature shape as pure glue, but
+the LHS is pre-adjusted by subtracting the contribution of every priced
+upstream partner: for each partner ``p`` correlated with ``opcount`` on
+this spec's driver test (per the detector's ratio table), subtract
+``glue_runtime_ms_p · partner_count_per_fixture``. ``mixed_a`` opcodes
+allow partners from ``pure ∪ cycle``; ``mixed_b`` opcodes also allow
+``mixed_a`` partners. The four-pass order over the tier sequence makes
+the dependency static — no topological sort, no cycle detection.
 
 Specs without a driver fixture (``spec.test_name is None``) are skipped
 silently; ``validate_inputs`` already emitted the warning at load time.
@@ -22,8 +32,10 @@ from evm_gasfit.config import Config
 from evm_gasfit.modeling.nnls import fit_nnls
 from evm_gasfit.modeling.results import NNLSResults
 
+from .detect import compute_glue_opcodes_by_test
 from .required import (
     PRICED_GLUE_SPECS,
+    SPEC_BY_NAME,
     GlueOpcodeSpec,
     validate_inputs,
 )
@@ -33,10 +45,16 @@ _log = logging.getLogger("evm_gasfit.glue")
 
 @dataclass
 class GlueEstimateOutput:
-    """Glue results frame plus the per-(client, canonical-name) fits."""
+    """Glue results frame plus the per-(client, canonical-name) fits.
+
+    Also carries ``glue_opcodes_by_test_df`` — the detector's per-test
+    ratio table — so downstream consumers (proposal aggregator, reports)
+    can read it without recomputing.
+    """
 
     results_df: pd.DataFrame
     fits: dict[tuple[str, str], NNLSResults] = field(default_factory=dict)
+    glue_opcodes_by_test_df: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def _spec_member_filter(spec: GlueOpcodeSpec) -> set[str] | None:
@@ -56,8 +74,15 @@ def _slice_for_spec(
         & (fixtures_df["test_name"] == spec.test_name)
     ]
     member_filter = _spec_member_filter(spec)
-    if member_filter is not None and "opcode" in slice_df.columns:
-        slice_df = slice_df[slice_df["opcode"].isin(member_filter)]
+    if member_filter is None:
+        return slice_df
+    # The parser prefixes raw fixture params with ``param_`` to avoid
+    # collisions with opcode mnemonic columns (e.g. ``opcode`` becomes
+    # ``param_opcode``); fall back to the bare name when the dataset
+    # predates that convention.
+    for col in ("param_opcode", "opcode"):
+        if col in slice_df.columns:
+            return slice_df[slice_df[col].isin(member_filter)]
     return slice_df
 
 
@@ -153,6 +178,117 @@ def _cycle_fit(
         return None
 
 
+def _select_partners(
+    glue_by_test_df: pd.DataFrame,
+    spec: GlueOpcodeSpec,
+    allowed_partner_tiers: frozenset[str],
+) -> list[str]:
+    """Pick which priced glue partners contribute to this mixed fit's LHS.
+
+    Uses the detector's ratio table to find every priced canonical name that
+    correlates with ``opcount`` on the spec's driver test/target. Partners
+    outside ``allowed_partner_tiers`` are dropped so the four-tier order can
+    never be violated even if the detector lists a same-tier or later-tier
+    partner.
+    """
+    if glue_by_test_df.empty:
+        return []
+    mask = (glue_by_test_df["test_name"] == spec.test_name) & (
+        glue_by_test_df["target_opcode"] == spec.name
+    )
+    if not mask.any():
+        return []
+    # Preserve detector ordering, dedupe across model_by combos.
+    seen: dict[str, None] = {}
+    for name in glue_by_test_df.loc[mask, "glue_opcode"].astype(str).tolist():
+        seen.setdefault(name, None)
+
+    out: list[str] = []
+    for name in seen:
+        partner_spec = SPEC_BY_NAME.get(name)
+        if partner_spec is None or partner_spec.name == spec.name:
+            continue
+        if partner_spec.tier not in allowed_partner_tiers:
+            continue
+        if partner_spec.test_name is None:
+            # Priced canonical name with no driver fixture (POP, STOP) is
+            # never a viable partner — no fit will ever exist for it.
+            continue
+        out.append(name)
+    return out
+
+
+def _mixed_fit(
+    fixtures_df: pd.DataFrame,
+    config: Config,
+    client: str,
+    spec: GlueOpcodeSpec,
+    fits: dict[tuple[str, str], NNLSResults],
+    glue_by_test_df: pd.DataFrame,
+    allowed_partner_tiers: frozenset[str],
+    p_threshold: float,
+) -> NNLSResults | None:
+    """Single-feature NNLS with the LHS pre-adjusted by priced upstream partners."""
+    slice_df = _slice_for_spec(fixtures_df, client, spec)
+    if slice_df.empty:
+        _log.warning(
+            "glue mixed-fit skipped: client=%s opcode=%s has no driver fixtures",
+            client,
+            spec.name,
+        )
+        return None
+    counts = _canonical_count(slice_df, spec)
+    if len(set(counts.tolist())) <= 1 or np.all(counts == 0):
+        _log.warning(
+            "glue mixed-fit skipped: client=%s opcode=%s count is constant or zero",
+            client,
+            spec.name,
+        )
+        return None
+
+    adjusted = slice_df["test_runtime_ms"].astype(float).to_numpy().copy()
+    # Each candidate partner contributes only if its per-client fit is
+    # available with finite, significant stats. Missing or non-significant
+    # partners are skipped silently — the omission is already auditable via
+    # the partner's row in ``glue_results.csv`` (NaN means no fit, p_value
+    # there records significance).
+    for partner_name in _select_partners(glue_by_test_df, spec, allowed_partner_tiers):
+        partner_fit = fits.get((client, partner_name))
+        if partner_fit is None:
+            continue
+        partner_ms = float(partner_fit.params.get(partner_name, float("nan")))
+        partner_pval = float(partner_fit.pvalues.get(partner_name, float("nan")))
+        if not np.isfinite(partner_ms) or not np.isfinite(partner_pval):
+            continue
+        if partner_pval >= p_threshold:
+            continue
+        partner_count = _canonical_count(slice_df, SPEC_BY_NAME[partner_name])
+        adjusted = adjusted - partner_ms * partner_count
+
+    design = pd.DataFrame(
+        {
+            spec.name: counts,
+            "test_runtime_ms": adjusted,
+        }
+    )
+    try:
+        return fit_nnls(
+            design,
+            features=[spec.name],
+            target="test_runtime_ms",
+            n_bootstrap=config.modeling.bootstrap_iterations,
+            random_seed=config.modeling.random_seed,
+        )
+    except Exception as exc:
+        _log.warning(
+            "glue mixed-fit failed: client=%s opcode=%s exc=%s",
+            client,
+            spec.name,
+            exc,
+        )
+        return None
+
+
 def _row(client: str, name: str, fit: NNLSResults | None) -> dict[str, object]:
     if fit is None:
         return {
@@ -173,15 +309,26 @@ def _row(client: str, name: str, fit: NNLSResults | None) -> dict[str, object]:
     }
 
 
+_MIXED_A_PARTNER_TIERS: frozenset[str] = frozenset({"pure", "cycle"})
+_MIXED_B_PARTNER_TIERS: frozenset[str] = frozenset({"pure", "cycle", "mixed_a"})
+
+
 def estimate_glue(config: Config, fixtures_df: pd.DataFrame) -> GlueEstimateOutput:
-    """Fit one NNLS per (client, canonical glue name).
+    """Fit one NNLS per (client, canonical glue name) in four ordered passes.
 
     Pure-glue specs get a single-feature regression each; cycle-glue specs
-    share a joint per-client fit. Specs whose ``test_name is None`` are
-    skipped (no row emitted). Raises ``ConfigError`` if any required driver
-    test is absent from ``fixtures_df``.
+    share a joint per-client fit; mixed-tier specs get single-feature fits
+    with LHS pre-adjusted by upstream partners. Specs whose ``test_name is
+    None`` are skipped (no row emitted). Raises ``ConfigError`` if any
+    required driver test is absent from ``fixtures_df``.
     """
     validate_inputs(fixtures_df)
+    glue_by_test_df = compute_glue_opcodes_by_test(
+        fixtures_df,
+        config.resolved_models,
+        config.glue_adjustment.ratio_corr_eps,
+    )
+
     rows: list[dict[str, object]] = []
     fits: dict[tuple[str, str], NNLSResults] = {}
 
@@ -191,15 +338,24 @@ def estimate_glue(config: Config, fixtures_df: pd.DataFrame) -> GlueEstimateOutp
     active_cycle = [
         s for s in PRICED_GLUE_SPECS if s.tier == "cycle" and s.test_name is not None
     ]
+    active_mixed_a = [
+        s for s in PRICED_GLUE_SPECS if s.tier == "mixed_a" and s.test_name is not None
+    ]
+    active_mixed_b = [
+        s for s in PRICED_GLUE_SPECS if s.tier == "mixed_b" and s.test_name is not None
+    ]
 
+    p_threshold = config.glue_adjustment.glue_contribution_p_value_threshold
     clients = sorted(fixtures_df["client_name"].unique())
     for client in clients:
+        # Tier 1 — pure
         for spec in active_pure:
             fit = _pure_fit(fixtures_df, config, client, spec)
             rows.append(_row(client, spec.name, fit))
             if fit is not None:
                 fits[(client, spec.name)] = fit
 
+        # Tier 2 — cycle (joint)
         cycle_fit = _cycle_fit(fixtures_df, config, client, active_cycle)
         for spec in active_cycle:
             if cycle_fit is None:
@@ -208,8 +364,42 @@ def estimate_glue(config: Config, fixtures_df: pd.DataFrame) -> GlueEstimateOutp
             rows.append(_row(client, spec.name, cycle_fit))
             fits[(client, spec.name)] = cycle_fit
 
+        # Tier 3a — mixed, partners drawn from pure ∪ cycle
+        for spec in active_mixed_a:
+            fit = _mixed_fit(
+                fixtures_df,
+                config,
+                client,
+                spec,
+                fits,
+                glue_by_test_df,
+                _MIXED_A_PARTNER_TIERS,
+                p_threshold,
+            )
+            rows.append(_row(client, spec.name, fit))
+            if fit is not None:
+                fits[(client, spec.name)] = fit
+
+        # Tier 3b — mixed, partners drawn from pure ∪ cycle ∪ mixed_a
+        for spec in active_mixed_b:
+            fit = _mixed_fit(
+                fixtures_df,
+                config,
+                client,
+                spec,
+                fits,
+                glue_by_test_df,
+                _MIXED_B_PARTNER_TIERS,
+                p_threshold,
+            )
+            rows.append(_row(client, spec.name, fit))
+            if fit is not None:
+                fits[(client, spec.name)] = fit
+
     results_df = pd.DataFrame(rows)
-    active_names = [s.name for s in active_pure] + [s.name for s in active_cycle]
+    active_names = [
+        s.name for s in active_pure + active_cycle + active_mixed_a + active_mixed_b
+    ]
     opcode_order = {name: i for i, name in enumerate(active_names)}
     results_df["_order"] = results_df["glue_opcode"].map(opcode_order)
     results_df = (
@@ -217,4 +407,8 @@ def estimate_glue(config: Config, fixtures_df: pd.DataFrame) -> GlueEstimateOutp
         .drop(columns="_order")
         .reset_index(drop=True)
     )
-    return GlueEstimateOutput(results_df=results_df, fits=fits)
+    return GlueEstimateOutput(
+        results_df=results_df,
+        fits=fits,
+        glue_opcodes_by_test_df=glue_by_test_df,
+    )

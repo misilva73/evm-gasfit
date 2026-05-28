@@ -45,6 +45,35 @@ doesn't also match `opcode_ADDMOD-…` fixtures; the others are verbatim.
    Aggregation in §4.6 joins by `(test_name, model_by-shape, target_opcode)`,
    so this is safe.
 
+## Relationship to the priced-glue set
+
+18 of the catalog's targets — `ADD`, `AND`, `CALLDATACOPY`, `CALLDATALOAD`,
+`DIV`, `EXP`, `GT`, `JUMPI`, `LT`, `MSTORE`, `MSTORE8`, `MUL`, `PC`,
+`RETURNDATASIZE`, `SELFBALANCE`, `SUB` (mixed-A), `JUMP`, `KECCAK256`
+(mixed-B) — also appear in the priced-glue table
+([src/evm_gasfit/glue/required.py](../src/evm_gasfit/glue/required.py); plan §4.4).
+The two pipelines fit the same fixtures independently and produce
+**separate** estimates:
+
+- The **modelspec** preset's `target_coef` lands in `results.csv` and is
+  the value `new_gas.csv` proposes. The §4.4 post-fit
+  `compute_glue_adjustment` subtracts every priced glue partner's
+  contribution from `target_coef_runtime_ms` (`glue_adjustment` column on
+  `new_gas_all_params.csv`).
+- The **glue tier** runs a separate per-`(client, canonical_name)`
+  regression with the LHS pre-adjusted by partners from earlier tiers
+  (`glue_results.csv`). That coefficient feeds *into* the §4.4
+  adjustment for downstream modelspecs but does **not** replace the
+  modelspec value in `new_gas.csv`.
+
+Under the detector's `corr ≈ 1` assumption the two coefficients converge,
+because the LHS subtraction and the post-fit coefficient subtraction are
+algebraically equivalent (plan §4.4). Divergence in practice usually
+signals either a `corr < 1` partner (the ratio approximation is loose) or
+a partner whose own fit is biased. Both are auditable: `glue_results.csv`
+carries the partner's fit; `glue_opcodes_by_test.csv` carries the
+detector's `corr`/`ratio` per partner.
+
 ## New gas-param names introduced (lenient warning per §2.5)
 
 The osaka fallback does not include these — listing them as `target_coef`
