@@ -280,12 +280,13 @@ def plot_proposal_heatmap(
     """Heatmap colored by ``log2(proposed / current)`` per cell.
 
     Red cells are more expensive than the current gas cost for that parameter,
-    green cells are cheaper, and white sits at ``log2 = 0`` (unchanged). Rows
-    whose ``gas_param`` has no entry in ``current_values`` — e.g. ``new_params``
-    declared with a ``null`` baseline — render as blank cells with only the
-    proposed integer annotation. The colorbar scale is symmetric and auto-sized
-    to the largest absolute log2 ratio in the data (floored at ``±1`` so
-    near-uniform runs still get a visible gradient).
+    green cells are cheaper, and white sits at ``log2 = 0`` (unchanged). Cells
+    whose current gas cost is missing or zero — e.g. ``new_params`` declared
+    with a ``null`` baseline, or a fork field like ``PRECOMPILE_BLAKE2F_BASE``
+    that's currently free — render uncolored with only the proposed integer
+    annotation (no ratio to color against). The colorbar scale is symmetric and
+    auto-sized to the largest absolute log2 ratio in the data (floored at
+    ``±1`` so near-uniform runs still get a visible gradient).
     """
     figs_dir = _ensure(out_dir, "proposal")
     path = figs_dir / "heatmap.png"
@@ -337,5 +338,19 @@ def plot_proposal_heatmap(
         cbar_kws={"label": "log2(proposed / current)"},
         ax=ax,
     )
+    # seaborn skips annotations for cells whose colored value is NaN, which
+    # silently drops the proposed integer for any row with no baseline (current
+    # missing or zero). Re-add the annotation manually for those cells so the
+    # number is still readable.
+    nan_mask = normalized.isna() & pivot.notna()
+    for y, x in zip(*np.where(nan_mask.to_numpy())):
+        ax.text(
+            x + 0.5,
+            y + 0.5,
+            f"{pivot.iat[y, x]:.0f}",
+            ha="center",
+            va="center",
+            color=".15",
+        )
     ax.set_title("Proposed gas vs. current (log2 ratio)")
     return _save(fig, path)
