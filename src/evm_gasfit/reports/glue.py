@@ -82,15 +82,18 @@ def _emit_opcode_block(
     out_dir: Path,
     show_summary: bool,
 ) -> None:
-    """Write the per-opcode subsection (headline + plots, summary optional)."""
-    lines.append(f"#### {glue_opcode}")
-    lines.append("")
-    lines.append(
-        f"- nobs: {int(row['nobs']) if not pd.isna(row.get('nobs')) else 'n/a'}"
+    """Write the per-opcode collapsible (headline summary + plots)."""
+    nobs_cell = (
+        str(int(row["nobs"])) if not pd.isna(row.get("nobs")) else "n/a"
     )
-    lines.append(f"- glue_runtime_ms: {_fmt(row.get('glue_runtime_ms'))}")
-    lines.append(f"- p_value: {_fmt_pvalue(row.get('p_value'))}")
-    lines.append(f"- rsquared: {_fmt(row.get('rsquared'))}")
+    summary_line = (
+        f"<code>{glue_opcode}</code> · "
+        f"nobs={nobs_cell} · "
+        f"runtime_ms={_fmt(row.get('glue_runtime_ms'))} · "
+        f"p={_fmt_pvalue(row.get('p_value'))} · "
+        f"R²={_fmt(row.get('rsquared'))}"
+    )
+    lines.append(f"<details><summary>{summary_line}</summary>")
     lines.append("")
 
     if fit is not None and show_summary:
@@ -117,6 +120,9 @@ def _emit_opcode_block(
         for family in ("regression", "bootstrap", "diagnostics"):
             lines.append(f"![](figs/glue/{base}__{family}.png)")
             lines.append("")
+
+    lines.append("</details>")
+    lines.append("")
 
 
 def write_glue_report(
