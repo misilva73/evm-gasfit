@@ -191,14 +191,14 @@ def _build_client_comparison_rows(
     return rows
 
 
-def _append_provenance_subsection(
+def _append_provenance_section(
     lines: list[str],
     plottable: pd.DataFrame,
     fitted_params: list[str],
     current_values: dict[str, int],
     out_dir: Path,
 ) -> None:
-    """Append `### Worst-case provenance per gas param` with one `<details>`
+    """Append `## Worst-case provenance per gas param` with one `<details>`
     block per multi-combo gas param.
 
     No-op when no qualifying gas param exists. ``plottable`` must already be
@@ -211,7 +211,7 @@ def _append_provenance_subsection(
     if not qualifying:
         return
 
-    lines.append("### Worst-case provenance per gas param")
+    lines.append("## Worst-case provenance per gas param")
     lines.append("")
     lines.append(
         "One collapsible block per gas parameter showing where each client's "
@@ -387,7 +387,9 @@ def write_proposal_report(
         lines.append("")
         lines.append("![](figs/proposal/heatmap.png)")
         lines.append("")
-        _append_provenance_subsection(
+
+    if plots_enabled and not plottable.empty:
+        _append_provenance_section(
             lines, plottable, fitted_params, current_values, out_dir
         )
 

@@ -469,8 +469,8 @@ def _build_two_spec_shared_param(tmp_path: Path, *, plots: bool):
     )
 
 
-def test_provenance_subsection_present_with_per_param_heatmaps(tmp_path: Path) -> None:
-    """Multi-combo gas params surface in `### Worst-case provenance per gas
+def test_provenance_section_present_with_per_param_heatmaps(tmp_path: Path) -> None:
+    """Multi-combo gas params surface in `## Worst-case provenance per gas
     param` as a `<details>` block embedding a per-param heatmap PNG."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
         tmp_path, plots=True
@@ -479,12 +479,12 @@ def test_provenance_subsection_present_with_per_param_heatmaps(tmp_path: Path) -
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
     idx_comparison = proposal.find("## Client comparison")
-    idx_provenance = proposal.find("### Worst-case provenance per gas param")
+    idx_provenance = proposal.find("## Worst-case provenance per gas param")
     idx_warnings = proposal.find("## Warnings")
     idx_overview_img = proposal.find("![](figs/proposal/heatmap.png)")
     assert idx_comparison >= 0 and idx_provenance >= 0 and idx_warnings >= 0
     assert idx_comparison < idx_overview_img < idx_provenance < idx_warnings, (
-        "provenance subsection must sit after the overview heatmap embed "
+        "provenance section must sit after the overview heatmap embed "
         "and before ## Warnings"
     )
 
@@ -496,16 +496,16 @@ def test_provenance_subsection_present_with_per_param_heatmaps(tmp_path: Path) -
     assert (out_dir / "figs" / "proposal" / "provenance__OPCODE_GENERIC.png").exists()
 
 
-def test_provenance_subsection_skips_single_combo_params(tmp_path: Path) -> None:
+def test_provenance_section_skips_single_combo_params(tmp_path: Path) -> None:
     """Single-combo params do not get a `<details>` block or PNG; they are
-    listed in a single italic line at the top of the subsection."""
+    listed in a single italic line at the top of the section."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
         tmp_path, plots=True
     )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
-    idx_provenance = proposal.find("### Worst-case provenance per gas param")
+    idx_provenance = proposal.find("## Worst-case provenance per gas param")
     idx_warnings = proposal.find("## Warnings")
     section = proposal[idx_provenance:idx_warnings]
     # OPCODE_MUL is fitted by a single spec → single combo → must be in the
@@ -524,8 +524,8 @@ def test_provenance_subsection_skips_single_combo_params(tmp_path: Path) -> None
     assert not (out_dir / "figs" / "proposal" / "provenance__OPCODE_MUL.png").exists()
 
 
-def test_provenance_subsection_omitted_when_plots_disabled(tmp_path: Path) -> None:
-    """`output.plots: false` runs do not produce the provenance subsection
+def test_provenance_section_omitted_when_plots_disabled(tmp_path: Path) -> None:
+    """`output.plots: false` runs do not produce the provenance section
     nor any `provenance__*.png` figures."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build_two_spec_shared_param(
         tmp_path, plots=False
@@ -533,7 +533,7 @@ def test_provenance_subsection_omitted_when_plots_disabled(tmp_path: Path) -> No
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
-    assert "### Worst-case provenance per gas param" not in proposal
+    assert "## Worst-case provenance per gas param" not in proposal
     figs_dir = out_dir / "figs" / "proposal"
     if figs_dir.exists():
         assert not list(figs_dir.glob("provenance__*.png"))
