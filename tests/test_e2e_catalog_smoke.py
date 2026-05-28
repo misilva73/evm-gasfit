@@ -67,6 +67,10 @@ _PLACEHOLDER_PARAMS: dict[str, str] = {
     "k": "2",
     "value_sent": "1",
     "write_new_value": "True",
+    "existing_slots": "True",
+    # Placeholder must not contain "EXISTING_CONTRACT": the NOCODE account
+    # preset filters by `!AccountMode.EXISTING_CONTRACT`.
+    "account_mode": "AccountMode.NON_EXISTING_ACCOUNT",
 }
 
 

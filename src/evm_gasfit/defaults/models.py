@@ -446,12 +446,14 @@ PRESETS: dict[str, ModelSpec] = {
         test_name="test_sload_bloated",
         target_operation="SLOAD",
         filter_by=["CacheStrategy.NO_CACHE"],
+        model_by=["existing_slots"],
         model_params={"target_coef": "COLD_STORAGE_ACCESS"},
     ),
     "cold_storage_sstore": ModelSpec(
         test_name="test_sstore_bloated",
         target_operation="SSTORE",
         filter_by=["CacheStrategy.NO_CACHE"],
+        model_by=["existing_slots"],
         fixture_params={
             "update": FixtureParamSpec(
                 source="write_new_value",
@@ -463,22 +465,11 @@ PRESETS: dict[str, ModelSpec] = {
             "update": "STORAGE_WRITE",
         },
     ),
-    "cold_account_nocode_access_non_existing": ModelSpec(
+    "cold_account_nocode_access": ModelSpec(
         test_name="test_account_access",
         target_operation_param="opcode",
-        filter_by=["CacheStrategy.NO_CACHE", "AccountMode.NON_EXISTING_ACCOUNT"],
-        model_by=["opcode"],
-        fixture_params={"update": FixtureParamSpec(source="value_sent")},
-        model_params={
-            "target_coef": "COLD_ACCOUNT_NOCODE_ACCESS",
-            "update": "ACCOUNT_WRITE",
-        },
-    ),
-    "cold_account_nocode_access_existing_eoa": ModelSpec(
-        test_name="test_account_access",
-        target_operation_param="opcode",
-        filter_by=["CacheStrategy.NO_CACHE", "AccountMode.EXISTING_EOA"],
-        model_by=["opcode"],
+        filter_by=["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT"],
+        model_by=["opcode", "account_mode"],
         fixture_params={"update": FixtureParamSpec(source="value_sent")},
         model_params={
             "target_coef": "COLD_ACCOUNT_NOCODE_ACCESS",
