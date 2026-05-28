@@ -2,10 +2,10 @@
 
 Several opcodes share a fixture-name prefix with another opcode in the same
 test (``ADD`` vs ``ADDMOD``, ``MUL`` vs ``MULMOD``, ``PUSH0`` vs
-``PUSH1``…``PUSH32``). The default ``filter_by=["opcode_<X>"]`` is a plain
-substring match, so without a trailing anchor it would silently include the
-sibling opcode's fixtures. The catalog fixes this by appending a trailing
-``-`` (the token separator in EEST fixture names) to the affected presets.
+``PUSH1``…``PUSH32``). ``filter_by=["opcode_<X>"]`` is a plain substring
+match, so without a trailing anchor it would silently include the sibling
+opcode's fixtures. The catalog fixes this by appending a trailing ``-``
+(the token separator in EEST fixture names) to the affected presets.
 
 This test synthesizes fixtures for both the target opcode and its overlap
 sibling, drives the pipeline through the corresponding catalog preset, and

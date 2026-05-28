@@ -160,17 +160,6 @@ class ModelSpec(BaseModel):
                 "target_operation_count_source is only valid alongside "
                 "target_operation (literal precompile display name)"
             )
-        # Default filter_by to the EEST opcode token when target_operation is
-        # literal and the user omitted the field. Skip the default for
-        # precompile specs — there is no opcode_<display_name> fixture token.
-        if has_op and not has_count_source and not self.filter_by:
-            self.filter_by = [f"opcode_{self.target_operation}"]
-        if has_count_source and not self.filter_by:
-            raise ValueError(
-                "target_operation_count_source requires an explicit filter_by; "
-                "no auto-default is applied because precompile display names "
-                "have no opcode_<X> fixture token"
-            )
         # model_params must be non-empty and carry a target_coef key.
         if not self.model_params:
             raise ValueError("model_params must be non-empty")

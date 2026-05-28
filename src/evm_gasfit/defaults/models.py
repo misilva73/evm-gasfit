@@ -28,6 +28,7 @@ PRESETS: dict[str, ModelSpec] = {
     "arithmetic_sub": ModelSpec(
         test_name="test_arithmetic",
         target_operation="SUB",
+        filter_by=["opcode_SUB"],
         model_params={"target_coef": "OPCODE_SUB"},
     ),
     "arithmetic_mul": ModelSpec(
@@ -39,64 +40,76 @@ PRESETS: dict[str, ModelSpec] = {
     "arithmetic_div": ModelSpec(
         test_name="test_arithmetic",
         target_operation="DIV",
+        filter_by=["opcode_DIV"],
         model_params={"target_coef": "OPCODE_DIV"},
     ),
     "arithmetic_sdiv": ModelSpec(
         test_name="test_arithmetic",
         target_operation="SDIV",
+        filter_by=["opcode_SDIV"],
         model_params={"target_coef": "OPCODE_SDIV"},
     ),
     "arithmetic_signextend": ModelSpec(
         test_name="test_arithmetic",
         target_operation="SIGNEXTEND",
+        filter_by=["opcode_SIGNEXTEND"],
         model_params={"target_coef": "OPCODE_SIGNEXTEND"},
     ),
     "arithmetic_exp": ModelSpec(
         test_name="test_arithmetic",
         target_operation="EXP",
+        filter_by=["opcode_EXP"],
         model_params={"target_coef": "OPCODE_EXP_BASE"},
     ),
     "arithmetic_mod": ModelSpec(
         test_name="test_arithmetic",
         target_operation="MOD",
+        filter_by=["opcode_MOD"],
         model_params={"target_coef": "OPCODE_MOD"},
     ),
     "arithmetic_mod_bits": ModelSpec(
         test_name="test_mod",
         target_operation="MOD",
+        filter_by=["opcode_MOD"],
         model_by=["mod_bits"],
         model_params={"target_coef": "OPCODE_MOD"},
     ),
     "arithmetic_smod": ModelSpec(
         test_name="test_arithmetic",
         target_operation="SMOD",
+        filter_by=["opcode_SMOD"],
         model_params={"target_coef": "OPCODE_SMOD"},
     ),
     "arithmetic_smod_bits": ModelSpec(
         test_name="test_mod",
         target_operation="SMOD",
+        filter_by=["opcode_SMOD"],
         model_by=["mod_bits"],
         model_params={"target_coef": "OPCODE_SMOD"},
     ),
     "arithmetic_addmod": ModelSpec(
         test_name="test_arithmetic",
         target_operation="ADDMOD",
+        filter_by=["opcode_ADDMOD"],
         model_params={"target_coef": "OPCODE_ADDMOD"},
     ),
     "arithmetic_addmod_bits": ModelSpec(
         test_name="test_mod_arithmetic",
         target_operation="ADDMOD",
+        filter_by=["opcode_ADDMOD"],
         model_by=["mod_bits"],
         model_params={"target_coef": "OPCODE_ADDMOD"},
     ),
     "arithmetic_mulmod": ModelSpec(
         test_name="test_arithmetic",
         target_operation="MULMOD",
+        filter_by=["opcode_MULMOD"],
         model_params={"target_coef": "OPCODE_MULMOD"},
     ),
     "arithmetic_mulmod_bits": ModelSpec(
         test_name="test_mod_arithmetic",
         target_operation="MULMOD",
+        filter_by=["opcode_MULMOD"],
         model_by=["mod_bits"],
         model_params={"target_coef": "OPCODE_MULMOD"},
     ),
@@ -106,36 +119,43 @@ PRESETS: dict[str, ModelSpec] = {
     "bitwise_and": ModelSpec(
         test_name="test_bitwise",
         target_operation="AND",
+        filter_by=["opcode_AND"],
         model_params={"target_coef": "OPCODE_AND"},
     ),
     "bitwise_or": ModelSpec(
         test_name="test_bitwise",
         target_operation="OR",
+        filter_by=["opcode_OR"],
         model_params={"target_coef": "OPCODE_OR"},
     ),
     "bitwise_xor": ModelSpec(
         test_name="test_bitwise",
         target_operation="XOR",
+        filter_by=["opcode_XOR"],
         model_params={"target_coef": "OPCODE_XOR"},
     ),
     "bitwise_byte": ModelSpec(
         test_name="test_bitwise",
         target_operation="BYTE",
+        filter_by=["opcode_BYTE"],
         model_params={"target_coef": "OPCODE_BYTE"},
     ),
     "bitwise_shl": ModelSpec(
         test_name="test_bitwise",
         target_operation="SHL",
+        filter_by=["opcode_SHL"],
         model_params={"target_coef": "OPCODE_SHL"},
     ),
     "bitwise_shr": ModelSpec(
         test_name="test_bitwise",
         target_operation="SHR",
+        filter_by=["opcode_SHR"],
         model_params={"target_coef": "OPCODE_SHR"},
     ),
     "bitwise_sar": ModelSpec(
         test_name="test_bitwise",
         target_operation="SAR",
+        filter_by=["opcode_SAR"],
         model_params={"target_coef": "OPCODE_SAR"},
     ),
     "bitwise_not": ModelSpec(
@@ -154,26 +174,31 @@ PRESETS: dict[str, ModelSpec] = {
     "comparison_lt": ModelSpec(
         test_name="test_comparison",
         target_operation="LT",
+        filter_by=["opcode_LT"],
         model_params={"target_coef": "OPCODE_LT"},
     ),
     "comparison_gt": ModelSpec(
         test_name="test_comparison",
         target_operation="GT",
+        filter_by=["opcode_GT"],
         model_params={"target_coef": "OPCODE_GT"},
     ),
     "comparison_slt": ModelSpec(
         test_name="test_comparison",
         target_operation="SLT",
+        filter_by=["opcode_SLT"],
         model_params={"target_coef": "OPCODE_SLT"},
     ),
     "comparison_sgt": ModelSpec(
         test_name="test_comparison",
         target_operation="SGT",
+        filter_by=["opcode_SGT"],
         model_params={"target_coef": "OPCODE_SGT"},
     ),
     "comparison_eq": ModelSpec(
         test_name="test_comparison",
         target_operation="EQ",
+        filter_by=["opcode_EQ"],
         model_params={"target_coef": "OPCODE_EQ"},
     ),
     "comparison_iszero": ModelSpec(
@@ -243,41 +268,49 @@ PRESETS: dict[str, ModelSpec] = {
     "block_basefee": ModelSpec(
         test_name="test_block_context_ops",
         target_operation="BASEFEE",
+        filter_by=["opcode_BASEFEE"],
         model_params={"target_coef": "OPCODE_BASEFEE"},
     ),
     "block_blobbasefee": ModelSpec(
         test_name="test_block_context_ops",
         target_operation="BLOBBASEFEE",
+        filter_by=["opcode_BLOBBASEFEE"],
         model_params={"target_coef": "OPCODE_BLOBBASEFEE"},
     ),
     "block_chainid": ModelSpec(
         test_name="test_block_context_ops",
         target_operation="CHAINID",
+        filter_by=["opcode_CHAINID"],
         model_params={"target_coef": "OPCODE_CHAINID"},
     ),
     "block_coinbase": ModelSpec(
         test_name="test_block_context_ops",
         target_operation="COINBASE",
+        filter_by=["opcode_COINBASE"],
         model_params={"target_coef": "OPCODE_COINBASE"},
     ),
     "block_gaslimit": ModelSpec(
         test_name="test_block_context_ops",
         target_operation="GASLIMIT",
+        filter_by=["opcode_GASLIMIT"],
         model_params={"target_coef": "OPCODE_GASLIMIT"},
     ),
     "block_number": ModelSpec(
         test_name="test_block_context_ops",
         target_operation="NUMBER",
+        filter_by=["opcode_NUMBER"],
         model_params={"target_coef": "OPCODE_NUMBER"},
     ),
     "block_prevrandao": ModelSpec(
         test_name="test_block_context_ops",
         target_operation="PREVRANDAO",
+        filter_by=["opcode_PREVRANDAO"],
         model_params={"target_coef": "OPCODE_PREVRANDAO"},
     ),
     "block_timestamp": ModelSpec(
         test_name="test_block_context_ops",
         target_operation="TIMESTAMP",
+        filter_by=["opcode_TIMESTAMP"],
         model_params={"target_coef": "OPCODE_TIMESTAMP"},
     ),
     "block_blockhash": ModelSpec(
@@ -289,11 +322,13 @@ PRESETS: dict[str, ModelSpec] = {
     "tx_gasprice": ModelSpec(
         test_name="test_call_frame_context_ops",
         target_operation="GASPRICE",
+        filter_by=["opcode_GASPRICE"],
         model_params={"target_coef": "OPCODE_GASPRICE"},
     ),
     "tx_origin": ModelSpec(
         test_name="test_call_frame_context_ops",
         target_operation="ORIGIN",
+        filter_by=["opcode_ORIGIN"],
         model_params={"target_coef": "OPCODE_ORIGIN"},
     ),
     # -------------------------------------------------------------------
@@ -302,11 +337,13 @@ PRESETS: dict[str, ModelSpec] = {
     "call_address": ModelSpec(
         test_name="test_call_frame_context_ops",
         target_operation="ADDRESS",
+        filter_by=["opcode_ADDRESS"],
         model_params={"target_coef": "OPCODE_ADDRESS"},
     ),
     "call_caller": ModelSpec(
         test_name="test_call_frame_context_ops",
         target_operation="CALLER",
+        filter_by=["opcode_CALLER"],
         model_params={"target_coef": "OPCODE_CALLER"},
     ),
     "call_callvalue": ModelSpec(
@@ -358,6 +395,7 @@ PRESETS: dict[str, ModelSpec] = {
     "memory_mload": ModelSpec(
         test_name="test_memory_access",
         target_operation="MLOAD",
+        filter_by=["opcode_MLOAD"],
         model_by=["mem_size"],
         model_params={"target_coef": "OPCODE_MLOAD_BASE"},
     ),
@@ -371,6 +409,7 @@ PRESETS: dict[str, ModelSpec] = {
     "memory_mstore8": ModelSpec(
         test_name="test_memory_access",
         target_operation="MSTORE8",
+        filter_by=["opcode_MSTORE8"],
         model_by=["mem_size"],
         model_params={"target_coef": "OPCODE_MSTORE8_BASE"},
     ),
@@ -406,13 +445,13 @@ PRESETS: dict[str, ModelSpec] = {
     "cold_storage_sload": ModelSpec(
         test_name="test_sload_bloated",
         target_operation="SLOAD",
-        filter_by=["opcode_SLOAD", "CacheStrategy.NO_CACHE"],
+        filter_by=["CacheStrategy.NO_CACHE"],
         model_params={"target_coef": "COLD_STORAGE_ACCESS"},
     ),
     "cold_storage_sstore": ModelSpec(
         test_name="test_sstore_bloated",
         target_operation="SSTORE",
-        filter_by=["opcode_SSTORE", "CacheStrategy.NO_CACHE"],
+        filter_by=["CacheStrategy.NO_CACHE"],
         fixture_params={
             "update": FixtureParamSpec(
                 source="write_new_value",

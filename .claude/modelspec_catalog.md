@@ -16,16 +16,19 @@ doesn't also match `opcode_ADDMOD-…` fixtures; the others are verbatim.
    preset per opcode.
 2. **`target_operation_param: opcode`** when a single test sweeps many opcodes
    that all map to *one* shared gas param (account access reads, log family).
-3. **`filter_by`** is added only when `target_operation` alone is ambiguous,
-   in three cases: (a) the test doesn't use the `opcode_X` convention so the
-   auto-default `["opcode_<X>"]` matches nothing (e.g. `test_storage_access_cold_benchmark`,
-   where opcodes are bare tags); (b) carving a sub-family out of a test (BLS
-   G1 vs G2); (c) the target opcode's `opcode_<X>` token is a prefix of
-   another opcode's token in the same test, so the default substring filter
-   would leak — fix is a trailing-dash anchor (e.g. `opcode_ADD-` to exclude
-   `opcode_ADDMOD-`, `opcode_MUL-` to exclude `opcode_MULMOD-`,
-   `opcode_PUSH0-` to exclude `opcode_PUSH1…32`, `opcode_MSTORE-` to exclude
-   `opcode_MSTORE8-`).
+3. **`filter_by`** is declared explicitly whenever a `fixture_name` substring
+   match is needed; there is no auto-default. It is added in three cases:
+   (a) the test bundles multiple opcodes (e.g. `test_arithmetic`,
+   `test_bitwise`, `test_block_context_ops`) — every preset off that test
+   carries an `opcode_<X>` filter to isolate its slice; (b) carving a
+   sub-family out of a test (BLS G1 vs G2, cold-storage cache strategies);
+   (c) the target opcode's `opcode_<X>` token is a prefix of another opcode's
+   token in the same test, so the plain substring filter would leak — fix is
+   a trailing-dash anchor (e.g. `opcode_ADD-` to exclude `opcode_ADDMOD-`,
+   `opcode_MUL-` to exclude `opcode_MULMOD-`, `opcode_PUSH0-` to exclude
+   `opcode_PUSH1…32`, `opcode_MSTORE-` to exclude `opcode_MSTORE8-`). When
+   the test exercises a single opcode and isolates its fixtures by
+   `test_name` alone, `filter_by` is omitted.
 4. **`model_by`** exposes a fixture-param to the fit (one fit per value combo).
    Used for: payload-size sweeps (mem_size, log_size, msg_size, return_size,
    copy_size, calldata_size, size, num_pairs, num_rounds, k, mod_bits), and
@@ -234,8 +237,8 @@ presets below enumerate the *included* values as separate entries.
 | --- | --- | --- | --- | --- |
 | `warm_storage_access_sload` | `test_storage_sload_same_key_benchmark` | `SLOAD` | — | `WARM_ACCESS` |
 | `warm_account_access` | `test_ext_account_query_warm` | param `opcode` | `[opcode]` | `WARM_ACCESS` |
-| `cold_storage_sload` | `test_sload_bloated` | `SLOAD` (`filter_by: ["opcode_SLOAD", "CacheStrategy.NO_CACHE"]`) | — | `COLD_STORAGE_ACCESS` |
-| `cold_storage_sstore` | `test_sstore_bloated` | `SSTORE` (`filter_by: ["opcode_SSTORE", "CacheStrategy.NO_CACHE"]`) | — | `target_coef: COLD_STORAGE_ACCESS`, `update: STORAGE_WRITE` (via `fixture_params.update = {source: write_new_value, values: {False: 0, True: 1}}`) |
+| `cold_storage_sload` | `test_sload_bloated` | `SLOAD` (`filter_by: ["CacheStrategy.NO_CACHE"]`) | — | `COLD_STORAGE_ACCESS` |
+| `cold_storage_sstore` | `test_sstore_bloated` | `SSTORE` (`filter_by: ["CacheStrategy.NO_CACHE"]`) | — | `target_coef: COLD_STORAGE_ACCESS`, `update: STORAGE_WRITE` (via `fixture_params.update = {source: write_new_value, values: {False: 0, True: 1}}`) |
 | `cold_account_nocode_access_non_existing` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "AccountMode.NON_EXISTING_ACCOUNT"]`) | `[opcode]` | `target_coef: COLD_ACCOUNT_NOCODE_ACCESS`, `update: ACCOUNT_WRITE` (via `fixture_params.update = {source: value_sent}`) |
 | `cold_account_nocode_access_existing_eoa` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "AccountMode.EXISTING_EOA"]`) | `[opcode]` | `target_coef: COLD_ACCOUNT_NOCODE_ACCESS`, `update: ACCOUNT_WRITE` (via `fixture_params.update = {source: value_sent}`) |
 | `cold_account_code_access_existing_contract` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "AccountMode.EXISTING_CONTRACT"]`) | `[opcode]` | `target_coef: COLD_ACCOUNT_CODE_ACCESS`, `update: ACCOUNT_WRITE` (via `fixture_params.update = {source: value_sent}`) |
@@ -318,10 +321,10 @@ the precompile's display name (which lands on `target_opcode` in
 `results.csv` / `new_gas.csv` and so disambiguates rows in the aggregator),
 and `target_operation_count_source: STATICCALL` tells the §2.3 invariant —
 and the §4.4 glue candidate filter — that the `opcount` column is actually
-backed by the `STATICCALL` column. Each preset therefore also carries an
-explicit `filter_by`: the default `filter_by` derivation only fires when
-`target_operation_count_source` is unset, and an empty `filter_by` under
-this mode is a config error.
+backed by the `STATICCALL` column. Each preset declares its own
+`filter_by` substring (e.g. `["bls12_g1add"]`) to pick out the precompile's
+slice of fixtures within the shared test file, since the display name does
+not appear as a fixture token.
 
 | Preset | `test_name` | Target | `model_by` | Writes |
 | --- | --- | --- | --- | --- |

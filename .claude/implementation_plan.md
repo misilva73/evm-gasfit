@@ -183,22 +183,14 @@ Each model spec — whether bundled as a preset or written under
   `target_opcode` itself.
 - `filter_by` — string or list of strings, ANDed as substring matches against
   the raw fixture name. Scalar inputs are normalized to a one-element list and
-  empty strings are rejected. After validation, `filter_by` is always a
-  `list[str]` — never `None`. List entries are concatenated with `-` into an
-  informational `filter_by` column on the parsed dataframe (the match itself
-  is still substring).
-  - *Default when omitted:* if `target_operation: <X>` is set **and**
-    `target_operation_count_source` is unset, the validated config stores
-    `filter_by = ["opcode_<X>"]` (matching the EEST convention that fixtures
-    targeting opcode `X` carry an `opcode_X` token).
-  - If `target_operation_param` is used instead, no default is applied —
-    `filter_by` is an explicit empty list and the param assignment is the only
-    selector.
-  - If `target_operation_count_source` is set, no default is applied either
-    — precompile display names like `BLS12_G1ADD` don't appear as fixture
-    tokens, so the user must supply the explicit selector (typically a
-    fixture-name substring like `bls12_g1add`). An empty `filter_by` under
-    this mode is a config error.
+  empty strings are rejected. Omitting the field defaults to an empty list
+  (no fixture-name filtering — the slice is whatever `test_name` already
+  isolates); no auto-default is applied. List entries are concatenated with
+  `-` into an informational `filter_by` column on the parsed dataframe (the
+  match itself is still substring). Presets sitting on tests that bundle
+  multiple opcodes must declare `filter_by=["opcode_<X>"]` themselves, with
+  a trailing-dash anchor where prefix overlap exists (e.g. `opcode_ADD-` to
+  exclude `opcode_ADDMOD-`).
 - `model_by` — string or list of fixture-param names. Names resolve to raw
   parsed-param tokens or to derived names declared on the same spec's
   `fixture_params` (§2.7). The pipeline groups fixtures by every distinct

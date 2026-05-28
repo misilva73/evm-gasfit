@@ -355,11 +355,13 @@ def test_partial_fits_subsection_lists_missing_client_combos(tmp_path: Path) -> 
             {
                 "test_name": "test_arithmetic",
                 "target_operation": "ADD",
+                "filter_by": ["opcode_ADD-"],
                 "model_params": {"target_coef": "OPCODE_ADD"},
             },
             {
                 "test_name": "test_arithmetic",
                 "target_operation": "SUB",
+                "filter_by": ["opcode_SUB"],
                 "model_params": {"target_coef": "OPCODE_SUB"},
             },
         ],
@@ -440,16 +442,19 @@ def _build_two_spec_shared_param(tmp_path: Path, *, plots: bool):
             {
                 "test_name": "test_arithmetic",
                 "target_operation": "ADD",
+                "filter_by": ["opcode_ADD-"],
                 "model_params": {"target_coef": "OPCODE_GENERIC"},
             },
             {
                 "test_name": "test_arithmetic",
                 "target_operation": "SUB",
+                "filter_by": ["opcode_SUB"],
                 "model_params": {"target_coef": "OPCODE_GENERIC"},
             },
             {
                 "test_name": "test_arithmetic",
                 "target_operation": "MUL",
+                "filter_by": ["opcode_MUL-"],
                 "model_params": {"target_coef": "OPCODE_MUL"},
             },
         ],
@@ -567,16 +572,19 @@ def test_gas_params_follow_config_declaration_order(tmp_path: Path) -> None:
             {
                 "test_name": "test_arithmetic",
                 "target_operation": "SUB",
+                "filter_by": ["opcode_SUB"],
                 "model_params": {"target_coef": "OPCODE_SUB"},
             },
             {
                 "test_name": "test_arithmetic",
                 "target_operation": "ADD",
+                "filter_by": ["opcode_ADD-"],
                 "model_params": {"target_coef": "OPCODE_ADD"},
             },
             {
                 "test_name": "test_arithmetic",
                 "target_operation": "MUL",
+                "filter_by": ["opcode_MUL-"],
                 "model_params": {"target_coef": "OPCODE_MUL"},
             },
         ],

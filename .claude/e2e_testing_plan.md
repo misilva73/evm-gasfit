@@ -146,7 +146,7 @@ Plan rules pinned: a `fixture_params` entry may carry `transform: bytes_to_words
 
 ### 2.7b [`tests/test_e2e_anchor_filter.py`](../tests/test_e2e_anchor_filter.py) — prefix-overlap `filter_by` anchors (§2.6 / catalog)
 
-Plan rules pinned: when an opcode's `opcode_<X>` token is a prefix of another opcode's token in the same `test_name` slice, the catalog preset must carry a trailing `-` anchor (`filter_by: [opcode_<X>-]`) so the default substring match cannot leak the sibling's fixtures into the fit.
+Plan rules pinned: when an opcode's `opcode_<X>` token is a prefix of another opcode's token in the same `test_name` slice, the catalog preset must carry a trailing `-` anchor (`filter_by: [opcode_<X>-]`) so the substring match cannot leak the sibling's fixtures into the fit.
 
 | Test | Coverage |
 | --- | --- |
