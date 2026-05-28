@@ -192,15 +192,24 @@ Each model spec — whether bundled as a preset or written under
   a trailing-dash anchor where prefix overlap exists (e.g. `opcode_ADD-` to
   exclude `opcode_ADDMOD-`).
 - `model_by` — string or list of fixture-param names. Names resolve to raw
-  parsed-param tokens or to derived names declared on the same spec's
-  `fixture_params` (§2.7). The pipeline groups fixtures by every distinct
-  combination of these values and fits one model per group. Same scalar→list
-  normalization and empty-string rejection as `filter_by`.
+  parsed-param tokens (which live on `fixtures_df` as `param_<name>`, see
+  §4.1) or to derived names declared on the same spec's `fixture_params`
+  (§2.7, materialized unprefixed). The resolver prefixes each `model_by`
+  entry with `param_` unless it matches a `fixture_params` key, so spec
+  authors keep writing logical names. Output CSVs (`results.csv`,
+  `new_gas.csv`) carry the resolved column name — `param_opcode` for a raw
+  parsed param, `update` for a derived one. The pipeline groups fixtures by
+  every distinct combination of these values and fits one model per group.
+  Same scalar→list normalization and empty-string rejection as `filter_by`.
 - `model_params` — maps regression coefficient name → gas parameter name.
   - `target_coef` (reserved) maps the coefficient on `opcount` (i.e. the price
     of the target opcode).
   - Every other key must be a fixture-param name (raw or derived); that param
-    multiplies `opcount` in the regression (see §4).
+    multiplies `opcount` in the regression (see §4). The fitter resolves the
+    key against the per-spec slice at fit time, trying the literal name first
+    (derived column) and falling back to `param_<key>` (raw parsed param).
+    The output coefficient column (`<key>_runtime_ms`, etc.) uses the literal
+    name in either case.
 - `fixture_params` — optional. Declares derived fixture-param columns built
   from raw parsed params (rename and/or value remap) so one regression recipe
   can consume tests that name the same concept differently. Full semantics in
@@ -573,9 +582,15 @@ of the raw fixture name and so participate in `filter_by` substring tests.
 Params extracted into named columns on `fixtures_df` for every row:
 
 - Always: `test_name`, `test_file`. Every parsed `key_value` token also lands as
-  its own (string-valued) column — the parser is name-agnostic and does not
-  coerce any specific param to a numeric type. Specs that need a numeric value
-  declare it via `fixture_params:` (§2.7), which handles the coercion per-spec.
+  its own (string-valued) column under the name `param_<key>` — the parser is
+  name-agnostic and does not coerce any specific param to a numeric type. Specs
+  that need a numeric value declare it via `fixture_params:` (§2.7), which
+  handles the coercion per-spec. The `param_` prefix prevents collisions with
+  opcode-mnemonic columns from the opcounts merge: a token like `SSTORE_same`
+  parses to `{SSTORE: same}` under the partition fallback, and without the
+  prefix the resulting `SSTORE` column would clash with the `SSTORE` opcode
+  count and be split into `SSTORE_x`/`SSTORE_y` by the merge. Spec authors
+  write logical names (`opcode`, `mem_size`); the resolver translates them.
 - For each model spec: the params named in `model_by` (one column each) and a
   `filter_by` column built by joining the matched `filter_by` tokens with `-`.
 - `target_opcode` is filled per row by either the literal `target_operation` or by

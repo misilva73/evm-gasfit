@@ -253,7 +253,34 @@ class Config(BaseModel):
             raise ConfigError(
                 "no models to fit: both models.presets and models.custom are empty"
             )
-        self.resolved_models = resolved
+        # Spec authors write natural param names (``opcode``, ``mem_size``);
+        # ``build_fixtures_df`` exposes them as ``param_<key>`` columns so they
+        # can't collide with opcode mnemonics. Mirror that prefix on every spec
+        # field that points at a parsed-param column so downstream code reads
+        # the right column. A ``model_by`` element may instead point at a
+        # derived column (a key in ``fixture_params``) materialized at fit
+        # time — in that case it must stay unprefixed. ``model_params`` keys
+        # are resolved at the use site in ``_build_design`` to handle both
+        # raw-param and derived references.
+        prefixed: list[ModelSpec] = []
+        for spec in resolved:
+            derived = set(spec.fixture_params)
+            updates: dict[str, object] = {}
+            if spec.target_operation_param is not None:
+                updates["target_operation_param"] = (
+                    f"param_{spec.target_operation_param}"
+                )
+            if spec.model_by:
+                updates["model_by"] = [
+                    c if c in derived else f"param_{c}" for c in spec.model_by
+                ]
+            if spec.fixture_params:
+                updates["fixture_params"] = {
+                    k: v.model_copy(update={"source": f"param_{v.source}"})
+                    for k, v in spec.fixture_params.items()
+                }
+            prefixed.append(spec.model_copy(update=updates) if updates else spec)
+        self.resolved_models = prefixed
 
         # 2) Instantiate the fork's GasCosts.
         gc = get_gas_costs(self.gas_costs.fork)

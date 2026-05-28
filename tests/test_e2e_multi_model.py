@@ -91,7 +91,7 @@ def test_multi_model_with_target_param_and_groups(tmp_path: Path) -> None:
     assert len(results) == 10
     assert set(results["client_name"]) == set(clients)
     assert set(results["target_opcode"]) == {"ADD", "SUB", "MUL", "BALANCE"}
-    assert {"opcode", "cache_strategy"}.issubset(results.columns)
+    assert {"param_opcode", "param_cache_strategy"}.issubset(results.columns)
 
     for _, row in results.iterrows():
         recovered = float(row["target_coef_runtime_ms"])
@@ -148,7 +148,9 @@ def test_multi_model_with_target_param_and_groups(tmp_path: Path) -> None:
         "selected_opcode",
         "selected_model_coef_name",
     ]
-    model_by_cols = [c for c in ("opcode", "cache_strategy") if c in new_gas.columns]
+    model_by_cols = [
+        c for c in ("param_opcode", "param_cache_strategy") if c in new_gas.columns
+    ]
     for gp in target_params:
         win = new_gas[new_gas["gas_param"] == gp].iloc[0]
         candidates = new_gas_all[new_gas_all["gas_param"] == gp]

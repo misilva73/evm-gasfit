@@ -83,7 +83,7 @@ Plan rules pinned: `target_operation` vs `target_operation_param`; `model_by` gr
 
 | Test | Coverage |
 | --- | --- |
-| `test_multi_model_with_target_param_and_groups` | Two specs run together: (a) `test_arithmetic` with `target_operation_param: opcode` and `model_by: opcode` over `{ADD, SUB, MUL}` → `OPCODE_GENERIC`; (b) `test_account_access` with `target_operation: BALANCE` and `model_by: cache_strategy` over `{NO_CACHE, HOT}` → `GAS_WARM_ACCESS`. Two clients, `output.plots: true`. Asserts: `results.csv` has `(3+2) × 2 = 10` rows; the `opcode` and `cache_strategy` columns appear; every fit's `target_coef_runtime_ms` is within 5% of the planted slope; PNGs exist under `figs/runtime/` and each filename splits into exactly five `__`-joined segments matching the §5.1 contract; runtime report embeds `figs/runtime/`; `new_gas.csv` carries both gas params and the worst-case row equals exactly one row in `new_gas_all_params.csv` on the provenance columns. |
+| `test_multi_model_with_target_param_and_groups` | Two specs run together: (a) `test_arithmetic` with `target_operation_param: opcode` and `model_by: opcode` over `{ADD, SUB, MUL}` → `OPCODE_GENERIC`; (b) `test_account_access` with `target_operation: BALANCE` and `model_by: cache_strategy` over `{NO_CACHE, HOT}` → `GAS_WARM_ACCESS`. Two clients, `output.plots: true`. Asserts: `results.csv` has `(3+2) × 2 = 10` rows; the `param_opcode` and `param_cache_strategy` columns appear (raw parsed-param `model_by` entries land on output CSVs under the `param_` prefix that `fixtures_df` exposes them under, see implementation plan §4.1); every fit's `target_coef_runtime_ms` is within 5% of the planted slope; PNGs exist under `figs/runtime/` and each filename splits into exactly five `__`-joined segments matching the §5.1 contract; runtime report embeds `figs/runtime/`; `new_gas.csv` carries both gas params and the worst-case row equals exactly one row in `new_gas_all_params.csv` on the provenance columns. |
 | `test_multi_feature_regression_recovers_extra_coefficient` | One spec with `model_params: {target_coef: COLD_STORAGE_WRITE, value_sent: STORAGE_WRITE_PER_VALUE}` and a cross product of `value_sent ∈ {"1","5","10"}` × the block-limit grid. Asserts: 1 row in `results.csv`; `target_coef_runtime_ms` ≈ 1.0e-5 and `value_sent_runtime_ms` ≈ 2.0e-6 (both within 5%); the per-feature stat columns are present; `new_gas.csv` carries both gas params. |
 
 Note: the PNG-count assertion was relaxed from `len == 30` (a `3 specs × 2 clients × 3 families` arithmetic check) to "PNGs exist" + per-filename naming check, which is the actual contract. The spot-check on `ADD__test_arithmetic__ADD__geth__{family}.png` still pins the family names.
@@ -151,6 +151,14 @@ Plan rules pinned: when an opcode's `opcode_<X>` token is a prefix of another op
 | Test | Coverage |
 | --- | --- |
 | `test_anchored_filter_excludes_prefix_sibling[add_vs_addmod]` / `[mul_vs_mulmod]` / `[push0_vs_push1]` | Parametrized over the three documented overlap pairs. Synthesizes fixtures for *both* the target opcode and the sibling under one `test_name`, drives the corresponding catalog preset (`arithmetic_add`, `arithmetic_mul`, `stack_push0`), and asserts `results.csv` carries only the target opcode and the recovered slope matches the target's planted value — not the sibling's (5× larger). |
+
+### 2.7d [`tests/test_e2e_param_opcode_collision.py`](../tests/test_e2e_param_opcode_collision.py) — parsed-param column name cannot collide with opcode mnemonic (§4.1)
+
+Plan rules pinned: parsed-param tokens land on `fixtures_df` under the `param_<key>` prefix so they cannot clash with opcode-mnemonic columns from the opcounts merge. Synthesizes fixtures whose parametrization token (`ADD_same` / `ADD_diff`) is parsed under the partition fallback to `{ADD: ...}` — without the prefix the resulting `ADD` column would collide with the `ADD` opcode count and the merge would emit `ADD_x`/`ADD_y`.
+
+| Test | Coverage |
+| --- | --- |
+| `test_parsed_param_does_not_collide_with_opcode_column` | Single spec on `test_arithmetic` with `target_operation: ADD`, `model_by: ADD`, and a parametrization grid over `{ADD: ["same", "diff"]}`. Asserts: `run_pipeline` completes; `results.csv` carries a `param_ADD` column with both values; no `ADD_x` or `ADD_y` columns leak through. |
 
 ### 2.7c [`tests/test_e2e_catalog_smoke.py`](../tests/test_e2e_catalog_smoke.py) — full preset catalog smoke (§2.6)
 

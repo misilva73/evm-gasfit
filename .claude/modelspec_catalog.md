@@ -33,7 +33,12 @@ doesn't also match `opcode_ADDMOD-…` fixtures; the others are verbatim.
    Used for: payload-size sweeps (mem_size, log_size, msg_size, return_size,
    copy_size, calldata_size, size, num_pairs, num_rounds, k, mod_bits), and
    for tests where a SSTORE/MOD variant flag matters
-   (write_new_value/existing_slots, mod_bits).
+   (write_new_value/existing_slots, mod_bits). Presets keep using these
+   logical names; on `fixtures_df` and in the output CSVs they appear under
+   the `param_<name>` prefix (`param_mem_size`, `param_mod_bits`, …) that
+   the parser uses to avoid colliding with opcode-mnemonic columns. Derived
+   names declared via `fixture_params:` (e.g. `update`, `calldata_words`)
+   stay unprefixed.
 5. **One preset per (test, output-gas-param)**: if the same test feeds two
    distinct gas params (e.g. base vs. per-word), it gets two presets that
    share `test_name`+`target_operation` but differ in `model_params`.

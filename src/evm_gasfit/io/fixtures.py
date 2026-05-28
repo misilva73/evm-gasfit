@@ -61,13 +61,15 @@ def build_fixtures_df(
     Returns:
         A pair ``(fixtures_df, match_result)``. ``fixtures_df`` has one row per
         ``(client_name, fixture_name)`` carrying: the original runtime columns,
-        ``test_file`` and ``test_name`` from the parser, one column per parsed
-        key/value param (string-valued — model specs coerce types per-spec via
-        ``fixture_params:``), ``opcount``, and one column per opcode mnemonic
-        appearing in any fixture (missing values filled with 0). Fixtures
-        appearing in only one input are dropped with a single count-only
-        warning per direction on the ``evm_gasfit`` logger; their names are
-        returned on ``match_result`` for downstream export to ``meta.json``.
+        ``test_file`` and ``test_name`` from the parser, one ``param_<key>``
+        column per parsed key/value param (string-valued — model specs coerce
+        types per-spec via ``fixture_params:``; the ``param_`` prefix prevents
+        collisions with opcode mnemonics like ``SSTORE``), ``opcount``, and one
+        column per opcode mnemonic appearing in any fixture (missing values
+        filled with 0). Fixtures appearing in only one input are dropped with a
+        single count-only warning per direction on the ``evm_gasfit`` logger;
+        their names are returned on ``match_result`` for downstream export to
+        ``meta.json``.
     """
     runtimes_fixtures = set(runtimes_df["fixture_name"].unique())
     opcounts_fixtures = set(opcounts.keys())
@@ -90,7 +92,7 @@ def build_fixtures_df(
             "test_file": parsed["test_file"],
             "test_name": parsed["test_name"],
         }
-        row.update(parsed["params"])  # type: ignore[arg-type]
+        row.update({f"param_{k}": v for k, v in parsed["params"].items()})  # type: ignore[arg-type]
         parsed_rows.append(row)
     parsed_df = pd.DataFrame(parsed_rows)
 

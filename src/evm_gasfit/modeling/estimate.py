@@ -157,12 +157,19 @@ def _build_design(
     for coef_name, _gas_param in spec.model_params.items():
         if coef_name == "target_coef":
             continue
-        if coef_name not in df.columns:
+        # A model_params key can reference either a derived column produced by
+        # ``_materialize_derived`` (its natural name) or a raw parsed-param
+        # column (exposed as ``param_<name>`` by ``build_fixtures_df``).
+        if coef_name in df.columns:
+            source_col = coef_name
+        elif f"param_{coef_name}" in df.columns:
+            source_col = f"param_{coef_name}"
+        else:
             raise ModelingError(
                 f"spec test_name={spec.test_name!r}: model_params coefficient "
                 f"{coef_name!r} has no matching fixture-param column"
             )
-        param_vals = df[coef_name].astype(float).to_numpy()
+        param_vals = df[source_col].astype(float).to_numpy()
         if len(set(param_vals.tolist())) <= 1:
             _log.warning(
                 "spec test_name=%r: dropping extra feature %r — single unique value "
