@@ -87,6 +87,32 @@ def _partition_warnings(warnings: list[str]) -> tuple[dict[str, list[str]], list
     return missing_by_test, other
 
 
+def _build_partial_fit_rows(
+    new_gas_all_df: pd.DataFrame,
+) -> list[dict[str, object]]:
+    """Per-param list of clients with no estimation, for params that fit on
+    *some* clients.
+
+    Fully-unresolved params (no client fit) are filtered out — they surface
+    under the ``Unresolved (no fit)`` subsection. Derived/placeholder rows
+    (empty ``client_name``) are likewise excluded.
+    """
+    df = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
+    df = df[df["new_gas_rounded"].notna()]
+    if df.empty:
+        return []
+    clients_seen = sorted(set(df["client_name"].astype(str)))
+    rows: list[dict[str, object]] = []
+    for gas_param in sorted(set(df["gas_param"].astype(str))):
+        fitting_clients = set(
+            df[df["gas_param"] == gas_param]["client_name"].astype(str)
+        )
+        missing = [c for c in clients_seen if c not in fitting_clients]
+        if missing:
+            rows.append({"gas_param": gas_param, "missing_clients": missing})
+    return rows
+
+
 def _build_client_comparison_rows(
     new_gas_all_df: pd.DataFrame,
     fitted_params: list[str],
@@ -262,6 +288,30 @@ def write_proposal_report(
         lines.append("| --- |")
         for _, row in unresolved_df.iterrows():
             lines.append(f"| `{row['gas_param']}` |")
+        lines.append("")
+
+    # Partial fits: gas params with at least one client fit but missing on
+    # others — the proposed value still stands but was selected from a
+    # smaller pool.
+    partial_rows = _build_partial_fit_rows(proposal_output.new_gas_all_df)
+    lines.append("### Partial fits (missing clients)")
+    lines.append("")
+    if not partial_rows:
+        lines.append("_None._")
+        lines.append("")
+    else:
+        lines.append(
+            "These gas parameters were fit by at least one client but not "
+            "by every client — the listed clients produced no estimation, "
+            "so the worst-case value was selected from a smaller pool. "
+            "Inspect the `evm_gasfit` warnings in `meta.json` for the cause."
+        )
+        lines.append("")
+        lines.append("| Gas param | Missing clients |")
+        lines.append("| --- | --- |")
+        for row in partial_rows:
+            missing_cell = ", ".join(f"`{c}`" for c in row["missing_clients"])
+            lines.append(f"| `{row['gas_param']}` | {missing_cell} |")
         lines.append("")
     if missing_by_test or other_warnings:
         if missing_by_test:

@@ -13,6 +13,9 @@ Pins the report layout the user-facing proposal markdown produces:
   gas param with worst + second-worst client values;
 - ``### Unresolved (no fit)`` is a subsection of ``## Warnings`` (always
   present, ``_None._`` body when empty);
+- ``### Partial fits (missing clients)`` is the next subsection inside
+  ``## Warnings``: also always present, listing gas params that fit for at
+  least one client but are missing for others;
 - the per-client bar plot (``figs/proposal/by_client.png``) is no longer
   produced; only ``heatmap.png`` survives.
 """
@@ -250,4 +253,116 @@ def test_anchor_rate_three_sig_fig_smart_format(tmp_path: Path) -> None:
     proposal = (out_dir / "new_gas_proposal.md").read_text()
     assert "123 Mgas/s" in proposal, (
         "anchor_rate=1.234e8 should render as '123 Mgas/s' under 3-sig-fig formatting"
+    )
+
+
+def test_partial_fits_subsection_empty_renders_none(tmp_path: Path) -> None:
+    """When every fitted gas param has an estimation from every client,
+    ``### Partial fits (missing clients)`` still renders, with a ``_None._``
+    body, immediately after ``### Unresolved (no fit)``."""
+    config_yaml, runtimes_csv, opcounts_json, out_dir = _build(
+        tmp_path, anchor_rate=1.0e8, plots=False
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    idx_unresolved = proposal.find("### Unresolved (no fit)")
+    idx_partial = proposal.find("### Partial fits (missing clients)")
+    assert idx_unresolved >= 0 and idx_partial >= 0
+    assert idx_unresolved < idx_partial, (
+        "Partial fits subsection must follow Unresolved inside Warnings"
+    )
+    body = proposal[idx_partial:].split("###", 2)
+    section_body = body[1] if len(body) > 1 else body[0]
+    assert "_None._" in section_body, (
+        "empty Partial fits subsection should render `_None._`"
+    )
+
+
+def test_partial_fits_subsection_lists_missing_client_combos(tmp_path: Path) -> None:
+    """When a gas param fits for some clients but not all, the missing
+    (gas_param, client) combos surface under ``### Partial fits (missing
+    clients)`` as ``| gas_param | missing_clients |`` rows."""
+    import pandas as pd
+
+    add_fixtures = make_block_limit_fixtures(
+        test_file="test_arithmetic",
+        test_name="test_arithmetic",
+        target_opcode="ADD",
+        params={"opcode": "ADD"},
+        target_opcount_per_million=500_000,
+    )
+    sub_fixtures = make_block_limit_fixtures(
+        test_file="test_arithmetic",
+        test_name="test_arithmetic",
+        target_opcode="SUB",
+        params={"opcode": "SUB"},
+        target_opcount_per_million=500_000,
+    )
+    fixtures = list(add_fixtures) + list(sub_fixtures)
+    models = {
+        "geth": ClientModel(intercept=80.0, slope=2.0e-3),
+        "besu": ClientModel(intercept=100.0, slope=3.0e-3),
+        "reth": ClientModel(intercept=90.0, slope=2.2e-3),
+    }
+    config = base_config(
+        plots=False,
+        anchor_rate=1.0e8,
+        models_custom=[
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "ADD",
+                "model_params": {"target_coef": "OPCODE_ADD"},
+            },
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "SUB",
+                "model_params": {"target_coef": "OPCODE_SUB"},
+            },
+        ],
+    )
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=fixtures,
+        models=models,
+        config=config,
+        noise_pct=0.001,
+        seed=5,
+    )
+    # Drop besu's SUB rows so OPCODE_ADD fits on every client but OPCODE_SUB
+    # fits only on geth + reth — the partial-fit scenario the subsection exists
+    # to surface.
+    runtimes = pd.read_csv(runtimes_csv)
+    drop = (runtimes["client_name"] == "besu") & runtimes["fixture_name"].str.contains(
+        "opcode_SUB"
+    )
+    runtimes[~drop].to_csv(runtimes_csv, index=False)
+
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
+
+    proposal = (out_dir / "new_gas_proposal.md").read_text()
+    idx_partial = proposal.find("### Partial fits (missing clients)")
+    assert idx_partial >= 0, "Partial fits subsection missing"
+
+    section_body = proposal[idx_partial:].split("###", 2)[1]
+    # OPCODE_SUB has besu missing; render must call out both the param and
+    # the missing client.
+    sub_row = next(
+        line
+        for line in section_body.splitlines()
+        if line.startswith("|") and "OPCODE_SUB" in line
+    )
+    assert "besu" in sub_row, f"OPCODE_SUB row should list besu as missing: {sub_row!r}"
+    # OPCODE_ADD fits on every client — must not appear in this subsection.
+    assert "OPCODE_ADD" not in section_body, (
+        "OPCODE_ADD has fits for every client; should not be listed as partial"
+    )
+    # OPCODE_SUB still appears in the headline proposed-params table (it has
+    # a value, just from a smaller pool of clients).
+    proposed_section = proposal.split("## Proposed gas parameters", 1)[1].split(
+        "##", 1
+    )[0]
+    assert "OPCODE_SUB" in proposed_section, (
+        "OPCODE_SUB still has fits from geth + reth; it should appear in "
+        "the Proposed gas parameters table"
     )
