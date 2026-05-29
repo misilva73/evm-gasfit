@@ -65,7 +65,7 @@ class GlueAdjustmentSection(BaseModel):
 
     enabled: bool = False
     glue_contribution_p_value_threshold: float = 0.05
-    glue_contribution_rsquared_threshold: float = 0.7
+    glue_contribution_rsquared_threshold: float = 0.5
     ratio_corr_eps: float = 0.05
 
 
@@ -74,7 +74,7 @@ class ModelingSection(BaseModel):
 
     bootstrap_iterations: int = 1000
     poor_fit_p_value_threshold: float = 0.05
-    poor_fit_rsquared_threshold: float = 0.7
+    poor_fit_rsquared_threshold: float = 0.5
     random_seed: int = 42
 
 

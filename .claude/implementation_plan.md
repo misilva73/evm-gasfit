@@ -110,14 +110,14 @@ new_params:
 glue_adjustment:
   enabled: true            # optional, default false
   glue_contribution_p_value_threshold: 0.05  # optional, default 0.05
-  glue_contribution_rsquared_threshold: 0.7  # optional, default 0.7
+  glue_contribution_rsquared_threshold: 0.5  # optional, default 0.5
   ratio_corr_eps: 0.05     # optional, default 0.05 — keep opcodes with corr ≥ 1 − eps
 
 # modeling knobs — all optional
 modeling:
   bootstrap_iterations: 1000        # default 1000
   poor_fit_p_value_threshold: 0.05  # optional, default 0.05
-  poor_fit_rsquared_threshold: 0.7  # optional, default 0.7
+  poor_fit_rsquared_threshold: 0.5  # optional, default 0.5
   random_seed: 42                   # optional, default 42 — controls bootstrap sampling
 
 # output controls
@@ -882,7 +882,7 @@ adjusted_target_coef_runtime_ms = max(0, target_coef_runtime_ms − Σ_i ratio_i
 
 Only glue opcodes whose fit passed both gates contribute: `p_value <
 glue_contribution_p_value_threshold` (default 0.05) **and** `rsquared >=
-glue_contribution_rsquared_threshold` (default 0.7). A glue fit that fails
+glue_contribution_rsquared_threshold` (default 0.5). A glue fit that fails
 either gate has its contribution skipped — the target coefficient is left
 holding that glue's runtime — so a noisy glue fit cannot pull the target
 down on the strength of a slope it never measured reliably. Negative
@@ -930,7 +930,7 @@ Aggregation:
    `(gas_param, client)`, keep the row with the largest `runtime_ms`. Restrict
    the candidate pool to rows that pass **both** fit-quality thresholds —
    `pvalue < poor_fit_p_value_threshold` (config, default 0.05) **and**
-   `rsquared >= poor_fit_rsquared_threshold` (config, default 0.7). If at
+   `rsquared >= poor_fit_rsquared_threshold` (config, default 0.5). If at
    least one row qualifies, pick the max-runtime row from the qualified pool;
    otherwise fall back to the max-runtime row across all candidates and set
    `poor_fit = true` on it (the winner failed either threshold, or both).

@@ -88,7 +88,7 @@ def _write_inputs(tmp_path: Path):
         "beta": ClientModel(intercept=90.0, slope=1.2e-5),
         "gamma": ClientModel(intercept=100.0, slope=1.5e-5),
     }
-    # noise: 0.6 reliably pushes R² below 0.7 for this block-limit grid (the
+    # noise: 0.6 reliably pushes R² below 0.5 for this block-limit grid (the
     # multiplicative noise stays correlated with the planted slope, so the
     # threshold has to overcome ~σ²·E[x²]/Var(x) ≈ 5σ² of residual fraction);
     # 0.003 keeps R² > 0.99.
@@ -147,8 +147,8 @@ def test_poor_fit_section_surfaces_winners_and_losing_candidates(
     poor_winners = add_rows[add_rows["poor_fit"] == True]  # noqa: E712
     assert set(poor_winners["client_name"]) == {"gamma"}
     # The winning row's R² should reflect the actual noisy fit (well below the
-    # 0.7 threshold) rather than a clean fit accidentally carried over.
-    assert poor_winners.iloc[0]["rsquared"] < 0.7
+    # 0.5 threshold) rather than a clean fit accidentally carried over.
+    assert poor_winners.iloc[0]["rsquared"] < 0.5
 
     # Read the proposal markdown and check both subsections render.
     proposal = (out_dir / "new_gas_proposal.md").read_text()

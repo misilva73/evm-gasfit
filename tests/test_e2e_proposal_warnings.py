@@ -261,11 +261,11 @@ def test_poor_fit_glue_opcodes_surface_under_missing_glue_section(
     glue_results = pd.read_csv(out_dir / "glue_results.csv")
     iszero = glue_results[glue_results["glue_opcode"] == "ISZERO"]
     by_client = dict(zip(iszero["client_name"], iszero["rsquared"]))
-    assert by_client["beta"] < 0.7, (
-        f"expected beta's ISZERO fit to fail R² < 0.7, got {by_client['beta']}"
+    assert by_client["beta"] < 0.5, (
+        f"expected beta's ISZERO fit to fail R² < 0.5, got {by_client['beta']}"
     )
-    assert by_client["alpha"] >= 0.7, (
-        f"expected alpha's ISZERO fit to stay above R² ≥ 0.7, got {by_client['alpha']}"
+    assert by_client["alpha"] >= 0.5, (
+        f"expected alpha's ISZERO fit to stay above R² ≥ 0.5, got {by_client['alpha']}"
     )
 
     # The R² gate on compute_glue_adjustment skips beta's ISZERO contribution
