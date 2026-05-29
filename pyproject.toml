@@ -10,6 +10,20 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "Maria Silva", email = "misilva73@gmail.com" }]
+keywords = ["ethereum", "evm", "gas", "nnls", "benchmarking"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "pydantic>=2.0",
     "pyyaml",
@@ -41,6 +55,12 @@ docs = [
 # `uv sync --no-dev` excludes them.
 [dependency-groups]
 dev = ["pytest", "ruff"]
+
+[project.urls]
+Homepage = "https://github.com/misilva73/evm-gasfit"
+Repository = "https://github.com/misilva73/evm-gasfit"
+Documentation = "https://misilva73.github.io/evm-gasfit/"
+Issues = "https://github.com/misilva73/evm-gasfit/issues"
 
 [project.scripts]
 evm-gasfit = "evm_gasfit.cli:main"

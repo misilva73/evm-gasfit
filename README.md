@@ -1,7 +1,7 @@
 # evm-gasfit
 
 [![PyPI version](https://img.shields.io/pypi/v/evm-gasfit.svg)](https://pypi.org/project/evm-gasfit/)
-[![Python versions](https://img.shields.io/pypi/pyversions/evm-gasfit.svg)](https://pypi.org/project/evm-gasfit/)
+[![Python versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://pypi.org/project/evm-gasfit/)
 [![CI](https://github.com/misilva73/evm-gasfit/actions/workflows/ci.yml/badge.svg)](https://github.com/misilva73/evm-gasfit/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-mkdocs-blue.svg)](https://misilva73.github.io/evm-gasfit/)
 [![License: CC0-1.0](https://img.shields.io/badge/license-CC0--1.0-lightgrey.svg)](LICENSE)
