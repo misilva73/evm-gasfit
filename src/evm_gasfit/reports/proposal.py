@@ -137,7 +137,7 @@ def _build_partial_fit_rows(
     *some* clients.
 
     Fully-unresolved params (no client fit) are filtered out — they surface
-    under the ``Unresolved (no fit)`` subsection. Derived/placeholder rows
+    under the ``Missing parameters`` subsection. Derived/placeholder rows
     (empty ``client_name``) are likewise excluded. The expected client
     universe is ``configured_clients`` (from the config), not whichever
     clients happened to produce a fit, so a configured client that produced
@@ -658,10 +658,10 @@ def write_proposal_report(
         plots_enabled=plots_enabled,
     )
 
-    # Warnings (with Unresolved as a subsection — always shown).
+    # Warnings (with Missing parameters as a subsection — always shown).
     lines.append("## Warnings")
     lines.append("")
-    lines.append("### Unresolved (no fit)")
+    lines.append("### Missing parameters")
     lines.append("")
     if unresolved_df.empty:
         lines.append("_None._")
@@ -693,7 +693,7 @@ def write_proposal_report(
     no_fit_clients = _clients_with_no_fits(
         proposal_output.new_gas_all_df, configured_clients
     )
-    lines.append("### Partial fits (missing clients)")
+    lines.append("### Incomplete client coverage")
     lines.append("")
     if not partial_rows and not no_fit_clients:
         lines.append("_None._")

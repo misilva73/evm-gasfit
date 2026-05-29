@@ -11,9 +11,9 @@ Pins the report layout the user-facing proposal markdown produces:
 - a ``## Client comparison`` section sits between ``## Proposed gas
   parameters`` and ``## Warnings`` and contains one row per multi-client
   gas param with worst + second-worst client values;
-- ``### Unresolved (no fit)`` is a subsection of ``## Warnings`` (always
+- ``### Missing parameters`` is a subsection of ``## Warnings`` (always
   present, ``_None._`` body when empty);
-- ``### Partial fits (missing clients)`` is the next subsection inside
+- ``### Incomplete client coverage`` is the next subsection inside
   ``## Warnings``: also always present, listing gas params that fit for at
   least one client but are missing for others;
 - the per-client bar plot (``figs/proposal/by_client.png``) is no longer
@@ -177,7 +177,7 @@ def test_client_comparison_section_present_and_populated(tmp_path: Path) -> None
     idx_proposed = proposal.find("## Proposed gas parameters")
     idx_comparison = proposal.find("## Client comparison")
     idx_warnings = proposal.find("## Warnings")
-    idx_unresolved = proposal.find("### Unresolved (no fit)")
+    idx_unresolved = proposal.find("### Missing parameters")
     assert idx_proposed >= 0 and idx_comparison >= 0
     assert idx_warnings >= 0 and idx_unresolved >= 0
     assert idx_proposed < idx_comparison < idx_warnings < idx_unresolved
@@ -301,16 +301,16 @@ def test_anchor_rate_three_sig_fig_smart_format(tmp_path: Path) -> None:
 
 def test_partial_fits_subsection_empty_renders_none(tmp_path: Path) -> None:
     """When every fitted gas param has an estimation from every client,
-    ``### Partial fits (missing clients)`` still renders, with a ``_None._``
-    body, immediately after ``### Unresolved (no fit)``."""
+    ``### Incomplete client coverage`` still renders, with a ``_None._``
+    body, immediately after ``### Missing parameters``."""
     config_yaml, runtimes_csv, opcounts_json, out_dir = _build(
         tmp_path, anchor_rate=1.0e8, plots=False
     )
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
-    idx_unresolved = proposal.find("### Unresolved (no fit)")
-    idx_partial = proposal.find("### Partial fits (missing clients)")
+    idx_unresolved = proposal.find("### Missing parameters")
+    idx_partial = proposal.find("### Incomplete client coverage")
     assert idx_unresolved >= 0 and idx_partial >= 0
     assert idx_unresolved < idx_partial, (
         "Partial fits subsection must follow Unresolved inside Warnings"
@@ -386,7 +386,7 @@ def test_partial_fits_subsection_lists_missing_client_combos(tmp_path: Path) -> 
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
-    idx_partial = proposal.find("### Partial fits (missing clients)")
+    idx_partial = proposal.find("### Incomplete client coverage")
     assert idx_partial >= 0, "Partial fits subsection missing"
 
     section_body = proposal[idx_partial:].split("###", 2)[1]
@@ -415,7 +415,7 @@ def test_partial_fits_subsection_lists_missing_client_combos(tmp_path: Path) -> 
 
 def test_partial_fits_subsection_calls_out_clients_with_no_fits(tmp_path: Path) -> None:
     """A client declared in ``config.clients`` but absent from the runtimes
-    CSV surfaces under ``### Partial fits (missing clients)`` as a dedicated
+    CSV surfaces under ``### Incomplete client coverage`` as a dedicated
     ``Clients with no estimations at all`` callout (in addition to appearing
     in every per-param row, since it has zero fits anywhere)."""
     fixtures = make_block_limit_fixtures(
@@ -463,7 +463,7 @@ def test_partial_fits_subsection_calls_out_clients_with_no_fits(tmp_path: Path) 
     run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir)
 
     proposal = (out_dir / "new_gas_proposal.md").read_text()
-    idx_partial = proposal.find("### Partial fits (missing clients)")
+    idx_partial = proposal.find("### Incomplete client coverage")
     assert idx_partial >= 0, "Partial fits subsection missing"
     section_body = proposal[idx_partial:].split("###", 2)[1]
 

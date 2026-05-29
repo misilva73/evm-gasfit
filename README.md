@@ -48,7 +48,7 @@ models:
 
 `clients` is required: only rows whose `client_name` matches an entry here are
 kept from the runtimes CSV, and a configured client that produced no fits at
-all surfaces in the proposal report's `Partial fits (missing clients)` section.
+all surfaces in the proposal report's `Incomplete client coverage` section.
 
 Any gas-param name that the model proposes but the fork's `GasCosts` doesn't
 already define must be declared up front under `new_params`. The value is
@@ -123,8 +123,8 @@ Everything else is internal. See the rendered API reference at
   one column per client, cells = proposed gas); the cell the per-client
   selector picked as that client's worst-case is highlighted (outlined on the
   heatmap, bolded in the markdown-table fallback), and a warnings section
-  containing `Unresolved (no fit)`
-  (proposed names that produced no value), `Partial fits (missing clients)`
+  containing `Missing parameters`
+  (proposed names that produced no value), `Incomplete client coverage`
   (proposed names fit for some clients but missing on others),
   `Missing glue opcodes`, and `Other`. A trailing `Poor-fit selections`
   section flags winning fits whose p-value or R² crossed the
