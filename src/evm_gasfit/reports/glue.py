@@ -83,9 +83,7 @@ def _emit_opcode_block(
     show_summary: bool,
 ) -> None:
     """Write the per-opcode collapsible (headline summary + plots)."""
-    nobs_cell = (
-        str(int(row["nobs"])) if not pd.isna(row.get("nobs")) else "n/a"
-    )
+    nobs_cell = str(int(row["nobs"])) if not pd.isna(row.get("nobs")) else "n/a"
     summary_line = (
         f"<code>{glue_opcode}</code> · "
         f"nobs={nobs_cell} · "

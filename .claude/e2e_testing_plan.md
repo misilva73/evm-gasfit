@@ -5,8 +5,8 @@ and the e2e suite under [tests/](../tests/). It enumerates every test file, ever
 test function, and the plan rules each one pins down. When a behavior rule in
 the plan moves, the corresponding tests here move with it.
 
-Tests are the executable spec. There is no production code yet; each test fails
-until the pipeline piece it exercises lands.
+Tests are the executable spec. When a behavior rule changes, update the failing
+test first, watch it fail against the current code, then make it pass.
 
 ---
 
