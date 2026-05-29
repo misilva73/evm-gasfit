@@ -7,10 +7,6 @@ config, a CSV of per-client runtime measurements, and a JSON of opcode counts,
 it fits NNLS regressions over the runtimes, applies an optional glue-opcode
 adjustment, and produces a gas-cost proposal as CSV and Markdown artifacts.
 
-This is a port of
-[misilva73/evm-gas-repricings](https://github.com/misilva73/evm-gas-repricings)
-packaged as a reusable library.
-
 ## Install
 
 For development (editable + test tools):
