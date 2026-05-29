@@ -85,7 +85,7 @@ runtimes data is offering to *propose*.
 - `OPCODE_CODECOPY_PER_WORD` — from `test_codecopy_benchmark` (same reasoning)
 - `OPCODE_MCOPY_PER_WORD` — from `test_mcopy` (same reasoning)
 - `COLD_ACCOUNT_NOCODE_ACCESS` — from `cold_account_nocode_access` (fallback ships a single `COLD_ACCOUNT_ACCESS = 2600`; the upstream EIP-8038 proposal splits cold account access by whether the target carries code)
-- `COLD_ACCOUNT_CODE_ACCESS` — from `cold_account_code_access_*` (same reasoning as `COLD_ACCOUNT_NOCODE_ACCESS`)
+- `COLD_ACCOUNT_CODE_ACCESS` — from `cold_account_code_access` (same reasoning as `COLD_ACCOUNT_NOCODE_ACCESS`)
 - `ACCOUNT_WRITE` — from the `update` extra coefficient on the `cold_account_*` presets (osaka ships no per-account-write field today; the upstream proposal introduces one)
 - `STORAGE_WRITE` — from the `update` extra coefficient on `cold_storage_sstore` (osaka ships `COLD_STORAGE_WRITE = 5000`; the rename drops the `COLD_` prefix because the coefficient is fitted from the per-update marginal cost rather than from a cold-vs-warm contrast)
 
@@ -274,7 +274,7 @@ presets below enumerate the *included* values as separate entries.
 | `cold_storage_sload` | `test_sload_bloated` | `SLOAD` (`filter_by: ["CacheStrategy.NO_CACHE"]`) | `[existing_slots]` | `COLD_STORAGE_ACCESS` |
 | `cold_storage_sstore` | `test_sstore_bloated` | `SSTORE` (`filter_by: ["CacheStrategy.NO_CACHE"]`) | `[existing_slots]` | `target_coef: COLD_STORAGE_ACCESS`, `update: STORAGE_WRITE` (via `fixture_params.update = {source: write_new_value, values: {False: 0, True: 1}}`) |
 | `cold_account_nocode_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT"]`) | `[opcode, account_mode]` | `target_coef: COLD_ACCOUNT_NOCODE_ACCESS`, `update: ACCOUNT_WRITE` (via `fixture_params.update = {source: value_sent}`) |
-| `cold_account_code_access_existing_contract` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "AccountMode.EXISTING_CONTRACT"]`) | `[opcode]` | `target_coef: COLD_ACCOUNT_CODE_ACCESS`, `update: ACCOUNT_WRITE` (via `fixture_params.update = {source: value_sent}`) |
+| `cold_account_code_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA"]`) | `[opcode, account_mode]` | `target_coef: COLD_ACCOUNT_CODE_ACCESS`, `update: ACCOUNT_WRITE` (via `fixture_params.update = {source: value_sent}`) |
 | `account_codecopy` | `test_codecopy_benchmark` | `CODECOPY` | `[code_size, mem_size]` | `target_coef: OPCODE_CODECOPY_BASE`, `code_words: OPCODE_CODECOPY_PER_WORD` (via `fixture_params.code_words = {source: code_size, transform: bytes_to_words}`) |
 | `account_codesize` | `test_codesize` | `CODESIZE` | — | `OPCODE_CODESIZE` |
 | `account_selfbalance` | `test_selfbalance` | `SELFBALANCE` | — | `OPCODE_SELFBALANCE` |
@@ -302,18 +302,14 @@ Notes:
   two into `new_gas.csv`. For `cold_storage_sstore`, `update` (derived from
   `write_new_value`) still varies inside each `existing_slots` group, so the
   per-fit `STORAGE_WRITE` coefficient remains identifiable.
-- **`account_mode` enumeration and divergence from upstream.** Upstream
-  filters are `account_mode != EXISTING_CONTRACT` (NOCODE pool:
-  `NON_EXISTING_ACCOUNT` + `EXISTING_EOA`) and `account_mode != EXISTING_EOA`
-  (CODE pool: `NON_EXISTING_ACCOUNT` + `EXISTING_CONTRACT`). The NOCODE
-  preset matches upstream via `filter_by: ["!AccountMode.EXISTING_CONTRACT"]`
-  and exposes `account_mode` on `model_by` so NNLS fits one model per
-  included mode; the §4.6 worst-case selection picks the slower. The CODE
-  preset deviates from upstream: `NON_EXISTING_ACCOUNT` is dropped because
-  that variant of `test_account_access` creates an EOA-shaped (codeless)
-  target — it does not represent a cold access to a code-bearing account.
-  CODE is therefore fed by `EXISTING_CONTRACT` only (positive filter, no
-  `account_mode` model_by needed since the slice is single-valued).
+- **`account_mode` enumeration.** Upstream filters are
+  `account_mode != EXISTING_CONTRACT` (NOCODE pool: `NON_EXISTING_ACCOUNT` +
+  `EXISTING_EOA`) and `account_mode != EXISTING_EOA` (CODE pool:
+  `NON_EXISTING_ACCOUNT` + `EXISTING_CONTRACT`). Both presets mirror upstream:
+  NOCODE via `filter_by: ["!AccountMode.EXISTING_CONTRACT"]`, CODE via
+  `filter_by: ["!AccountMode.EXISTING_EOA"]`. Each exposes `account_mode` on
+  `model_by` so NNLS fits one model per included mode; the §4.6 worst-case
+  selection picks the slower.
 - **Filter tokens use the EEST enum stringification.** EEST renders
   `cache_strategy` and `account_mode` parameters as
   `cache_strategy_CacheStrategy.<VALUE>` and

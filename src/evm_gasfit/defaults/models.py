@@ -476,11 +476,11 @@ PRESETS: dict[str, ModelSpec] = {
             "update": "ACCOUNT_WRITE",
         },
     ),
-    "cold_account_code_access_existing_contract": ModelSpec(
+    "cold_account_code_access": ModelSpec(
         test_name="test_account_access",
         target_operation_param="opcode",
-        filter_by=["CacheStrategy.NO_CACHE", "AccountMode.EXISTING_CONTRACT"],
-        model_by=["opcode"],
+        filter_by=["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA"],
+        model_by=["opcode", "account_mode"],
         fixture_params={"update": FixtureParamSpec(source="value_sent")},
         model_params={
             "target_coef": "COLD_ACCOUNT_CODE_ACCESS",

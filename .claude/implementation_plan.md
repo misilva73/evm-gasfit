@@ -433,7 +433,7 @@ account/storage/state, hashing, system, and all bn128 / bls12-381 precompiles):
 | Preset name | `test_name` | Target opcode | Writes |
 | --- | --- | --- | --- |
 | `arithmetic_add` | `test_arithmetic` | `ADD` (anchored `filter_by: [opcode_ADD-]`) | `OPCODE_ADD` |
-| `cold_account_code_access_existing_contract` | `test_account_access` | param `opcode` | `COLD_ACCOUNT_CODE_ACCESS`, `ACCOUNT_WRITE` |
+| `cold_account_code_access` | `test_account_access` | param `opcode` | `COLD_ACCOUNT_CODE_ACCESS`, `ACCOUNT_WRITE` |
 | `cold_storage_sload` | `test_sload_bloated` | `SLOAD` | `COLD_STORAGE_ACCESS` |
 | `keccak` | `test_keccak_diff_mem_msg_sizes` | `KECCAK256` | `OPCODE_KECCAK256_BASE`, `OPCODE_KECCAK256_PER_WORD` (via `bytes_to_words`) |
 | `precompile_bls_g1add` | `test_bls12_381` | `BLS12_G1ADD` (count via `STATICCALL`) | `PRECOMPILE_BLS_G1ADD` |
