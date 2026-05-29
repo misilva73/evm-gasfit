@@ -4,6 +4,8 @@ site_description: Estimate worst-case EVM gas costs from runtime measurements.
 theme:
   name: material
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.top
     - content.code.copy
@@ -25,6 +27,9 @@ theme:
 
 plugins:
   - search
+  - gen-files:
+      scripts:
+        - gen_presets.py
   - mkdocstrings:
       handlers:
         python:
@@ -41,8 +46,20 @@ plugins:
             merge_init_into_class: true
 
 nav:
-  - Overview: index.md
-  - API reference: api.md
+  - Overview:
+      - Home: index.md
+      - Install & quickstart: guides/quickstart.md
+  - Guides:
+      - Writing custom ModelSpecs: guides/custom-modelspecs.md
+      - Reading the outputs: guides/outputs.md
+  - Concepts:
+      - NNLS modeling: concepts/nnls.md
+      - Glue adjustment: concepts/glue.md
+      - Deriving gas params: concepts/gas-params.md
+  - Reference:
+      - Config (YAML): reference/config.md
+      - Preset catalog: reference/presets.md
+      - API: api.md
 
 markdown_extensions:
   - admonition
@@ -54,3 +71,10 @@ markdown_extensions:
       anchor_linenums: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
