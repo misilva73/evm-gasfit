@@ -175,6 +175,13 @@ def test_poor_fit_section_surfaces_winners_and_losing_candidates(
     assert "gamma" in losers_block
     assert "_None._" not in losers_block.split("##", 2)[0]
 
+    # The losers section renders one ``<details>`` block per affected
+    # gas_param with the new ``Combo`` column. Both specs in this test
+    # carry no ``model_by`` fields, so the combo cell collapses to ``—``.
+    assert "<summary><code>OPCODE_ADD</code>" in losers_block
+    assert "| Test | Target opcode | Coef | Combo | Failing clients |" in losers_block
+    assert "| — |" in losers_block
+
 
 def test_poor_fit_section_renders_none_when_all_fits_clean(tmp_path: Path) -> None:
     """A clean run leaves both Poor-fit subsections at ``_None._``."""

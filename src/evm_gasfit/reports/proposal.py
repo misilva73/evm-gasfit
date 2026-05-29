@@ -276,7 +276,15 @@ def _render_weak_losers_table(
     ``_weak_losing_candidates``), so iterating gas_params in first-appearance
     order yields declaration order.
     """
-    model_by_cols = [c for c in rows_df.columns if c not in _PROVENANCE_NON_ID_COLS]
+    # ``test_name`` / ``target_opcode`` / ``model_coef_name`` already get their
+    # own columns in the rendered table, so exclude them from the ``model_by``
+    # axis even though they're not in ``_PROVENANCE_NON_ID_COLS``.
+    fixed_id_cols = {"test_name", "target_opcode", "model_coef_name"}
+    model_by_cols = [
+        c
+        for c in rows_df.columns
+        if c not in _PROVENANCE_NON_ID_COLS and c not in fixed_id_cols
+    ]
 
     seen_params: list[str] = []
     for gp in rows_df["gas_param"].astype(str):
@@ -298,9 +306,7 @@ def _render_weak_losers_table(
         group_cols = ["test_name", "target_opcode", "model_coef_name", *varying]
         combo_to_clients: dict[tuple[str, ...], dict[str, str]] = {}
         for _, row in block.iterrows():
-            key = tuple(
-                str(row[c]) if pd.notna(row[c]) else "" for c in group_cols
-            )
+            key = tuple(str(row[c]) if pd.notna(row[c]) else "" for c in group_cols)
             label = _poor_fit_failure_label(
                 row["pvalue"], row["rsquared"], pv_thresh, r2_thresh
             )
@@ -320,16 +326,12 @@ def _render_weak_losers_table(
             test_name, target_opcode, coef = key[0], key[1], key[2]
             combo_vals = key[3:]
             if varying:
-                parts = [
-                    f"`{c}={v}`" for c, v in zip(varying, combo_vals) if v
-                ]
+                parts = [f"`{c}={v}`" for c, v in zip(varying, combo_vals) if v]
                 combo_cell = " / ".join(parts) if parts else "—"
             else:
                 combo_cell = "—"
             clients = combo_to_clients[key]
-            clients_cell = ", ".join(
-                f"`{c}` ({clients[c]})" for c in sorted(clients)
-            )
+            clients_cell = ", ".join(f"`{c}` ({clients[c]})" for c in sorted(clients))
             lines.append(
                 f"| `{test_name}` | `{target_opcode}` | `{coef}` | "
                 f"{combo_cell} | {clients_cell} |"
