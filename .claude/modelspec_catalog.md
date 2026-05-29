@@ -513,36 +513,5 @@ behavior on the existing test inputs is unchanged.
 
 ## Deferred to future iteration
 
-These tests are present in the input runtimes but have no preset in this
-proposal. They need a follow-up round of design before landing:
-
-- [ ] **`test_log_benchmark`** — sweeps LOG0…LOG4 and should write both
-  `OPCODE_LOG_BASE` and `OPCODE_LOG_TOPIC`. A single preset using
-  `target_operation_param: opcode` routes every LOGn fit to the same
-  `OPCODE_LOG_BASE` gas-param, so the per-gas-param worst-case selection ends
-  up returning LOG4's value (= base + 4·topic), not the base. Recovering
-  `OPCODE_LOG_TOPIC` via `derived:` also doesn't work because `derived:`
-  formulas evaluate over gas-param names, not over per-`target_opcode` fit
-  rows. Defer until we agree on a shape — likely either (a) five distinct
-  gas-params (`OPCODE_LOG0_BASE`…`OPCODE_LOG4_BASE`) with `derived:` formulas
-  recovering `OPCODE_LOG_BASE` and `OPCODE_LOG_TOPIC`, or (b) a single preset
-  restricted to LOG0 plus a separate mechanism for the per-topic step.
-- [ ] **`test_modexp_uncachable`** — would write a new
-  `PRECOMPILE_MODEXP_BASE` (and likely per-`mod_odd_*` coefficients). The
-  EIP-2565 modexp pricing formula is complex (depends on base/exponent/
-  modulus lengths and an exponent-leading-bit term), so a single linear NNLS
-  fit against `mod_odd_32b_exp / 64b / 128b` model_by columns may
-  under-specify what the proposal should write. Defer until we agree on
-  which gas params modexp should propose.
-- [ ] **`test_bls12_pairing`** and **`test_bls12_pairing_uncachable`** —
-  would write `PRECOMPILE_BLS_PAIRING_BASE` (+ `_PER_POINT`). The
-  obvious recipe mirrors the bn128 pairing presets (`model_by: []` plus
-  `model_params: {target_coef: BASE, num_pairs: PER_POINT}`), but the
-  base/per-point split is not yet validated against the EEST fixture
-  shape. Defer until we settle that.
-- [ ] **`test_ether_transfers_onchain_receivers`** — a whole-tx-cost test;
-  the `opcount == target_opcode_count` invariant won't hold cleanly when
-  the chosen `target_operation` is the per-tx `STOP` (or anything else).
-  Reconsider once the catalog has a `model_kind: per_transaction`
-  affordance (or equivalent) that lets the regression skip the opcount
-  invariant for whole-tx tests.
+Tests present in the input runtimes that don't yet have a preset are tracked
+as GitHub issues — see the open issues on the repository.
