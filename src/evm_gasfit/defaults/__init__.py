@@ -19,15 +19,29 @@ from ._fallback import get_fallback, known_forks
 
 _log = logging.getLogger(__name__)
 
+
+def _probe_execution_specs() -> bool:
+    """Return True iff ``ethereum/execution-specs`` is importable.
+
+    Probes via a real ``import`` of a canary fork module so the result respects
+    any ``sys.modules`` overrides (used in tests). ``execution-specs`` ships
+    every fork together, so one fork's presence is a faithful proxy for the
+    whole package.
+    """
+    try:
+        import ethereum.osaka.vm.gas  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 # Probe the optional extra once at import time; the whole run uses one source.
 _USE_FALLBACK = os.environ.get("EVM_GASFIT_USE_FALLBACK") == "1"
-if _USE_FALLBACK:
+if _USE_FALLBACK or not _probe_execution_specs():
     _from_specs = None
 else:
-    try:
-        from ._from_execution_specs import get_from_execution_specs as _from_specs
-    except ImportError:
-        _from_specs = None
+    from ._from_execution_specs import get_from_execution_specs as _from_specs
 
 
 @dataclass

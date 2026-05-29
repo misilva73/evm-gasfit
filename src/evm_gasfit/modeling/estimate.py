@@ -219,6 +219,16 @@ def _fit_or_skip(
             client,
         )
         return None
+    feature_matrix = design[features].to_numpy(dtype=float)
+    design_with_const = np.column_stack([np.ones(len(feature_matrix)), feature_matrix])
+    if np.linalg.matrix_rank(design_with_const) < design_with_const.shape[1]:
+        _log.warning(
+            "spec test_name=%r group=%s client=%s: design matrix is rank-deficient, skipping",
+            spec.test_name,
+            group_label,
+            client,
+        )
+        return None
     try:
         return fit_nnls(
             design,

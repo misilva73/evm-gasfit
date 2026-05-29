@@ -674,8 +674,11 @@ contributes no row to `results.csv`:
   intercept among features).
 - Design matrix is rank-deficient (e.g. two features are perfectly collinear
   on the filtered fixtures).
-- `opcount` is constant across the filtered rows (kills `target_coef`).
-- `opcount` is identically zero across the filtered rows.
+- `opcount` is constant across the filtered rows (kills `target_coef`). The
+  *identically-zero* case is a stronger condition than this — it is rejected
+  earlier as a `ConfigError` by the §2.3 input invariant (a fixture with
+  `opcount == 0` for its target opcode does not belong in the group), so it
+  never reaches the fit-or-skip path.
 - `scipy.optimize.nnls` itself raises (numerical convergence failure).
 
 If every fit for the entire run is skipped, the run produces zero rows in
