@@ -341,7 +341,7 @@ Notes:
 
 | Preset | `test_name` | Target | `model_by` | Writes |
 | --- | --- | --- | --- | --- |
-| `keccak` | `test_keccak_diff_mem_msg_sizes` | `KECCAK256` | `[msg_size, mem_size]` | `target_coef: OPCODE_KECCAK256_BASE`, `msg_words: OPCODE_KECCAK256_PER_WORD` (via `fixture_params.msg_words = {source: msg_size, transform: bytes_to_words}`) |
+| `keccak` | `test_keccak_diff_mem_msg_sizes` | `KECCAK256` | `[mem_size]` | `target_coef: OPCODE_KECCAK256_BASE`, `msg_words: OPCODE_KECCAK256_PER_WORD` (via `fixture_params.msg_words = {source: msg_size, transform: bytes_to_words}`) |
 
 `test_log_benchmark` (LOG0…LOG4) is deferred — see "Deferred to future
 iteration" below.
@@ -389,13 +389,15 @@ not appear as a fixture token.
 Notes:
 
 - **Per-word coefficients are fit directly.** SHA256, RIPEMD160, IDENTITY,
-  KECCAK256, and all `*COPY` per-word coefficients use the same recipe: a
-  single regression across the whole size sweep (`model_by: []`) with
+  KECCAK256, and all `*COPY` per-word coefficients use the same recipe:
   `model_params.target_coef` mapped to the BASE gas-param and a derived
   `*_words` coefficient mapped to the PER_WORD gas-param via
   `fixture_params.<name> = {source: <size column>, transform: bytes_to_words}`.
-  This requires the `transform` schema extension noted at the top of this
-  document.
+  The size-sweep column (`size`, `msg_size`, `copy_size`, …) must not appear
+  in `model_by` — pooling across it is what gives the per-word feature the
+  variation NNLS needs. Other grouping dimensions are fine (e.g. `keccak`
+  groups by `mem_size`). This requires the `transform` schema extension noted
+  at the top of this document.
 - **BLAKE2F filler base.** EIP-152 prices BLAKE2F entirely per-round, so
   `PRECOMPILE_BLAKE2F_BASE` is shipped at `0` in the osaka fallback. The
   catalog still has to declare a `target_coef` slot because the NNLS recipe

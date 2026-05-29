@@ -526,7 +526,7 @@ PRESETS: dict[str, ModelSpec] = {
     "keccak": ModelSpec(
         test_name="test_keccak_diff_mem_msg_sizes",
         target_operation="KECCAK256",
-        model_by=["msg_size", "mem_size"],
+        model_by=["mem_size"],
         fixture_params={"msg_words": _bytes_to_words("msg_size")},
         model_params={
             "target_coef": "OPCODE_KECCAK256_BASE",
