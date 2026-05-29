@@ -233,18 +233,13 @@ Plan rules pinned: the headline ordering, column headers, diff-cell rendering, s
 
 Earlier waves of the suite split warnings, sentinel rendering, and missing-glue detection into three sibling files for "fail-independence." That guarantee is now provided by `@pytest.mark.parametrize` on a single test surface, so [`test_e2e_proposal_warnings.py`](../tests/test_e2e_proposal_warnings.py) carries all three concerns. Each test still fails in isolation if the corresponding implementation surface drifts.
 
-Several rules previously left as "open consistency questions" remain open at the assertion boundary:
+A handful of conventions remain shapes worth preserving as the codebase evolves — refactors should keep these stable, and tests should keep asserting them:
 
-- `glue_results.csv` client column name (`client_name` assumed, not `client`).
-- `runtime_ms` semantics on `new_gas_all_params.csv` post-adjustment when glue is on (the §4.5 conversion is treated as the binding contract).
-- `ModelingError` granularity for empty-spec-only runs (CLI test asserts exit 2).
-- `poor_fit` dtype (boolean or stringified bool — assertion accepts either).
-- `evm_gasfit` package logger naming (tests scope `caplog` to that logger or descendants).
-- "no prior default" literal phrasing (case-insensitive substring match).
-- Warnings section heading depth in `new_gas_proposal.md` (matches `#+\s*Warnings`).
-- `new_gas.csv` diff/current-default column names (tests are defensive across both CSV and markdown).
+- **Logger tree.** `evm_gasfit` is the root; per-area children (`evm_gasfit.estimate`, `evm_gasfit.glue`, `evm_gasfit.defaults`, `evm_gasfit.reports`) emit their own records and propagate up. Tests `caplog`-scope to the parent or a specific descendant; both work. Don't collapse the tree to a single logger, and don't add siblings outside the `evm_gasfit.*` namespace.
+- **`runtime_ms` on `new_gas_all_params.csv` is post-glue-adjustment** for the target-coef row (see [`proposal/aggregate.py`](../src/evm_gasfit/proposal/aggregate.py)). The §4.5 conversion `new_gas_decimal == anchor_rate · runtime_ms / 1000` is the binding contract; tests rely on this equality.
+- **`poor_fit` is written as a Python bool** ([`proposal/aggregate.py`](../src/evm_gasfit/proposal/aggregate.py)); pandas `read_csv` round-trips it back to bool (auto-inferred), so tests compare with `== True` / `== False`. If the writer ever changes to write `0`/`1` or strings, the comparisons here break by design — surface that, don't paper over it.
 
-When the implementation pins any of the above, tighten the matching assertion to the exact value.
+Items previously listed here as "open" are now pinned by code: `client_name` is the canonical client column in [`glue_results.csv`](../src/evm_gasfit/glue/estimate.py); `"no prior default"` is the literal `SENTINEL` in [`reports/proposal.py`](../src/evm_gasfit/reports/proposal.py); `## Warnings` is the depth-2 heading; `ModelingError` always exits 2 via [`cli.py`](../src/evm_gasfit/cli.py); `new_gas.csv` carries no `current_gas` column — the diff baseline is applied at markdown-render time.
 
 ---
 
@@ -276,13 +271,15 @@ When the implementation pins any of the above, tighten the matching assertion to
 
 ---
 
-## 5. Deferred (unit-test material)
+## 5. Unit-test surfaces
 
-The following sad paths are intentionally not e2e tests. They exercise a single module's behavior and belong as unit tests once `evm_gasfit/io/`, `evm_gasfit/modeling/`, and `evm_gasfit/proposal/` stabilize.
+The following sad paths are intentionally not e2e tests — each exercises a single module's behavior in isolation, and is pinned by a dedicated suite under [tests/](../tests/):
 
-- §4.2 fit failure modes — rank-deficient design, constant `opcount`, scipy convergence failure — each skip a fit with a warning, run continues.
-- §4.6 tie-break order (per-client `runtime_ms`, then `pvalue`, then lexicographic; across-client by ascending `client_name`).
-- §2.4 gas-cost source selection (`ethereum/execution-specs` vs. `_fallback.py`) and the `EVM_GASFIT_USE_FALLBACK=1` env-var override.
+- §4.2 fit failure modes (`nobs < n_features + 1`, rank-deficient design, constant `opcount`, scipy convergence failure, bootstrap-iteration failure, all-skipped → `ModelingError`) → [`tests/test_unit_nnls_failures.py`](../tests/test_unit_nnls_failures.py).
+- §4.6 tie-break order (per-client `runtime_ms` → `pvalue` → lexicographic on `(test_name, target_opcode, model_coef_name, model_by-combo)`; across-client by ascending `client_name`), each with an order-independence counter-test → [`tests/test_unit_aggregate_tie_break.py`](../tests/test_unit_aggregate_tie_break.py).
+- §2.4 gas-cost source selection (`ethereum/execution-specs` vs. `_fallback.py`) and the `EVM_GASFIT_USE_FALLBACK=1` env-var override → [`tests/test_unit_defaults_source.py`](../tests/test_unit_defaults_source.py).
+
+Identically-zero `opcount` is rejected earlier by the §2.3 input invariant as a `ConfigError` (CLI exit 1), not via the fit-skip path; the NNLS suite's `[zero]` parametrize branch covers that route.
 
 ---
 
