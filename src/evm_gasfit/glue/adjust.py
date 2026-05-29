@@ -2,10 +2,13 @@
 
 For every ``(test_name, target_opcode, *model_by, client)`` row in
 ``results_df``, subtract the contribution of every priced glue opcode that
-correlates with the target on that test group: ratio × glue_runtime_ms. Only
-glue opcodes whose per-client p-value is below ``p_threshold`` contribute.
-Negative adjusted coefficients are clipped to zero, and the CI bounds are
-shifted by the same amount and clipped identically.
+correlates with the target on that test group: ratio × glue_runtime_ms. A
+glue opcode's contribution is included only when its per-client fit passed
+both quality gates — ``p_value < p_threshold`` and ``rsquared >= r2_threshold``
+— so a noisy glue fit cannot pull the target coefficient down on the
+strength of a slope it never measured reliably. Negative adjusted
+coefficients are clipped to zero, and the CI bounds are shifted by the
+same amount and clipped identically.
 """
 
 from __future__ import annotations
@@ -38,6 +41,7 @@ def compute_glue_adjustment(
     glue_results_df: pd.DataFrame,
     glue_opcodes_by_test_df: pd.DataFrame,
     p_threshold: float,
+    r2_threshold: float,
 ) -> pd.DataFrame:
     """Compute per-row glue adjustment plus the clipped target coefficient.
 
@@ -69,8 +73,15 @@ def compute_glue_adjustment(
                 if glue_row.empty:
                     continue
                 pval = float(glue_row.iloc[0]["p_value"])
+                r2 = float(glue_row.iloc[0]["rsquared"])
                 glue_ms = float(glue_row.iloc[0]["glue_runtime_ms"])
-                if np.isnan(pval) or np.isnan(glue_ms) or pval >= p_threshold:
+                if (
+                    np.isnan(pval)
+                    or np.isnan(r2)
+                    or np.isnan(glue_ms)
+                    or pval >= p_threshold
+                    or r2 < r2_threshold
+                ):
                     continue
                 adjustment += float(cand["ratio"]) * glue_ms
 

@@ -227,6 +227,7 @@ def _mixed_fit(
     glue_by_test_df: pd.DataFrame,
     allowed_partner_tiers: frozenset[str],
     p_threshold: float,
+    r2_threshold: float,
 ) -> NNLSResults | None:
     """Single-feature NNLS with the LHS pre-adjusted by priced upstream partners."""
     slice_df = _slice_for_spec(fixtures_df, client, spec)
@@ -247,20 +248,25 @@ def _mixed_fit(
         return None
 
     adjusted = slice_df["test_runtime_ms"].astype(float).to_numpy().copy()
-    # Each candidate partner contributes only if its per-client fit is
-    # available with finite, significant stats. Missing or non-significant
-    # partners are skipped silently — the omission is already auditable via
-    # the partner's row in ``glue_results.csv`` (NaN means no fit, p_value
-    # there records significance).
+    # Each candidate partner contributes only if its per-client fit passed
+    # both the p-value and R² gates. Missing partners or partners that fail
+    # either gate are skipped silently — the omission is already auditable
+    # via the partner's row in ``glue_results.csv`` (NaN means no fit,
+    # ``p_value`` and ``rsquared`` there record the gates).
     for partner_name in _select_partners(glue_by_test_df, spec, allowed_partner_tiers):
         partner_fit = fits.get((client, partner_name))
         if partner_fit is None:
             continue
         partner_ms = float(partner_fit.params.get(partner_name, float("nan")))
         partner_pval = float(partner_fit.pvalues.get(partner_name, float("nan")))
-        if not np.isfinite(partner_ms) or not np.isfinite(partner_pval):
+        partner_r2 = float(partner_fit.rsquared)
+        if (
+            not np.isfinite(partner_ms)
+            or not np.isfinite(partner_pval)
+            or not np.isfinite(partner_r2)
+        ):
             continue
-        if partner_pval >= p_threshold:
+        if partner_pval >= p_threshold or partner_r2 < r2_threshold:
             continue
         partner_count = _canonical_count(slice_df, SPEC_BY_NAME[partner_name])
         adjusted = adjusted - partner_ms * partner_count
@@ -346,6 +352,7 @@ def estimate_glue(config: Config, fixtures_df: pd.DataFrame) -> GlueEstimateOutp
     ]
 
     p_threshold = config.glue_adjustment.glue_contribution_p_value_threshold
+    r2_threshold = config.glue_adjustment.glue_contribution_rsquared_threshold
     clients = sorted(fixtures_df["client_name"].unique())
     for client in clients:
         # Tier 1 — pure
@@ -375,6 +382,7 @@ def estimate_glue(config: Config, fixtures_df: pd.DataFrame) -> GlueEstimateOutp
                 glue_by_test_df,
                 _MIXED_A_PARTNER_TIERS,
                 p_threshold,
+                r2_threshold,
             )
             rows.append(_row(client, spec.name, fit))
             if fit is not None:
@@ -391,6 +399,7 @@ def estimate_glue(config: Config, fixtures_df: pd.DataFrame) -> GlueEstimateOutp
                 glue_by_test_df,
                 _MIXED_B_PARTNER_TIERS,
                 p_threshold,
+                r2_threshold,
             )
             rows.append(_row(client, spec.name, fit))
             if fit is not None:

@@ -41,6 +41,10 @@ class ProposalOutput:
     warnings: list[str]
     missing_glue_pairs: list[tuple[str, str]]
     glue_opcodes_by_test_df: pd.DataFrame = field(default_factory=pd.DataFrame)
+    # Per-(client, glue_opcode) fit metrics from the glue estimator. Empty
+    # when glue is disabled. Consumed by the report to surface glue opcodes
+    # whose fits failed the modeling thresholds.
+    glue_results_df: pd.DataFrame = field(default_factory=pd.DataFrame)
     # Every per-client candidate row from the expansion step, annotated with
     # ``is_winner`` (set by ``select_per_client_max``) and ``poor_fit``.
     # Consumed by the report to surface losing candidates with weak fits.
@@ -76,6 +80,7 @@ def build_proposal(
             glue_estimate_output.results_df,
             glue_opcodes_by_test_df,
             config.glue_adjustment.glue_contribution_p_value_threshold,
+            config.glue_adjustment.glue_contribution_rsquared_threshold,
         )
         missing_glue_pairs = detect_missing_glue(
             fixtures_df,
@@ -277,6 +282,9 @@ def build_proposal(
             _log.warning(msg)
             warnings_list.append(msg)
 
+    glue_results_df = (
+        glue_estimate_output.results_df if glue_enabled else pd.DataFrame()
+    )
     return ProposalOutput(
         new_gas_all_df=new_gas_all_df,
         new_gas_df=new_gas_df,
@@ -285,6 +293,7 @@ def build_proposal(
         warnings=warnings_list,
         missing_glue_pairs=missing_glue_pairs,
         glue_opcodes_by_test_df=glue_opcodes_by_test_df,
+        glue_results_df=glue_results_df,
         candidates_df=candidates_df,
     )
 

@@ -65,6 +65,7 @@ class GlueAdjustmentSection(BaseModel):
 
     enabled: bool = False
     glue_contribution_p_value_threshold: float = 0.05
+    glue_contribution_rsquared_threshold: float = 0.7
     ratio_corr_eps: float = 0.05
 
 
