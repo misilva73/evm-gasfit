@@ -92,6 +92,25 @@ fit.build_proposal()
 fit.write_reports("./out")
 ```
 
+## Adapters
+
+Prepare EEST `blockchain_tests` fixtures before joining them to benchmark
+runtimes:
+
+```bash
+evm-gasfit prepare-eest \
+    --eest-fixtures /path/to/fixtures_geth/blockchain_tests \
+    --out ./prepared/eest
+```
+
+This writes `opcounts.json`, `fixtures.csv`, and `excluded.csv`.
+`prepare-eest` reads `_info.metadata.opcode_count` and
+`_info.metadata.target_opcode`, derives `block_limit_million` from
+`benchmark-gas-value_60M` fixture names, and records stable EEST provenance
+(`original_test_name`, `source_path`, `block_index`).
+Precompile targets such as `SHA2-256` get a synthetic target count from
+`STATICCALL` when EEST traces only the call opcode. 
+
 ## Public API
 
 The top-level package re-exports a small surface:
