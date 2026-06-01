@@ -123,9 +123,7 @@ def prepare_eest(eest_fixtures: Path, out_dir: Path) -> PreparedEest:
         try:
             raw = json.loads(json_file.read_text())
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            excluded.append(
-                _excluded(source_path, "", "", "invalid_json", str(exc))
-            )
+            excluded.append(_excluded(source_path, "", "", "invalid_json", str(exc)))
             continue
 
         if not isinstance(raw, dict):
