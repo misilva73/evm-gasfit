@@ -49,9 +49,10 @@ row matched), `new_gas_decimal` (raw conversion), `new_gas_rounded`
 (`ceil`-rounded), and two booleans:
 
 - `is_winner` — set on the row picked by the per-client worst-case selector.
-- `poor_fit` — set on a winner that failed the p-value / R² thresholds (the
-  whole `(gas_param, client)` group had no qualifying row and the selector
-  fell back to the best-effort pick).
+- `poor_fit` — set on **every** candidate that failed the p-value / R²
+  thresholds, not just winners. A row that is both `is_winner` and `poor_fit`
+  is a fallback winner: the whole `(gas_param, client)` group had no qualifying
+  row and the selector fell back to the best-effort pick.
 
 ### `new_gas.csv`
 

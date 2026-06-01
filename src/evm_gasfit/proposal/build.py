@@ -102,16 +102,17 @@ def build_proposal(
         config.modeling.poor_fit_rsquared_threshold,
     )
     # ``select_per_client_max`` mutates ``expanded_df`` in place, tagging
-    # ``is_winner`` and ``poor_fit`` on each chosen row. ``candidates_df``
-    # carries the full expanded set so the report can surface losing
-    # candidates that failed either fit-quality threshold.
+    # ``is_winner`` on each chosen row and ``poor_fit`` on every candidate that
+    # failed a fit-quality threshold. ``candidates_df`` carries the full
+    # expanded set so the report can surface losing candidates.
     candidates_df = expanded_df
-    # ``new_gas_all_params.csv`` is the per-client max selection (one row per
-    # ``(gas_param, client_name)``); also publishes ``selected_*`` aliases so
-    # downstream provenance checks can match either naming. ``is_winner`` is
-    # an internal marker for the candidates_df workflow — drop it here so the
-    # canonical CSV schema stays focused on the winning row's contents.
-    new_gas_all_df = per_client_df.drop(columns="is_winner", errors="ignore").copy()
+    # ``new_gas_all_params.csv`` carries every per-client candidate fit (the
+    # full spec × results-row × coef expansion), with ``is_winner`` marking the
+    # row the per-client worst-case selector picked for each
+    # ``(gas_param, client_name)``. It also publishes ``selected_*`` aliases so
+    # provenance checks can match either naming. ``new_gas.csv`` selects the
+    # across-client worst-case from the per-client winners only.
+    new_gas_all_df = candidates_df.copy()
     new_gas_all_df["selected_test"] = new_gas_all_df["test_name"]
     new_gas_all_df["selected_opcode"] = new_gas_all_df["target_opcode"]
     new_gas_all_df["selected_model_coef_name"] = new_gas_all_df["model_coef_name"]
@@ -359,6 +360,7 @@ def _no_fit_all_row(name: str, columns, model_by_cols: list[str]) -> dict[str, o
         "new_gas_decimal": float("nan"),
         "new_gas_rounded": pd.NA,
         "poor_fit": False,
+        "is_winner": False,
     }
     for col in model_by_cols:
         row[col] = None
@@ -418,6 +420,7 @@ def _derived_all_row(
         "new_gas_decimal": float("nan") if value is None else float(value),
         "new_gas_rounded": pd.NA if rounded is None else int(rounded),
         "poor_fit": False,
+        "is_winner": False,
     }
     for col in model_by_cols:
         row[col] = None

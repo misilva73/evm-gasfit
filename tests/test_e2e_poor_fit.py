@@ -144,7 +144,10 @@ def test_poor_fit_section_surfaces_winners_and_losing_candidates(
     # gamma's per-client winner falls back to the unfiltered pool, so it
     # carries ``poor_fit = True``; alpha (both clean) and beta (one clean,
     # one noisy) both have a qualified candidate, so neither winner is flagged.
-    poor_winners = add_rows[add_rows["poor_fit"] == True]  # noqa: E712
+    # ``poor_fit`` now flags every failing candidate, so restrict to winners.
+    poor_winners = add_rows[
+        (add_rows["poor_fit"] == True) & (add_rows["is_winner"] == True)  # noqa: E712
+    ]
     assert set(poor_winners["client_name"]) == {"gamma"}
     # The winning row's R² should reflect the actual noisy fit (well below the
     # 0.5 threshold) rather than a clean fit accidentally carried over.

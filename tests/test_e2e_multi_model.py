@@ -133,10 +133,16 @@ def test_multi_model_with_target_param_and_groups(tmp_path: Path) -> None:
         row = new_gas[new_gas["gas_param"] == gp].iloc[0]
         assert row["client_name"] == "besu"
 
-    # ---- new_gas_all_params.csv has per-client rows --------------------
+    # ---- new_gas_all_params.csv carries every per-client candidate fit --
     new_gas_all = pd.read_csv(out_dir / "new_gas_all_params.csv")
     target_params = ["OPCODE_GENERIC", "GAS_WARM_ACCESS"]
-    assert int(new_gas_all["gas_param"].isin(target_params).sum()) == 4
+    # OPCODE_GENERIC: 3 opcode groups × 2 clients = 6; GAS_WARM_ACCESS:
+    # 2 cache_strategy groups × 2 clients = 4. All candidates are kept now,
+    # not just the per-client winners.
+    assert int(new_gas_all["gas_param"].isin(target_params).sum()) == 10
+    # Exactly one winner per (gas_param, client): 2 params × 2 clients = 4.
+    winners = new_gas_all[new_gas_all["is_winner"] == True]  # noqa: E712
+    assert int(winners["gas_param"].isin(target_params).sum()) == 4
 
     # ---- winning-row provenance: copy verbatim from a single source row -
     provenance_cols = [

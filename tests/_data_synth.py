@@ -456,6 +456,7 @@ NEW_GAS_ALL_PARAMS_COLUMNS: frozenset[str] = frozenset(
         "new_gas_decimal",
         "new_gas_rounded",
         "poor_fit",
+        "is_winner",
     }
 )
 

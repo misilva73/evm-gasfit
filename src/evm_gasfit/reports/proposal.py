@@ -660,13 +660,30 @@ def write_proposal_report(
     new_gas_df = proposal_output.new_gas_df
     current_values = proposal_output.current_values
 
+    # ``new_gas_all_params.csv`` now carries every per-client candidate fit,
+    # with the per-client worst-case pick flagged ``is_winner``. The sections
+    # that speak about the *selected* per-client value — poor-fit winners, the
+    # overview heatmap, client comparison, and coverage — read the winners
+    # only. Placeholder/derived rows (empty ``client_name``) carry
+    # ``is_winner = False`` but must survive for the missing-parameter and
+    # coverage logic, so keep them too. (Losing candidates are surfaced
+    # separately from ``candidates_df``.)
+    full_all_df = proposal_output.new_gas_all_df
+    if "is_winner" in full_all_df.columns:
+        winners_all_df = full_all_df[
+            (full_all_df["is_winner"] == True)  # noqa: E712
+            | (full_all_df["client_name"].astype(str).str.len() == 0)
+        ]
+    else:
+        winners_all_df = full_all_df
+
     n_total, n_inc, n_dec, n_new, n_unresolved = _direction_counts(
         new_gas_df, current_values
     )
     missing_by_test, other_warnings = _partition_warnings(proposal_output.warnings)
     n_warn = sum(len(v) for v in missing_by_test.values()) + len(other_warnings)
-    poor_fit_rows = proposal_output.new_gas_all_df[
-        proposal_output.new_gas_all_df.get("poor_fit", False) == True  # noqa: E712
+    poor_fit_rows = winners_all_df[
+        winners_all_df.get("poor_fit", False) == True  # noqa: E712
     ]
 
     lines: list[str] = ["# New gas proposal", ""]
@@ -696,7 +713,7 @@ def write_proposal_report(
 
     # Decide which optional sections will render so the TOC links match.
     plots_enabled = config.output.plots
-    new_gas_all_df = proposal_output.new_gas_all_df
+    new_gas_all_df = winners_all_df
     fitted_params = [str(p) for p in fitted_df["gas_param"]]
     plottable = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
     plottable = plottable[plottable["new_gas_rounded"].notna()]
@@ -846,12 +863,8 @@ def write_proposal_report(
     # client that produced zero estimations across all params also surfaces
     # in the per-param table (and in the dedicated callout above it).
     configured_clients = list(config.clients)
-    partial_rows = _build_partial_fit_rows(
-        proposal_output.new_gas_all_df, configured_clients
-    )
-    no_fit_clients = _clients_with_no_fits(
-        proposal_output.new_gas_all_df, configured_clients
-    )
+    partial_rows = _build_partial_fit_rows(winners_all_df, configured_clients)
+    no_fit_clients = _clients_with_no_fits(winners_all_df, configured_clients)
     lines.append("### Incomplete client coverage")
     lines.append("")
     if not partial_rows and not no_fit_clients:

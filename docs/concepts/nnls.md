@@ -109,8 +109,8 @@ the conversion step.
 
 ## Quality gates
 
-After all fits land, the per-client worst-case selector flags any winning
-row whose p-value or R² crosses one of:
+After all fits land, the per-client worst-case selector flags any candidate
+row (`poor_fit = True`) whose p-value or R² crosses one of:
 
 | Knob | Default |
 | --- | --- |

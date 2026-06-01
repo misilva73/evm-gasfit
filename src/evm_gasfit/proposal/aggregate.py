@@ -212,15 +212,22 @@ def select_per_client_max(
 
     Qualified pool requires ``pvalue < pvalue_threshold`` **and**
     ``rsquared >= rsquared_threshold``. On fallback (no candidate qualifies)
-    the winner is flagged ``poor_fit = True`` — equivalently, the winner
-    failed at least one of the two thresholds.
+    the winner failed at least one of the two thresholds.
 
-    Mutates the input frame: sets ``poor_fit = True`` on fallback winners
-    and ``is_winner = True`` on every chosen row, so callers can route
-    losing candidates downstream.
+    Mutates the input frame: flags ``poor_fit = True`` on **every** candidate
+    that fails either threshold (not just the chosen winner) so losing weak
+    fits stay visible on ``new_gas_all_params.csv``, and ``is_winner = True``
+    on every chosen row so callers can route losing candidates downstream. A
+    qualified winner keeps ``poor_fit = False``; a fallback winner necessarily
+    fails a threshold and is therefore flagged too.
     """
     if new_gas_all_df.empty:
         return new_gas_all_df.copy()
+
+    new_gas_all_df["poor_fit"] = ~(
+        (new_gas_all_df["pvalue"] < pvalue_threshold)
+        & (new_gas_all_df["rsquared"] >= rsquared_threshold)
+    )
 
     model_by_cols = [
         c
@@ -256,12 +263,7 @@ def select_per_client_max(
             (group["pvalue"] < pvalue_threshold)
             & (group["rsquared"] >= rsquared_threshold)
         ]
-        if not qualified.empty:
-            sub = qualified
-            poor = False
-        else:
-            sub = group
-            poor = True
+        sub = qualified if not qualified.empty else group
         sub = sub.sort_values(
             by=[
                 "runtime_ms",
@@ -277,8 +279,6 @@ def select_per_client_max(
         winner_idx = int(sub.iloc[0]["_idx"])
         chosen_indices.append(winner_idx)
         new_gas_all_df.loc[winner_idx, "is_winner"] = True
-        if poor:
-            new_gas_all_df.loc[winner_idx, "poor_fit"] = True
 
     chosen = new_gas_all_df.loc[chosen_indices].copy()
     chosen = chosen.sort_values(

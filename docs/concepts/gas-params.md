@@ -58,15 +58,17 @@ that the report uses for the `Worst-case provenance` section.
    **and** `rsquared >= modeling.poor_fit_rsquared_threshold`.
 2. If the qualified pool is non-empty, the winner is the row with the
    **largest** `runtime_ms` from that pool.
-3. If no row qualifies, fall back to the whole group; the chosen row is
-   flagged `poor_fit = True` so the report can surface it under
-   `Poor-fit selections`. Tie-breakers are p-value (ascending), then
-   `test_name`, `target_opcode`, `model_coef_name`, `model_by-combo`
-   (all ascending) — purely lexical, deterministic across runs.
+3. If no row qualifies, fall back to the whole group. Tie-breakers are
+   p-value (ascending), then `test_name`, `target_opcode`, `model_coef_name`,
+   `model_by-combo` (all ascending) — purely lexical, deterministic across
+   runs.
 
-Every winning row also gets `is_winner = True`. Losing candidates still live
-in `new_gas_all_params.csv` so the proposal report can show every per-client
-contender in its provenance tables.
+`poor_fit = True` is set on **every** candidate that failed either threshold
+(not just the winner), so losing weak fits stay visible; a row that is both
+`is_winner` and `poor_fit` is a fallback winner the report surfaces under
+`Poor-fit selections`. Every winning row gets `is_winner = True`. Losing
+candidates still live in `new_gas_all_params.csv` so the proposal report can
+show every per-client contender in its provenance tables.
 
 ## 4 — Across-client worst case
 
