@@ -415,9 +415,9 @@ def test_partial_fits_subsection_lists_missing_client_combos(tmp_path: Path) -> 
 
 def test_partial_fits_subsection_calls_out_clients_with_no_fits(tmp_path: Path) -> None:
     """A client declared in ``config.clients`` but absent from the runtimes
-    CSV surfaces under ``### Incomplete client coverage`` as a dedicated
-    ``Clients with no estimations at all`` callout (in addition to appearing
-    in every per-param row, since it has zero fits anywhere)."""
+    CSV surfaces under ``### Incomplete client coverage`` *only* as a dedicated
+    ``Clients with no estimations at all`` callout — it has zero fits anywhere,
+    so it must not also clutter the per-param partial-fits table."""
     fixtures = make_block_limit_fixtures(
         test_file="test_arithmetic",
         test_name="test_arithmetic",
@@ -473,14 +473,18 @@ def test_partial_fits_subsection_calls_out_clients_with_no_fits(tmp_path: Path) 
     assert "`nethermind`" in section_body, (
         "nethermind should be named in the no-fits callout"
     )
-    # Per-param row must also list nethermind as missing for OPCODE_ADD.
-    add_row = next(
+    # A client with zero fits anywhere must NOT also appear in the per-param
+    # partial-fits table — that table is for params fit by some-but-not-all of
+    # the clients that produced fits. OPCODE_ADD was fit by both geth and besu,
+    # so there should be no per-param row mentioning nethermind at all.
+    param_rows = [
         line
         for line in section_body.splitlines()
-        if line.startswith("|") and "OPCODE_ADD" in line
-    )
-    assert "nethermind" in add_row, (
-        f"OPCODE_ADD row should list nethermind as missing: {add_row!r}"
+        if line.startswith("|") and "Gas param" not in line and "---" not in line
+    ]
+    assert not any("nethermind" in row for row in param_rows), (
+        f"nethermind has no fits anywhere; it must not appear in the per-param "
+        f"partial-fits table, only in the no-fits callout: {param_rows!r}"
     )
 
 

@@ -131,18 +131,17 @@ def _partition_warnings(warnings: list[str]) -> tuple[dict[str, list[str]], list
 
 def _build_partial_fit_rows(
     new_gas_all_df: pd.DataFrame,
-    configured_clients: list[str],
+    expected_clients: list[str],
 ) -> list[dict[str, object]]:
     """Per-param list of clients with no estimation, for params that fit on
     *some* clients.
 
     Fully-unresolved params (no client fit) are filtered out — they surface
     under the ``Missing parameters`` subsection. Derived/placeholder rows
-    (empty ``client_name``) are likewise excluded. The expected client
-    universe is ``configured_clients`` (from the config), not whichever
-    clients happened to produce a fit, so a configured client that produced
-    no estimation for a given param surfaces here even if it produced no
-    estimation for *any* param.
+    (empty ``client_name``) are likewise excluded. ``expected_clients`` is the
+    universe a param is measured against: callers pass the configured clients
+    that produced at least one fit somewhere, so clients with zero fits across
+    *all* params don't repeat here (they get the dedicated no-fits callout).
     """
     df = new_gas_all_df[new_gas_all_df["client_name"].astype(str).str.len() > 0]
     df = df[df["new_gas_rounded"].notna()]
@@ -155,7 +154,7 @@ def _build_partial_fit_rows(
         fitting_clients = set(
             df[df["gas_param"] == gas_param]["client_name"].astype(str)
         )
-        missing = [c for c in configured_clients if c not in fitting_clients]
+        missing = [c for c in expected_clients if c not in fitting_clients]
         if missing:
             rows.append({"gas_param": gas_param, "missing_clients": missing})
     return rows
@@ -859,12 +858,13 @@ def write_proposal_report(
 
     # Partial fits: gas params with at least one client fit but missing on
     # others — the proposed value still stands but was selected from a
-    # smaller pool. The expected client universe is ``config.clients``, so a
-    # client that produced zero estimations across all params also surfaces
-    # in the per-param table (and in the dedicated callout above it).
+    # smaller pool. Clients that produced zero estimations across *all* params
+    # are reported only in the dedicated callout below, so the per-param table
+    # considers just the clients that fit somewhere.
     configured_clients = list(config.clients)
-    partial_rows = _build_partial_fit_rows(winners_all_df, configured_clients)
     no_fit_clients = _clients_with_no_fits(winners_all_df, configured_clients)
+    partial_universe = [c for c in configured_clients if c not in no_fit_clients]
+    partial_rows = _build_partial_fit_rows(winners_all_df, partial_universe)
     lines.append("### Incomplete client coverage")
     lines.append("")
     if not partial_rows and not no_fit_clients:
