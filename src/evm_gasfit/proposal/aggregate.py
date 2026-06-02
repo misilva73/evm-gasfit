@@ -56,110 +56,92 @@ def expand_to_per_client(
     config: Config,
     glue_adjustment_df: pd.DataFrame | None,
 ) -> pd.DataFrame:
-    """Expand one results_df row into N rows per ``model_params`` entry."""
+    """Expand one results_df row into N rows per ``model_params`` entry.
+
+    Each ``results_df`` row is routed back to the exact spec that produced it
+    via the ``source_label`` provenance column. This is a 1:1 join — two specs
+    that share ``test_name`` + target + ``model_by`` (differing only in
+    ``filter_by``) land on identical key columns but distinct ``source_label``
+    values, so neither expands the other's fit.
+    """
     model_by_cols = _all_model_by_cols(config)
     anchor_rate = float(config.anchor_rate)
+    specs_by_label = {spec.source_label: spec for spec in config.resolved_models}
 
     rows: list[dict[str, object]] = []
-    for spec in config.resolved_models:
-        for _, res_row in results_df.iterrows():
-            if res_row["test_name"] != spec.test_name:
-                continue
-            # Fixed-target specs only own rows for their literal opcode; without
-            # this filter, two specs sharing test_name/model_by but differing on
-            # target_operation would each expand the other's row.
-            if (
-                spec.target_operation is not None
-                and res_row["target_opcode"] != spec.target_operation
-            ):
-                continue
-            # Match the spec's exact model_by combo on this row.
-            spec_match = True
-            for col in model_by_cols:
-                in_spec = col in spec.model_by
-                val = res_row.get(col) if col in res_row.index else None
-                is_present = not (
-                    val is None or (isinstance(val, float) and np.isnan(val))
-                )
-                if in_spec and not is_present:
-                    spec_match = False
-                    break
-                if not in_spec and is_present:
-                    spec_match = False
-                    break
-            if not spec_match:
-                continue
+    for _, res_row in results_df.iterrows():
+        spec = specs_by_label[res_row["source_label"]]
+        model_by_values = {c: res_row[c] for c in spec.model_by}
+        target_opcode = res_row["target_opcode"]
+        client = res_row["client_name"]
 
-            model_by_values = {c: res_row[c] for c in spec.model_by}
-            target_opcode = res_row["target_opcode"]
-            client = res_row["client_name"]
+        (
+            glue_adjustment,
+            adj_runtime,
+            adj_low,
+            adj_high,
+        ) = _lookup_glue_adjustment(
+            glue_adjustment_df,
+            spec.test_name,
+            target_opcode,
+            spec.model_by,
+            model_by_values,
+            client,
+        )
 
-            (
-                glue_adjustment,
-                adj_runtime,
-                adj_low,
-                adj_high,
-            ) = _lookup_glue_adjustment(
-                glue_adjustment_df,
-                spec.test_name,
-                target_opcode,
-                spec.model_by,
-                model_by_values,
-                client,
-            )
-
-            for coef_name, gas_param in spec.model_params.items():
-                if coef_name == "target_coef":
-                    if adj_runtime is not None:
-                        runtime_ms = adj_runtime
-                        ci_low = adj_low
-                        ci_high = adj_high
-                    else:
-                        runtime_ms = float(res_row["target_coef_runtime_ms"])
-                        ci_low = float(res_row["target_coef_conf_int_low"])
-                        ci_high = float(res_row["target_coef_conf_int_high"])
-                    pvalue = float(res_row["target_coef_pvalue"])
-                    row_glue_adjustment = float(glue_adjustment)
+        for coef_name, gas_param in spec.model_params.items():
+            if coef_name == "target_coef":
+                if adj_runtime is not None:
+                    runtime_ms = adj_runtime
+                    ci_low = adj_low
+                    ci_high = adj_high
                 else:
-                    rt_col = f"{coef_name}_runtime_ms"
-                    if rt_col not in res_row.index:
-                        continue
-                    val = res_row[rt_col]
-                    if val is None or (isinstance(val, float) and np.isnan(val)):
-                        continue
-                    runtime_ms = float(val)
-                    pvalue = float(res_row[f"{coef_name}_pvalue"])
-                    ci_low = float(res_row[f"{coef_name}_conf_int_low"])
-                    ci_high = float(res_row[f"{coef_name}_conf_int_high"])
-                    row_glue_adjustment = 0.0
+                    runtime_ms = float(res_row["target_coef_runtime_ms"])
+                    ci_low = float(res_row["target_coef_conf_int_low"])
+                    ci_high = float(res_row["target_coef_conf_int_high"])
+                pvalue = float(res_row["target_coef_pvalue"])
+                row_glue_adjustment = float(glue_adjustment)
+            else:
+                rt_col = f"{coef_name}_runtime_ms"
+                if rt_col not in res_row.index:
+                    continue
+                val = res_row[rt_col]
+                if val is None or (isinstance(val, float) and np.isnan(val)):
+                    continue
+                runtime_ms = float(val)
+                pvalue = float(res_row[f"{coef_name}_pvalue"])
+                ci_low = float(res_row[f"{coef_name}_conf_int_low"])
+                ci_high = float(res_row[f"{coef_name}_conf_int_high"])
+                row_glue_adjustment = 0.0
 
-                new_gas_decimal = anchor_rate * runtime_ms / 1000.0
-                new_gas_rounded = math.ceil(new_gas_decimal)
+            new_gas_decimal = anchor_rate * runtime_ms / 1000.0
+            new_gas_rounded = math.ceil(new_gas_decimal)
 
-                out: dict[str, object] = {
-                    "gas_param": gas_param,
-                    "client_name": client,
-                    "runtime_ms": runtime_ms,
-                    "pvalue": pvalue,
-                    "conf_int_low": ci_low,
-                    "conf_int_high": ci_high,
-                    "test_name": spec.test_name,
-                    "target_opcode": target_opcode,
-                    "model_coef_name": coef_name,
-                    "glue_adjustment": row_glue_adjustment,
-                    "rsquared": float(res_row["rsquared"]),
-                    "rsquared_adj": float(res_row["rsquared_adj"]),
-                }
-                for col in model_by_cols:
-                    if col in spec.model_by:
-                        out[col] = model_by_values[col]
-                    else:
-                        out[col] = None
-                out["new_gas_decimal"] = new_gas_decimal
-                out["new_gas_rounded"] = new_gas_rounded
-                out["poor_fit"] = False
-                out["is_winner"] = False
-                rows.append(out)
+            out: dict[str, object] = {
+                "gas_param": gas_param,
+                "client_name": client,
+                "runtime_ms": runtime_ms,
+                "pvalue": pvalue,
+                "conf_int_low": ci_low,
+                "conf_int_high": ci_high,
+                "test_name": spec.test_name,
+                "target_opcode": target_opcode,
+                "model_coef_name": coef_name,
+                "source_label": spec.source_label,
+                "glue_adjustment": row_glue_adjustment,
+                "rsquared": float(res_row["rsquared"]),
+                "rsquared_adj": float(res_row["rsquared_adj"]),
+            }
+            for col in model_by_cols:
+                if col in spec.model_by:
+                    out[col] = model_by_values[col]
+                else:
+                    out[col] = None
+            out["new_gas_decimal"] = new_gas_decimal
+            out["new_gas_rounded"] = new_gas_rounded
+            out["poor_fit"] = False
+            out["is_winner"] = False
+            rows.append(out)
 
     cols = (
         [
@@ -172,6 +154,7 @@ def expand_to_per_client(
             "test_name",
             "target_opcode",
             "model_coef_name",
+            "source_label",
             "glue_adjustment",
             "rsquared",
             "rsquared_adj",
@@ -188,6 +171,7 @@ def expand_to_per_client(
         "test_name",
         "target_opcode",
         "model_coef_name",
+        "source_label",
     ]
     sort_cols = [c for c in sort_cols if c in df.columns]
     return df.sort_values(sort_cols, kind="mergesort").reset_index(drop=True)
@@ -243,6 +227,7 @@ def select_per_client_max(
             "test_name",
             "target_opcode",
             "model_coef_name",
+            "source_label",
             "glue_adjustment",
             "rsquared",
             "rsquared_adj",
@@ -272,8 +257,9 @@ def select_per_client_max(
                 "target_opcode",
                 "model_coef_name",
                 "_combo",
+                "source_label",
             ],
-            ascending=[False, True, True, True, True, True],
+            ascending=[False, True, True, True, True, True, True],
             kind="mergesort",
         )
         winner_idx = int(sub.iloc[0]["_idx"])
@@ -319,6 +305,7 @@ def select_across_client_max(per_client_df: pd.DataFrame) -> pd.DataFrame:
             "test_name",
             "target_opcode",
             "model_coef_name",
+            "source_label",
             "glue_adjustment",
             "rsquared",
             "rsquared_adj",

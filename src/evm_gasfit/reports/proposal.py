@@ -27,6 +27,7 @@ _PROVENANCE_NON_ID_COLS = frozenset(
         "pvalue",
         "conf_int_low",
         "conf_int_high",
+        "source_label",
         "glue_adjustment",
         "rsquared",
         "rsquared_adj",

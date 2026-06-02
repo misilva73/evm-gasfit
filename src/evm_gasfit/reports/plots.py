@@ -370,6 +370,7 @@ _PROVENANCE_RESERVED = frozenset(
         "test_name",
         "target_opcode",
         "model_coef_name",
+        "source_label",
         "glue_adjustment",
         "rsquared",
         "rsquared_adj",

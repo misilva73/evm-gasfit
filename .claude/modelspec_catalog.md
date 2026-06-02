@@ -42,8 +42,9 @@ doesn't also match `opcode_ADDMOD-…` fixtures; the others are verbatim.
 5. **One preset per (test, output-gas-param)**: if the same test feeds two
    distinct gas params (e.g. base vs. per-word), it gets two presets that
    share `test_name`+`target_operation` but differ in `model_params`.
-   Aggregation in §4.6 joins by `(test_name, model_by-shape, target_opcode)`,
-   so this is safe.
+   Aggregation in §4.6 routes each `results.csv` row back to its producing
+   preset by `source_label`, so two presets sharing `test_name` (even with the
+   same target and `model_by`) never claim each other's fits — this is safe.
 
 ## Relationship to the priced-glue set
 
@@ -309,7 +310,13 @@ Notes:
   NOCODE via `filter_by: ["!AccountMode.EXISTING_CONTRACT"]`, CODE via
   `filter_by: ["!AccountMode.EXISTING_EOA"]`. Each exposes `account_mode` on
   `model_by` so NNLS fits one model per included mode; the §4.6 worst-case
-  selection picks the slower.
+  selection picks the slower. These two presets share `test_name` +
+  `target_operation_param` + `model_by` and differ only in `filter_by` (and
+  both write the shared `ACCOUNT_WRITE` via the `update` coef), so the §4.6
+  aggregator routes each `results.csv` row back to its producing preset by
+  `source_label` rather than by the key shape — neither preset claims the
+  other's fits, and the overlapping `NON_EXISTING_ACCOUNT` mode stays two
+  distinct candidate rows (one per preset) instead of being deduplicated.
 - **Filter tokens use the EEST enum stringification.** EEST renders
   `cache_strategy` and `account_mode` parameters as
   `cache_strategy_CacheStrategy.<VALUE>` and
@@ -356,7 +363,8 @@ iteration" below.
 
 Every precompile preset uses the §2.1 escape hatch: `target_operation` carries
 the precompile's display name (which lands on `target_opcode` in
-`results.csv` / `new_gas.csv` and so disambiguates rows in the aggregator),
+`results.csv` / `new_gas.csv`, keeping each precompile's output rows readable;
+the aggregator itself routes rows back to their preset by `source_label`, §4.6),
 and `target_operation_count_source: STATICCALL` tells the §2.3 invariant —
 and the §4.4 glue candidate filter — that the `opcount` column is actually
 backed by the `STATICCALL` column. Each preset declares its own
@@ -450,10 +458,10 @@ display name per variant (used as `target_opcode` in the output rows) plus
 `target_operation_count_source: STATICCALL` so the §2.3 invariant and the
 §4.4 glue candidate filter both read from the `STATICCALL` opcount column.
 The non-target opcodes (GAS, CALLDATACOPY, etc.) get absorbed into the
-intercept or get adjusted away by glue. Because each preset on
-`test_bls12_381` differs in `target_operation`, the aggregator's
-`(test_name, model_by-shape, target_opcode)` key disambiguates them
-without any further plumbing.
+intercept or get adjusted away by glue. The presets sharing `test_bls12_381`
+are routed by `source_label` in the aggregator (§4.6), and their distinct
+`target_operation` display names keep the output rows readable, so they need
+no further plumbing.
 
 `test_bls12_381_uncachable` shares the same six variant tags as the four
 cachable presets plus the two MSM ones — adding eight more presets here

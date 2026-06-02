@@ -267,6 +267,19 @@ class Config(BaseModel):
             raise ConfigError(
                 "no models to fit: both models.presets and models.custom are empty"
             )
+        # Reject byte-identical specs. Two specs that differ only in filter_by
+        # (or any other field) are legitimate independent fits — the aggregator
+        # routes them by source_label — but an exact duplicate produces
+        # redundant, indistinguishable candidate rows and is always a mistake.
+        seen_specs: dict[str, str] = {}
+        for spec in resolved:
+            fingerprint = spec.model_dump_json(exclude={"source_label"})
+            if fingerprint in seen_specs:
+                raise ConfigError(
+                    f"duplicate model spec: {spec.source_label} is identical to "
+                    f"{seen_specs[fingerprint]}; drop one or differentiate them"
+                )
+            seen_specs[fingerprint] = spec.source_label
         # Spec authors write natural param names (``opcode``, ``mem_size``);
         # ``build_fixtures_df`` exposes them as ``param_<key>`` columns so they
         # can't collide with opcode mnemonics. Mirror that prefix on every spec

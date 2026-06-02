@@ -64,26 +64,14 @@ def _model_by_combo(values: list[object]) -> str:
     return "_".join(parts) if parts else "all"
 
 
-def _filter_spec_rows(
-    results_df: pd.DataFrame, spec, all_model_by: list[str]
-) -> pd.DataFrame:
-    """Keep only rows whose model_by signature matches this spec."""
-    spec_rows = results_df[results_df["test_name"] == spec.test_name]
-    if spec_rows.empty:
-        return spec_rows
-    keep_idx: list[int] = []
-    for idx, row in spec_rows.iterrows():
-        match = True
-        for col in all_model_by:
-            in_spec = col in spec.model_by
-            val = row.get(col) if col in row.index else None
-            present = not (val is None or (isinstance(val, float) and np.isnan(val)))
-            if in_spec != present:
-                match = False
-                break
-        if match:
-            keep_idx.append(idx)
-    return spec_rows.loc[keep_idx]
+def _filter_spec_rows(results_df: pd.DataFrame, spec) -> pd.DataFrame:
+    """Keep only the rows this exact spec produced.
+
+    ``results_df`` carries a ``source_label`` provenance column, so the join is
+    1:1 — two specs sharing test_name + target + model_by (differing only in
+    ``filter_by``) are kept apart rather than each claiming the other's rows.
+    """
+    return results_df[results_df["source_label"] == spec.source_label]
 
 
 def _client_headline_table(rows: list[pd.Series]) -> list[str]:
@@ -129,21 +117,23 @@ def write_runtime_report(
     lines.append("")
 
     # Group rows by target_opcode preserving first-appearance order across
-    # specs, dedup by (test_name, target_opcode, *mb_values, client).
-    all_mb = sorted({c for s in config.resolved_models for c in s.model_by})
-    grouped: dict[str, list[tuple[str, list[str], list[object], pd.Series]]] = (
+    # specs, dedup by (source_label, test_name, target_opcode, *mb_values,
+    # client). ``source_label`` keeps two specs that share test_name + target +
+    # model_by (differing only in filter_by) as distinct fits.
+    grouped: dict[str, list[tuple[str, str, list[str], list[object], pd.Series]]] = (
         defaultdict(list)
     )
     seen_keys: set[tuple] = set()
     opcode_order: list[str] = []
     for spec in config.resolved_models:
-        spec_rows = _filter_spec_rows(results_df, spec, all_mb)
+        spec_rows = _filter_spec_rows(results_df, spec)
         if spec_rows.empty:
             continue
         for _, row in spec_rows.iterrows():
             opcode = str(row["target_opcode"])
             mb_values = _model_by_values(row, spec.model_by)
             key = (
+                spec.source_label,
                 str(row["test_name"]),
                 opcode,
                 *map(str, mb_values),
@@ -155,7 +145,13 @@ def write_runtime_report(
             if opcode not in opcode_order:
                 opcode_order.append(opcode)
             grouped[opcode].append(
-                (str(row["test_name"]), list(spec.model_by), mb_values, row)
+                (
+                    spec.source_label,
+                    str(row["test_name"]),
+                    list(spec.model_by),
+                    mb_values,
+                    row,
+                )
             )
 
     if not opcode_order:
@@ -172,26 +168,36 @@ def write_runtime_report(
         lines.append(f"## {opcode}")
         lines.append("")
 
-        # Sub-group within an opcode by (test_name, model_by_combo),
-        # preserving first-appearance order.
-        by_test: dict[tuple[str, str, tuple], list[pd.Series]] = defaultdict(list)
-        per_key_mb_cols: dict[tuple[str, str, tuple], list[str]] = {}
-        key_order: list[tuple[str, str, tuple]] = []
-        for test_name, mb_cols, mb_values, row in grouped[opcode]:
+        # Sub-group within an opcode by (test_name, model_by_combo,
+        # source_label), preserving first-appearance order. ``source_label`` is
+        # in the key so colliding specs render as separate blocks; it only
+        # changes grouping when two specs share test_name + combo.
+        by_test: dict[tuple[str, str, tuple, str], list[pd.Series]] = defaultdict(list)
+        per_key_mb_cols: dict[tuple[str, str, tuple, str], list[str]] = {}
+        key_order: list[tuple[str, str, tuple, str]] = []
+        for source_label, test_name, mb_cols, mb_values, row in grouped[opcode]:
             combo = _model_by_combo(mb_values)
-            key = (test_name, combo, tuple(mb_cols))
+            key = (test_name, combo, tuple(mb_cols), source_label)
             if key not in by_test:
                 key_order.append(key)
             by_test[key].append(row)
             per_key_mb_cols[key] = mb_cols
 
+        # Disambiguate headings with the source_label only when the same
+        # (test_name, combo) is produced by more than one spec.
+        testcombo_labels: dict[tuple[str, str], set[str]] = defaultdict(set)
+        for test_name, combo, _mb_tuple, source_label in key_order:
+            testcombo_labels[(test_name, combo)].add(source_label)
+
         for key in key_order:
-            test_name, combo, _mb_tuple = key
+            test_name, combo, _mb_tuple, source_label = key
             mb_cols = per_key_mb_cols[key]
             rows = by_test[key]
             heading = f"### {test_name}"
             if mb_cols:
                 heading += f" — combo `{combo}`"
+            if len(testcombo_labels[(test_name, combo)]) > 1:
+                heading += f" — `{source_label}`"
             lines.append(heading)
             lines.append("")
 
@@ -203,7 +209,7 @@ def write_runtime_report(
             for row in rows_sorted:
                 client = str(row["client_name"])
                 mb_values = [row[c] for c in mb_cols]
-                fit_key = (test_name, opcode, *mb_values, client)
+                fit_key = (source_label, test_name, opcode, *mb_values, client)
                 fit = fits.get(fit_key)
                 if fit is None:
                     continue

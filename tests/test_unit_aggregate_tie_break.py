@@ -6,9 +6,11 @@ key the resolution is **fully deterministic** and does not depend on pandas /
 numpy sort stability or the input row order:
 
 - Per-client max on ``runtime_ms``: tie-break by ascending ``pvalue``, then
-  lexicographic ``(test_name, target_opcode, model_coef_name, model_by-combo)``.
-  ``model_by-combo`` is the concatenation of each ``model_by`` column's value
-  joined by ``_`` (skipping null values).
+  lexicographic ``(test_name, target_opcode, model_coef_name, model_by-combo,
+  source_label)``. ``model_by-combo`` is the concatenation of each ``model_by``
+  column's value joined by ``_`` (skipping null values); ``source_label`` is
+  the final tier, separating two candidates that are otherwise identical
+  (e.g. specs differing only in ``filter_by``).
 - Across-client max on ``runtime_ms``: tie-break by ascending ``client_name``.
 
 The e2e suite covers happy-path aggregation but never constructs exact ties,
@@ -44,6 +46,7 @@ def _candidate(
     target_opcode: str = "OPX",
     model_coef_name: str = "target_coef",
     model_by_value: str | None = None,
+    source_label: str = "models.custom[0]",
 ) -> dict[str, object]:
     """Build one expanded per-client candidate row.
 
@@ -62,6 +65,7 @@ def _candidate(
         "test_name": test_name,
         "target_opcode": target_opcode,
         "model_coef_name": model_coef_name,
+        "source_label": source_label,
         "glue_adjustment": 0.0,
         "rsquared": 0.99,
         "rsquared_adj": 0.99,

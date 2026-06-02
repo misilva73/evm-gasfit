@@ -117,7 +117,7 @@ Plan rules pinned: `gas_costs.overrides` patches the fork defaults and flows to 
 
 ### 2.6 [`tests/test_e2e_presets.py`](../tests/test_e2e_presets.py) — model preset registry (§2.6)
 
-Plan rules pinned: a preset is a named, frozen `ModelSpec` shipped in `defaults/models.py`; `models.presets:` is resolved at load time and concatenated with `models.custom:`; selection is per-preset, never field-level; unknown preset = config error; duplicate `test_name` across `presets:` and `custom:` is allowed (independent fits); empty `presets:` *and* empty `custom:` = config error.
+Plan rules pinned: a preset is a named, frozen `ModelSpec` shipped in `defaults/models.py`; `models.presets:` is resolved at load time and concatenated with `models.custom:`; selection is per-preset, never field-level; unknown preset = config error; duplicate `test_name` across `presets:` and `custom:` is allowed (independent fits); **byte-identical resolved specs = config error**; empty `presets:` *and* empty `custom:` = config error. Specs sharing `test_name` + target + `model_by` and differing only in `filter_by` are routed by `source_label`, not collapsed — see [`tests/test_e2e_spec_collision.py`](../tests/test_e2e_spec_collision.py).
 
 The canonical preset under test is `arithmetic_add` (`test_arithmetic` → `ADD` → `OPCODE_ADD`).
 
@@ -164,6 +164,15 @@ Plan rules pinned: parsed-param tokens land on `fixtures_df` under the `param_<k
 | Test | Coverage |
 | --- | --- |
 | `test_parsed_param_does_not_collide_with_opcode_column` | Single spec on `test_arithmetic` with `target_operation: ADD`, `model_by: ADD`, and a parametrization grid over `{ADD: ["same", "diff"]}`. Asserts: `run_pipeline` completes; `results.csv` carries a `param_ADD` column with both values; no `ADD_x` or `ADD_y` columns leak through. |
+
+### 2.7e [`tests/test_e2e_spec_collision.py`](../tests/test_e2e_spec_collision.py) — specs colliding on `(test_name, target, model_by)` (§2.6, §4.6)
+
+Plan rules pinned: `results.csv` carries a `source_label` provenance column; the proposal aggregator routes each row back to its producing spec by `source_label`, so two specs that share `test_name` + target + `model_by` and differ only in `filter_by` neither duplicate nor cross-contaminate each other's candidates (the shipped `cold_account_nocode_access` / `cold_account_code_access` shape); byte-identical resolved specs are a config error.
+
+| Test | Coverage |
+| --- | --- |
+| `test_filter_by_only_collision_does_not_duplicate_or_contaminate` | Two custom specs on `test_account_access`/`BALANCE`/`model_by: cache_strategy` writing the same `GAS_ACCESS`, partitioning `{NO_CACHE, HOT, COLD}` by `filter_by` (`!HOT` vs `!COLD`, overlapping on `NO_CACHE`). Asserts on `new_gas_all_params.csv`: `source_label` distinguishes the two specs (`models.custom[0]` / `models.custom[1]`); each spec owns only the strategies its `filter_by` keeps (no contamination) at 4 rows each; no row is duplicated on the full identity key including `source_label`; exactly one `is_winner` per `(gas_param, client)`. |
+| `test_byte_identical_specs_are_a_config_error` | The same custom spec listed twice raises `ConfigError` (`duplicate model spec`) at `GasFit.from_config(...)`. |
 
 ### 2.7c [`tests/test_e2e_catalog_smoke.py`](../tests/test_e2e_catalog_smoke.py) — full preset catalog smoke (§2.6)
 
@@ -276,7 +285,7 @@ Items previously listed here as "open" are now pinned by code: `client_name` is 
 The following sad paths are intentionally not e2e tests — each exercises a single module's behavior in isolation, and is pinned by a dedicated suite under [tests/](../tests/):
 
 - §4.2 fit failure modes (`nobs < n_features + 1`, rank-deficient design, constant `opcount`, scipy convergence failure, bootstrap-iteration failure, all-skipped → `ModelingError`) → [`tests/test_unit_nnls_failures.py`](../tests/test_unit_nnls_failures.py).
-- §4.6 tie-break order (per-client `runtime_ms` → `pvalue` → lexicographic on `(test_name, target_opcode, model_coef_name, model_by-combo)`; across-client by ascending `client_name`), each with an order-independence counter-test → [`tests/test_unit_aggregate_tie_break.py`](../tests/test_unit_aggregate_tie_break.py).
+- §4.6 tie-break order (per-client `runtime_ms` → `pvalue` → lexicographic on `(test_name, target_opcode, model_coef_name, model_by-combo, source_label)`; across-client by ascending `client_name`), each with an order-independence counter-test → [`tests/test_unit_aggregate_tie_break.py`](../tests/test_unit_aggregate_tie_break.py).
 - §2.4 gas-cost source selection (`ethereum/execution-specs` vs. `_fallback.py`) and the `EVM_GASFIT_USE_FALLBACK=1` env-var override → [`tests/test_unit_defaults_source.py`](../tests/test_unit_defaults_source.py).
 
 Identically-zero `opcount` is rejected earlier by the §2.3 input invariant as a `ConfigError` (CLI exit 1), not via the fit-skip path; the NNLS suite's `[zero]` parametrize branch covers that route.

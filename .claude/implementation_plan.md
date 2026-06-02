@@ -400,18 +400,21 @@ Mechanics:
 - Preset specs go through the same validators as user entries. Because they
   are constructed at import time, any preset that fails validation surfaces
   as a package import error.
-- Unknown or duplicated preset names → config error. Duplicate `test_name`
-  across `presets:` and `custom:` is allowed when the specs differ in
-  `target_operation` (independent fits with distinct `target_opcode`; the
-  aggregator in §4.6 routes them by that key). Two specs that share both
-  `test_name` and target selection — e.g. same `target_operation_param`,
-  same `model_by` — are not distinguishable by the aggregator and should
-  not be relied upon. This is the reason precompile specs (which share a
-  literal `target_operation_count_source` like `STATICCALL`) must each carry
-  a distinct `target_operation` display name — e.g. `BLS12_G1ADD` vs
-  `BLS12_G2ADD` — so the aggregator can tell them apart even though their
-  count source is identical. Empty `presets:` *and* empty `custom:` → config
-  error.
+- Unknown or duplicated preset names → config error. **Byte-identical resolved
+  specs** (any two entries equal across every field once preset/custom origin
+  is set aside) → config error: they produce redundant, indistinguishable
+  candidate rows and are always a mistake. Specs that share `test_name` and
+  target selection but differ in any field — including only `filter_by` — are
+  legitimate independent fits: each resolved spec carries a unique
+  `source_label` (`presets[<name>]` / `models.custom[<i>]`) that the aggregator
+  (§4.6) uses to route every `results.csv` row back to its producing spec, so
+  the shipped catalog's `cold_account_nocode_access` / `cold_account_code_access`
+  pair (same `test_name` + `target_operation_param` + `model_by`, differing only
+  in `filter_by`) is fully supported. Precompile specs that share a literal
+  `target_operation_count_source` like `STATICCALL` still carry distinct
+  `target_operation` display names — e.g. `BLS12_G1ADD` vs `BLS12_G2ADD` — so
+  their output rows read clearly, but disambiguation no longer depends on it.
+  Empty `presets:` *and* empty `custom:` → config error.
 - **Granularity.** Selection is per-preset, not per-gas-param. A preset's
   `model_params` may write several params (e.g. `account_access` →
   `COLD_ACCOUNT_ACCESS`, `COLD_ACCOUNT_WRITE`); listing it always contributes
@@ -732,11 +735,15 @@ land on `results.csv` as `intercept_runtime_ms`, `target_coef_runtime_ms`, and
 Output of one fit (column names in `results.csv`):
 
 ```
-test_name, client_name, <model_by columns...>, target_opcode,
+test_name, client_name, <model_by columns...>, target_opcode, source_label,
 nobs, intercept_runtime_ms, intercept_pvalue, rsquared, rsquared_adj,
 target_coef_runtime_ms, target_coef_pvalue, target_coef_conf_int_low, target_coef_conf_int_high,
 <param>_runtime_ms, <param>_pvalue, <param>_conf_int_low, <param>_conf_int_high, ...
 ```
+
+`source_label` names the resolved spec that produced the fit (`presets[<name>]`
+or `models.custom[<i>]`); the proposal aggregator (§4.6) routes each row back to
+its spec by this label.
 
 `results.csv` carries only the fitted-model coefficients and goodness-of-fit
 statistics. No `glue_adjustment` column on
@@ -915,11 +922,14 @@ the per-opcode ms cost selected for that `(gas_param, client)` row (§4.6).
 For every `(model_spec, model_by-combo, client)` row in `results_df`, expand into
 one row per entry in `model_params`. Each row maps to its target gas-param name.
 
-`results_df` does not carry an explicit spec identifier, so the row-to-spec join uses
-`test_name` + `model_by` shape + (for fixed-target specs) `target_opcode ==
-spec.target_operation`. This means duplicate `test_name` across presets and
-custom entries is only safely disambiguated when the specs differ in
-`target_operation` (see §2.6).
+`results_df` carries a `source_label` provenance column naming the exact
+resolved spec that produced each fit (`presets[<name>]` or `models.custom[<i>]`,
+set by the config loader). The row-to-spec join is therefore 1:1 on
+`source_label` — two specs that share `test_name` + target + `model_by` shape and
+differ only in `filter_by` land on identical key columns but distinct
+`source_label` values, so neither expands the other's fit (see §2.6). The
+`source_label` is propagated onto `new_gas_all_params.csv` as the disambiguator
+between such candidates; exact-duplicate specs are rejected at config load.
 
 The row's per-opcode predicted ms is `target_coef_runtime_ms` for the
 `target_coef` entry and `<param>_runtime_ms` for any non-`target_coef` entry
@@ -940,9 +950,9 @@ Aggregation:
 2. **Across clients**: the proposal value for `gas_param` is the max of the
    per-client picks. `new_gas_all_params.csv` records **every** candidate fit
    from the per-client expansion (one row per `(gas_param, client, test,
-   target_opcode, model_coef_name, model_by-combo)`), with the per-client
-   worst-case pick flagged `is_winner = true`; `new_gas.csv` holds the
-   across-client maxes, selected from the winners only.
+   target_opcode, model_coef_name, model_by-combo, source_label)`), with the
+   per-client worst-case pick flagged `is_winner = true`; `new_gas.csv` holds
+   the across-client maxes, selected from the winners only.
 
 **Winning-row provenance on `new_gas.csv`.** Every field on the across-client
 row — `client_name`, `runtime_ms`, `conf_int_low`, `conf_int_high`,
@@ -1091,9 +1101,9 @@ identifier errors fire mid-pipeline.
 | `results.csv` | yes | one row per `(model_spec, model_by-combo, client)`; no `glue_adjustment` column (that lives on `new_gas_all_params.csv`) |
 | `glue_results.csv` | iff glue enabled | per `(client, glue_opcode)`: `nobs, glue_runtime_ms, p_value, rsquared` |
 | `glue_opcodes_by_test.csv` | iff glue enabled | per `(test, target_opcode, *model_by)`: `glue_opcode, corr, ratio` |
-| `new_gas_all_params.csv` | yes | every per-client candidate fit (one row per `(gas_param, client, test, target_opcode, model_coef_name, model_by-combo)`), with the per-client worst-case pick flagged `is_winner`; columns include `gas_param, client_name, runtime_ms, pvalue, conf_int_low, conf_int_high, test_name, target_opcode, model_coef_name, glue_adjustment, *model_by, rsquared, rsquared_adj, new_gas_decimal, new_gas_rounded, poor_fit, is_winner`. `is_winner` is `true` on the single row the per-client selector picked for each `(gas_param, client_name)` (false on losing candidates and on placeholder/derived rows). `poor_fit` is `true` on **every** candidate that failed a fit-quality gate (`pvalue >= poor_fit_p_value_threshold` or `rsquared < poor_fit_rsquared_threshold`), not just winners. `pvalue` is the p-value of the regression coefficient identified by `model_coef_name` on the source `results.csv` row (i.e. `target_coef_pvalue` when `model_coef_name == "target_coef"`, else `<model_coef_name>_pvalue`). The CI bounds come from the same coefficient. `rsquared` and `rsquared_adj` are carried verbatim from the source `results.csv` row (regression-level, identical across coefficient expansions of one source row). `new_gas_rounded` is a nullable integer column; unresolved (no-fit) rows leave it empty (§4.6). |
+| `new_gas_all_params.csv` | yes | every per-client candidate fit (one row per `(gas_param, client, test, target_opcode, model_coef_name, model_by-combo, source_label)`), with the per-client worst-case pick flagged `is_winner`; columns include `gas_param, client_name, runtime_ms, pvalue, conf_int_low, conf_int_high, test_name, target_opcode, model_coef_name, source_label, glue_adjustment, *model_by, rsquared, rsquared_adj, new_gas_decimal, new_gas_rounded, poor_fit, is_winner`. `source_label` names the producing spec (`presets[<name>]` / `models.custom[<i>]`) and disambiguates candidates that are otherwise identical — e.g. two specs differing only in `filter_by`; placeholder/derived rows carry the `<no-fit>` / `<derived>` sentinel. `is_winner` is `true` on the single row the per-client selector picked for each `(gas_param, client_name)` (false on losing candidates and on placeholder/derived rows). `poor_fit` is `true` on **every** candidate that failed a fit-quality gate (`pvalue >= poor_fit_p_value_threshold` or `rsquared < poor_fit_rsquared_threshold`), not just winners. `pvalue` is the p-value of the regression coefficient identified by `model_coef_name` on the source `results.csv` row (i.e. `target_coef_pvalue` when `model_coef_name == "target_coef"`, else `<model_coef_name>_pvalue`). The CI bounds come from the same coefficient. `rsquared` and `rsquared_adj` are carried verbatim from the source `results.csv` row (regression-level, identical across coefficient expansions of one source row). `new_gas_rounded` is a nullable integer column; unresolved (no-fit) rows leave it empty (§4.6). |
 | `new_gas.csv` | yes | worst-case across clients; one row per gas param; columns include `gas_param, client_name, runtime_ms, conf_int_low, conf_int_high, selected_test, selected_opcode, selected_model_coef_name, glue_adjustment, *model_by, new_gas_decimal, new_gas_rounded`. `new_gas_rounded` is a nullable integer column; unresolved rows leave it empty (§4.6). |
-| `runtime_estimation_autogenerated_report.md` | yes | per-spec regression report. Opens with a `## Contents` bulleted list (one bullet per `target_opcode` in first-appearance order across specs, anchors GFM-compatible). Each target opcode gets a `## <opcode>` section; within it, each `(test_name, model_by-combo)` has a headline `### <test_name>` (with optional `— combo <combo>` suffix), the cross-client headline metrics table, and one `<details>` block per client with summary `"<client> — NNLS regression summary"` wrapping the NNLS summary plus, when `output.plots: true`, the three per-fit plot embeds (regression, bootstrap, diagnostics). |
+| `runtime_estimation_autogenerated_report.md` | yes | per-spec regression report. Opens with a `## Contents` bulleted list (one bullet per `target_opcode` in first-appearance order across specs, anchors GFM-compatible). Each target opcode gets a `## <opcode>` section; within it, each `(test_name, model_by-combo, source_label)` has a headline `### <test_name>` (with optional `— combo <combo>` suffix, plus a `— <source_label>` suffix only when two specs share the same `(test_name, combo)` so their blocks stay distinct), the cross-client headline metrics table, and one `<details>` block per client with summary `"<client> — NNLS regression summary"` wrapping the NNLS summary plus, when `output.plots: true`, the three per-fit plot embeds (regression, bootstrap, diagnostics). |
 | `glue_opcodes_autogenerated_report.md` | iff glue enabled | per-client joint regression summary; plots embedded iff `output.plots: true` |
 | `new_gas_proposal.md` | yes | final proposal, diff vs. patched fork values + `new_params` integer defaults (§4.6) with "no prior default" sentinel for `new_params` entries declared as `null`. Anchor rate is rendered as `<N> Mgas/s` (3 significant figures over `anchor_rate / 1e6`) in the run-metadata line. Opens with a `## Contents` heading followed by a markdown bullet list — one bullet per top-level section in render order, anchors GFM-compatible; the Worst-case provenance bullet is included only when that section renders. Sections, in order: `## Proposed gas parameters` diff table with columns `gas_param \| current_gas \| proposed_gas \| diff \| diff %` (column headers are title-cased — `Gas param`, `Current gas`, `Proposed gas`, `Diff`, `Diff %`) and fitted rows only; `## Client comparison` (one combined table with one row per gas_param: worst client + value, second-worst client + value, and a `Ratio` column `worst gas / second-worst gas` formatted as `1.23×` — values near `1×` mean the worst case sits next to the rest of the field, large ratios flag the worst client as an outlier; renders `n/a` when the second-worst value is `0`; gas params fitted by a single client are omitted; an overview of per-client proposed values follows the table — as the `figs/proposal/heatmap.png` embed colored by `log2(proposed / current)` when `output.plots: true`, or as a markdown table — gas params as rows in config-declaration order, clients as columns alphabetically, cells = `new_gas_rounded`, blank where a (param, client) pair has no fit — when `output.plots: false`); `## Worst-case provenance per gas param` (rendered whenever at least one gas param carries ≥ 2 distinct model combos in the per-client candidate pool — including losing candidates, *not* just the per-client winners — irrespective of `output.plots`), with one `<details>` block per qualifying gas_param — each block embeds the per-param heatmap (`figs/proposal/provenance__<gas_param>.png`) with clients on the x-axis and model combos on the y-axis, cells carrying every candidate's `new_gas_rounded` (winning and losing) colored by `log2(proposed / current)` against that param's current baseline using the same per-param symmetric `±max(|log2|)` scale (floored at `±1`) as the overview heatmap when `output.plots: true`, or a markdown table sharing the same combo-labeling logic (combo rows × client columns, cells = every candidate's `new_gas_rounded`) when `output.plots: false`; either way, the (combo, client) cell that the per-client selector picked as that client's worst-case is highlighted — outlined in black on the heatmap, rendered in `**bold**` in the markdown table; gas params with only one distinct combo are listed in a single italic line at the top of the section; `## Warnings` containing `### Missing parameters` (always present — `_None._` body when empty; lists no-fit / None-derived rows), `### Incomplete client coverage` (always present — `_None._` body when empty; the expected client universe is `config.clients` (§2.1), not whichever clients happened to fit; when any configured client produced zero estimations across all parameters, a `Clients with no estimations at all:` bold callout listing those clients renders above the per-param table; the table itself lists one row per gas_param fit for at least one configured client but missing on others, with the missing clients listed — a fully-missing client therefore appears both in the callout and in every per-param row), `### Missing glue adjustments` (when populated; renders one or both of two sub-blocks under the single heading, each wrapped in its own `<details>` block with a summary carrying a one-line count so the heading collapses to two summary lines by default: (a) non-priced opcodes that correlate with target opcounts — §4.4 missing-glue warnings; summary reads `Non-priced opcodes correlated with the target opcount — N tests affected`; (b) priced glue opcodes whose per-client fit failed the glue gating thresholds (`glue_contribution_p_value_threshold` or `glue_contribution_rsquared_threshold` — the same gates `compute_glue_adjustment` uses), with one row per glue opcode listing the failing clients (each tagged `p-value`, `R²`, or `both` per §4.6's label convention) and the gas params whose target_coef adjustment depends on that glue opcode — derived by joining `glue_opcodes_by_test.csv` against the per-client `target_coef` candidate pool on `(test_name, target_opcode, *model_by)`; summary reads `Priced glue opcodes with a poor fit — N (glue_opcode, client) fits skipped`; because rows surface here only when their contribution was skipped, the listed gas params' target coefficient on the affected clients is *not* net of this glue opcode's runtime), and `### Other` (when populated; config-load warnings from §2.5 and anything else); `## Poor-fit selections` containing `### Winners with poor fit` (rows on `new_gas_all_params.csv` where `is_winner = true` **and** `poor_fit = true` — winners selected via the fallback branch because they failed at least one threshold; one row per `(gas_param, client)` with a `Failed` cell naming the failing threshold(s): `p-value`, `R²`, or `both`) and `### Other weak candidates` (rows that lost the per-client selection — `is_winner = false` — but failed at least one threshold; they appear on `new_gas_all_params.csv` too and are sliced out via the `is_winner` flag; rendered as one `<details>` block per gas_param with summary `<gas_param> — N weak combos`, body table with columns `Test`, `Target opcode`, `Coef`, `Combo`, `Failing clients` where each row collapses every failing client for that combo into one cell, each tagged `(p-value)` / `(R²)` / `(both)`, and `Combo` shows only the `model_by` factors that vary within the block as `k=v / k=v`, or `—` when none vary). Both subsections render `_None._` when empty. |
 | `meta.json` | yes | run metadata: `evm_gasfit_version`, `run_started_at` (UTC ISO-8601), `inputs` (paths to config / runtimes / opcounts), `fixtures` (counts: `in_runtimes`, `in_opcounts`, `matched`, `dropped`), `dropped_fixtures` (sorted list of every fixture present in only one of the two inputs — the per-direction warnings on the `evm_gasfit` logger only report counts and point readers here), and `warnings` (every `WARNING+` record emitted on the `evm_gasfit` logger during the run, in emission order, formatted as `"<level> <logger>: <message>"` — same text as appears on stderr) |

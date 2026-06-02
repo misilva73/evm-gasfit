@@ -44,6 +44,9 @@ The aggregator's per-`(gas_param, client, candidate)` expansion of
 that could contribute to a gas param — winning and losing candidates
 together. Columns include `gas_param`, `client_name`, the source
 `test_name` / `target_opcode` / `model_coef_name` / `model_by-combo`, the
+`source_label` of the producing model spec (`presets[<name>]` or
+`models.custom[<i>]` — the disambiguator between candidates that are otherwise
+identical, e.g. two specs differing only in `filter_by`), the
 runtime + CI + p-value, the `glue_adjustment` applied (zero when no glue
 row matched), `new_gas_decimal` (raw conversion), `new_gas_rounded`
 (`ceil`-rounded), and two booleans:

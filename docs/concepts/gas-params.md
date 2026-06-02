@@ -45,10 +45,12 @@ results row into **one row per `model_params` entry**:
   time (constant value across fixtures) silently contributes no row.
 
 The result is `new_gas_all_params.csv` — one row per
-`(gas_param, client, test_name, target_opcode, model_coef_name, model_by-combo)`
+`(gas_param, client, test_name, target_opcode, model_coef_name, model_by-combo, source_label)`
 carrying `runtime_ms`, `pvalue`, `rsquared`, both gas columns, and the
-provenance (`test_name`, `target_opcode`, `model_coef_name`, `model_by-combo`)
-that the report uses for the `Worst-case provenance` section.
+provenance (`test_name`, `target_opcode`, `model_coef_name`, `model_by-combo`,
+`source_label`) that the report uses for the `Worst-case provenance` section.
+`source_label` names the producing model spec, so two specs that differ only in
+`filter_by` stay distinct rows rather than colliding.
 
 ## 3 — Per-client worst case
 

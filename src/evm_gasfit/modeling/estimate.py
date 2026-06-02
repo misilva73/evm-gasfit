@@ -27,9 +27,12 @@ _log = logging.getLogger("evm_gasfit.estimate")
 class EstimateOutput:
     """Bundle of ``results_df`` and the parallel ``fits`` dict.
 
-    ``fits`` is keyed by ``(test_name, target_opcode, *model_by_values, client_name)``
+    ``fits`` is keyed by
+    ``(source_label, test_name, target_opcode, *model_by_values, client_name)``
     so the reports layer can look up the underlying :class:`NNLSResults` for
-    each row in ``results_df``.
+    each row in ``results_df``. ``source_label`` leads the key so two specs
+    sharing test_name + target + model_by (differing only in ``filter_by``)
+    don't overwrite each other's fit.
     """
 
     results_df: pd.DataFrame
@@ -262,6 +265,11 @@ def _build_result_row(
         "test_name": spec.test_name,
         "client_name": client,
         "target_opcode": target_opcode,
+        # Provenance: the exact resolved spec that produced this fit. Two specs
+        # sharing test_name + target + model_by (differing only in filter_by)
+        # land on identical key columns, so the aggregator routes rows back to
+        # their spec by this label rather than by the key shape.
+        "source_label": spec.source_label,
     }
     row.update(group_values)
     row.update(
@@ -374,6 +382,7 @@ def estimate_models(config: Config, fixtures_df: pd.DataFrame) -> EstimateOutput
                 )
                 rows.append(row)
                 fit_key = (
+                    spec.source_label,
                     spec.test_name,
                     target_opcode,
                     *[group_values[c] for c in spec.model_by],
@@ -390,7 +399,7 @@ def estimate_models(config: Config, fixtures_df: pd.DataFrame) -> EstimateOutput
     # Deterministic ordering.
     sort_cols = ["test_name", "target_opcode"]
     sort_cols += sorted({c for spec in config.resolved_models for c in spec.model_by})
-    sort_cols.append("client_name")
+    sort_cols += ["client_name", "source_label"]
     sort_cols = [c for c in sort_cols if c in results_df.columns]
     results_df = results_df.sort_values(sort_cols, kind="mergesort").reset_index(
         drop=True
