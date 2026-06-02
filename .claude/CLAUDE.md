@@ -71,6 +71,8 @@ re-add dropped features without checking the plan's rationale.
   internal design document — treat it as scaffolding, not a citation target.
   When you'd otherwise write "per the plan §X", inline the rule itself or
   point at the relevant module/test instead.
+- **Commit on the current branch.** When asked to commit, commit on the
+  branch that's already checked out — never create a new branch first.
 - **Test-first.** The e2e tests synthesize their own inputs via
   [tests/_data_synth.py](tests/_data_synth.py) (a known linear model + fixture
   builders). When implementing a module, run the relevant e2e test, watch it
