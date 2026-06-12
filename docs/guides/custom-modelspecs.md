@@ -113,9 +113,10 @@ fixture_params:
 ```
 
 ```yaml
-# Booleans as 0/1 (used by COLD_ACCOUNT_NOCODE_ACCESS to encode "is a write").
+# Remap a non-numeric raw param to floats (e.g. a boolean flag as 0/1) so it
+# can drive a coefficient or a model_by axis.
 fixture_params:
-  update:
+  is_write:
     source: value_sent
     values:
       "False": 0
@@ -188,24 +189,52 @@ models:
       filter_by:
         - "CacheStrategy.NO_CACHE"
         - "!AccountMode.EXISTING_CONTRACT"
+        - "value_sent_0"
       model_by:
         - opcode
         - account_mode
-      fixture_params:
-        update:
-          source: value_sent
-          values:
-            "False": 0
-            "True": 1
       model_params:
         target_coef: COLD_ACCOUNT_NOCODE_ACCESS
-        update: ACCOUNT_WRITE
 ```
 
 Here `opcode` is both a `target_operation_param` (each fixture's target is
 read from the column) **and** a `model_by` axis (each opcode gets its own
-fit). `update` is a `0/1` indicator derived from `value_sent`, and the
-fitted `update_runtime_ms` coefficient maps to `ACCOUNT_WRITE`.
+fit).
+
+### Pricing a write delta jointly
+
+A write to new state is never charged without its cold access, so the
+chargeable cost is the combined `access + write`. Pricing the two as
+independent per-param worst-cases over-charges, because `max` is subadditive —
+the worst-access client and the worst-write client can differ, and their sum
+exceeds any single client's combined cost. The bundled catalog instead splits
+each test by the "touches new state" signal (`value_sent_{0,1}` here,
+`write_new_value_{False,True}` for SSTORE) into a read-only access fit and a
+combined access+write fit, then recovers the delta in
+[`derived`](../reference/config.md#derived) with the `max` built-in:
+
+```yaml
+models:
+  custom:
+    # read-only access (value_sent_0) — fits COLD_ACCOUNT_NOCODE_ACCESS above
+    - test_name: test_account_access
+      target_operation_param: opcode
+      filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT", "value_sent_1"]
+      model_by: [opcode, account_mode]
+      model_params:
+        target_coef: COLD_ACCOUNT_NOCODE_WRITE   # combined access+write
+derived:
+  ACCOUNT_WRITE:
+    formula: "max(0, COLD_ACCOUNT_NOCODE_WRITE - COLD_ACCOUNT_NOCODE_ACCESS)"
+```
+
+The combined cost is bounded by one worst-case client (tighter than the sum of
+two maxima), and the `max(0, …)` floor keeps a degenerate negative delta from
+leaking. The two specs share `test_name` + `target_operation_param` +
+`model_by` and differ only in `filter_by`, so the aggregator routes each fit
+back to its producing preset by `source_label` rather than the key shape — the
+write spec keeps its own (higher) coefficient instead of inheriting the read
+spec's.
 
 ## After the fit
 

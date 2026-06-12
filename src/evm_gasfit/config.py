@@ -410,8 +410,12 @@ class Config(BaseModel):
             seen_derived.add(name)
 
         # 10) Dead-declaration check: every new_params key must be referenced
-        # by some model_params RHS, derived alias RHS, or derived formula.
-        referenced_names = proposed_by_model_params | derived_referenced
+        # by some model_params RHS, derived alias RHS, or derived formula — or
+        # be a derived key itself (a derived param may carry a new_params
+        # baseline purely to supply the report's current-gas diff).
+        referenced_names = (
+            proposed_by_model_params | derived_referenced | set(self.derived_evaluated)
+        )
         unreferenced = declared_new_params - referenced_names
         if unreferenced:
             names = ", ".join(repr(n) for n in sorted(unreferenced))

@@ -37,7 +37,7 @@ doesn't also match `opcode_ADDMOD-…` fixtures; the others are verbatim.
    logical names; on `fixtures_df` and in the output CSVs they appear under
    the `param_<name>` prefix (`param_mem_size`, `param_mod_bits`, …) that
    the parser uses to avoid colliding with opcode-mnemonic columns. Derived
-   names declared via `fixture_params:` (e.g. `update`, `calldata_words`)
+   names declared via `fixture_params:` (e.g. `calldata_words`, `size_words`)
    stay unprefixed.
 5. **One preset per (test, output-gas-param)**: if the same test feeds two
    distinct gas params (e.g. base vs. per-word), it gets two presets that
@@ -87,8 +87,9 @@ runtimes data is offering to *propose*.
 - `OPCODE_MCOPY_PER_WORD` — from `test_mcopy` (same reasoning)
 - `COLD_ACCOUNT_NOCODE_ACCESS` — from `cold_account_nocode_access` (fallback ships a single `COLD_ACCOUNT_ACCESS = 2600`; the upstream EIP-8038 proposal splits cold account access by whether the target carries code)
 - `COLD_ACCOUNT_CODE_ACCESS` — from `cold_account_code_access` (same reasoning as `COLD_ACCOUNT_NOCODE_ACCESS`)
-- `ACCOUNT_WRITE` — from the `update` extra coefficient on the `cold_account_*` presets (osaka ships no per-account-write field today; the upstream proposal introduces one)
-- `STORAGE_WRITE` — from the `update` extra coefficient on `cold_storage_sstore` (osaka ships `COLD_STORAGE_WRITE = 5000`; the rename drops the `COLD_` prefix because the coefficient is fitted from the per-update marginal cost rather than from a cold-vs-warm contrast)
+- `COLD_ACCOUNT_NOCODE_WRITE` / `COLD_ACCOUNT_CODE_WRITE` — combined cold access+write cost fitted directly from the `value_sent_1` (value-transferring) fixtures of `cold_account_*_write`. These are scaffolding params: the per-write delta `ACCOUNT_WRITE` is recovered from them in `derived`
+- `ACCOUNT_WRITE` — **derived**, not fitted: `max(0, COLD_ACCOUNT_CODE_WRITE − COLD_ACCOUNT_CODE_ACCESS, COLD_ACCOUNT_NOCODE_WRITE − COLD_ACCOUNT_NOCODE_ACCESS)`. The combined write is bounded by a single worst-case client per context (rather than summing two independent per-param maxima), and the worst of the two contexts wins
+- `STORAGE_WRITE` — **derived**, not fitted: `max(0, COLD_STORAGE_WRITE − COLD_STORAGE_ACCESS)`, where `COLD_STORAGE_WRITE` (a raw osaka field, =5000) is now fitted directly from the `write_new_value_True` fixtures as the combined access+write cost
 
 The underlying `model_by` columns (`calldata_size`, `return_size`,
 `code_size`, `copy_size`, `msg_size`) carry **byte** units in the runtime
@@ -273,9 +274,12 @@ presets below enumerate the *included* values as separate entries.
 | `warm_storage_access_sload` | `test_storage_sload_same_key_benchmark` | `SLOAD` | — | `WARM_ACCESS` |
 | `warm_account_access` | `test_ext_account_query_warm` | param `opcode` | `[opcode]` | `WARM_ACCESS` |
 | `cold_storage_sload` | `test_sload_bloated` | `SLOAD` (`filter_by: ["CacheStrategy.NO_CACHE"]`) | `[existing_slots]` | `COLD_STORAGE_ACCESS` |
-| `cold_storage_sstore` | `test_sstore_bloated` | `SSTORE` (`filter_by: ["CacheStrategy.NO_CACHE"]`) | `[existing_slots]` | `target_coef: COLD_STORAGE_ACCESS`, `update: STORAGE_WRITE` (via `fixture_params.update = {source: write_new_value, values: {False: 0, True: 1}}`) |
-| `cold_account_nocode_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT"]`) | `[opcode, account_mode]` | `target_coef: COLD_ACCOUNT_NOCODE_ACCESS`, `update: ACCOUNT_WRITE` (via `fixture_params.update = {source: value_sent}`) |
-| `cold_account_code_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA"]`) | `[opcode, account_mode]` | `target_coef: COLD_ACCOUNT_CODE_ACCESS`, `update: ACCOUNT_WRITE` (via `fixture_params.update = {source: value_sent}`) |
+| `cold_storage_sstore_access` | `test_sstore_bloated` | `SSTORE` (`filter_by: ["CacheStrategy.NO_CACHE", "write_new_value_False"]`) | `[existing_slots]` | `COLD_STORAGE_ACCESS` |
+| `cold_storage_sstore_write` | `test_sstore_bloated` | `SSTORE` (`filter_by: ["CacheStrategy.NO_CACHE", "write_new_value_True"]`) | `[existing_slots]` | `COLD_STORAGE_WRITE` (combined access+write) |
+| `cold_account_nocode_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT", "value_sent_0"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_NOCODE_ACCESS` |
+| `cold_account_nocode_write` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT", "value_sent_1"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_NOCODE_WRITE` (combined access+write) |
+| `cold_account_code_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "value_sent_0"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_ACCESS` |
+| `cold_account_code_write` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "value_sent_1"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_WRITE` (combined access+write) |
 | `account_codecopy` | `test_codecopy_benchmark` | `CODECOPY` | `[code_size, mem_size]` | `target_coef: OPCODE_CODECOPY_BASE`, `code_words: OPCODE_CODECOPY_PER_WORD` (via `fixture_params.code_words = {source: code_size, transform: bytes_to_words}`) |
 | `account_codesize` | `test_codesize` | `CODESIZE` | — | `OPCODE_CODESIZE` |
 | `account_selfbalance` | `test_selfbalance` | `SELFBALANCE` | — | `OPCODE_SELFBALANCE` |
@@ -283,26 +287,38 @@ presets below enumerate the *included* values as separate entries.
 Notes:
 
 - **New gas-param names** introduced by this group
-  (`COLD_ACCOUNT_NOCODE_ACCESS`, `COLD_ACCOUNT_CODE_ACCESS`, `ACCOUNT_WRITE`,
-  `STORAGE_WRITE`) are listed with their per-param rationale in the top-level
-  "New gas-param names introduced" section.
-- **`update` derived fixture-param.** Both `test_sstore_bloated` and
-  `test_account_access` carry the "is this a write that touches new state"
-  signal under different raw-param names (`write_new_value_{True,False}`
-  vs `value_sent_{0,1}`). Each preset declares a per-spec `fixture_params`
-  entry that renames the raw column to `update` (with a boolean→numeric
-  values map for the sstore case) so `model_params.update` can route the
-  fitted extra coefficient to the right `*_WRITE` gas param. Per §2.7,
-  derived columns live on the per-spec slice; the global parsed frame is
-  unchanged.
+  (`COLD_ACCOUNT_NOCODE_ACCESS`, `COLD_ACCOUNT_CODE_ACCESS`,
+  `COLD_ACCOUNT_NOCODE_WRITE`, `COLD_ACCOUNT_CODE_WRITE`) are listed with their
+  per-param rationale in the top-level "New gas-param names introduced" section.
+  `STORAGE_WRITE` / `ACCOUNT_WRITE` are no longer fitted — they are derived from
+  the combined-write params (see below).
+- **Write deltas are priced jointly, not independently.** A write to new state
+  is *never charged without its cold access*, so the chargeable cost is the
+  combined `access + write`. Pricing `access` and `write` as two independent
+  per-param worst-cases over-charges: `max` is subadditive, so the worst-access
+  client and the worst-write client can differ and their sum exceeds any single
+  client's combined cost. Instead each test is split by the
+  "touches new state" signal — `write_new_value_{False,True}` for SSTORE,
+  `value_sent_{0,1}` for account access — into a **read-only access fit** and a
+  **combined access+write fit** (`COLD_STORAGE_WRITE`, `COLD_ACCOUNT_*_WRITE`),
+  each a single-coefficient regression selected purely via `filter_by`. The
+  write delta is then recovered in `derived`:
+  - `STORAGE_WRITE = max(0, COLD_STORAGE_WRITE − COLD_STORAGE_ACCESS)`
+  - `ACCOUNT_WRITE = max(0, COLD_ACCOUNT_CODE_WRITE − COLD_ACCOUNT_CODE_ACCESS, COLD_ACCOUNT_NOCODE_WRITE − COLD_ACCOUNT_NOCODE_ACCESS)`
+
+  The combined cost is thus bounded by one worst-case client (tighter than the
+  sum of two maxima), the subtraction uses the *global* published access
+  worst-case, and the `max(0, …)` floor keeps a degenerate negative delta from
+  leaking. This needs `max`/`min` in the derived mini-language (§4 derived
+  params). It does **not** apply to per-unit compute params
+  (`*_PER_WORD/_ROUND/_POINT`): those scale with input size and are correctly
+  priced by independent-max.
 - **`existing_slots` model_by on storage presets.** `test_sload_bloated`
   and `test_sstore_bloated` sweep the same opcode under two storage states
   (`existing_slots_{True,False}` — whether the targeted slot is already
-  populated). Both presets group on `existing_slots` so NNLS fits one model
-  per state; the §4.6 worst-case selection then propagates the slower of the
-  two into `new_gas.csv`. For `cold_storage_sstore`, `update` (derived from
-  `write_new_value`) still varies inside each `existing_slots` group, so the
-  per-fit `STORAGE_WRITE` coefficient remains identifiable.
+  populated). The storage presets group on `existing_slots` so NNLS fits one
+  model per state; the §4.6 worst-case selection then propagates the slower of
+  the two into `new_gas.csv`.
 - **`account_mode` enumeration.** Upstream filters are
   `account_mode != EXISTING_CONTRACT` (NOCODE pool: `NON_EXISTING_ACCOUNT` +
   `EXISTING_EOA`) and `account_mode != EXISTING_EOA` (CODE pool:
@@ -310,13 +326,13 @@ Notes:
   NOCODE via `filter_by: ["!AccountMode.EXISTING_CONTRACT"]`, CODE via
   `filter_by: ["!AccountMode.EXISTING_EOA"]`. Each exposes `account_mode` on
   `model_by` so NNLS fits one model per included mode; the §4.6 worst-case
-  selection picks the slower. These two presets share `test_name` +
-  `target_operation_param` + `model_by` and differ only in `filter_by` (and
-  both write the shared `ACCOUNT_WRITE` via the `update` coef), so the §4.6
+  selection picks the slower. The four account presets all share `test_name` +
+  `target_operation_param` + `model_by` and differ only in `filter_by`
+  (NOCODE/CODE × read/write) and the gas param they write, so the §4.6
   aggregator routes each `results.csv` row back to its producing preset by
   `source_label` rather than by the key shape — neither preset claims the
-  other's fits, and the overlapping `NON_EXISTING_ACCOUNT` mode stays two
-  distinct candidate rows (one per preset) instead of being deduplicated.
+  other's fits, and the overlapping `NON_EXISTING_ACCOUNT` mode stays distinct
+  candidate rows (one per preset) instead of being deduplicated.
 - **Filter tokens use the EEST enum stringification.** EEST renders
   `cache_strategy` and `account_mode` parameters as
   `cache_strategy_CacheStrategy.<VALUE>` and

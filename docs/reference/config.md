@@ -111,9 +111,11 @@ NNLS regression knobs. All fields are optional.
 Post-aggregation gas params computed from other proposed values. Each entry is
 either an **alias** (string RHS — copies the value of an existing param) or a
 **formula** (mapping with a `formula:` key — a small arithmetic expression).
-Formulas support `+ - * / //` and unary `+/-`; identifiers must resolve to a
-raw fork field, a `model_params` RHS, a `new_params` key, or an earlier
-`derived` entry (declaration order matters).
+Formulas support `+ - * / //`, unary `+/-`, and the variadic built-ins
+`max`/`min` (≥1 positional arg, no keywords — useful for clamping such as
+`max(0, x)`); identifiers must resolve to a raw fork field, a `model_params`
+RHS, a `new_params` key, or an earlier `derived` entry (declaration order
+matters).
 
 ```yaml
 derived:
@@ -123,8 +125,8 @@ derived:
 ```
 
 See [`src/evm_gasfit/proposal/derived.py`](https://github.com/misilva73/evm-gasfit/blob/main/src/evm_gasfit/proposal/derived.py)
-for the exact AST grammar (booleans, function calls, attribute access etc.
-are rejected at config load).
+for the exact AST grammar (booleans, calls other than `max`/`min`, attribute
+access etc. are rejected at config load).
 
 ## `new_params`
 
@@ -144,8 +146,11 @@ Up-front declaration of gas-param names introduced by the user (via
 !!! warning "Strict declaration rule"
     Every `model_params` RHS that isn't already a fork field **must** appear
     in `new_params`. This catches typos at config load. Conversely, a
-    declared `new_params` key that no `model_params` RHS or `derived` formula
-    references is a hard error (dead-declaration check).
+    declared `new_params` key is a hard error (dead-declaration check) unless
+    something references it: a `model_params` RHS, a `derived` formula, or
+    being a `derived` key itself (a derived param such as `STORAGE_WRITE` may
+    carry a `new_params` baseline purely to supply the report's current-gas
+    diff).
 
 ## `models`
 

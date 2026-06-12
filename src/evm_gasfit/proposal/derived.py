@@ -25,6 +25,10 @@ _UNARY_OPS: dict[type[ast.unaryop], object] = {
     ast.USub: lambda a: -a,
 }
 
+# Variadic functions callable from a formula. ``max``/``min`` enable clamping
+# (``max(0, x)``) and worst-across-candidates combines.
+_FUNCS: dict[str, object] = {"max": max, "min": min}
+
 
 def _reject(node: ast.AST, formula: str | None = None) -> None:
     suffix = f" in formula {formula!r}" if formula is not None else ""
@@ -51,6 +55,19 @@ def _validate(node: ast.AST, formula: str) -> None:
         if type(node.op) not in _UNARY_OPS:
             _reject(node.op, formula)
         _validate(node.operand, formula)
+    elif isinstance(node, ast.Call):
+        if not isinstance(node.func, ast.Name) or node.func.id not in _FUNCS:
+            _reject(node, formula)
+        if node.keywords or not node.args:
+            raise ConfigError(
+                f"{node.func.id if isinstance(node.func, ast.Name) else 'call'}() "
+                f"takes at least one positional argument and no keywords "
+                f"in formula {formula!r}"
+            )
+        for arg in node.args:
+            if isinstance(arg, ast.Starred):
+                _reject(arg, formula)
+            _validate(arg, formula)
     else:
         _reject(node, formula)
 
@@ -77,6 +94,9 @@ def names_referenced(tree: ast.Expression) -> list[str]:
             visit(node.right)
         elif isinstance(node, ast.UnaryOp):
             visit(node.operand)
+        elif isinstance(node, ast.Call):
+            for arg in node.args:
+                visit(arg)
 
     visit(tree)
     return out
@@ -104,6 +124,11 @@ def _eval(node: ast.AST, env: Mapping[str, int | float | None]) -> float | None:
         if operand is None:
             return None
         return _UNARY_OPS[type(node.op)](operand)
+    if isinstance(node, ast.Call):
+        args = [_eval(arg, env) for arg in node.args]
+        if any(a is None for a in args):
+            return None
+        return _FUNCS[node.func.id](*args)
     _reject(node)
 
 

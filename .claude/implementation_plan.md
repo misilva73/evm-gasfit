@@ -371,9 +371,12 @@ handles all four, in this order:
    an undeclared proposal — both worth catching at load.)
 7. **`new_params` dead-declaration — strict.** Each key in `new_params` must
    be referenced by at least one of: (a) a resolved model's
-   `model_params.values()`, (b) a `derived:` alias-form RHS, or (c) a
-   `derived:` formula's identifier set. Unreferenced declarations are a hard
-   config error.
+   `model_params.values()`, (b) a `derived:` alias-form RHS, (c) a
+   `derived:` formula's identifier set, or (d) a `derived:` **key** — a derived
+   param may carry a `new_params` baseline purely to supply the report's
+   current-gas diff (e.g. `STORAGE_WRITE` / `ACCOUNT_WRITE`, which are derived
+   from the combined-write params). Unreferenced declarations are a hard config
+   error.
 8. **`derived:` keys that shadow raw fork fields — lenient.** Same warning
    style as before, naming the colliding key. Shadowing is legitimate when
    redefining a param but worth flagging.
@@ -884,6 +887,14 @@ Per-fixture glue ratios are computed the same way as today
   STATICCALL = 1.0 entry for every precompile target. That column counts the
   work being measured, not glue.
 
+The adjustment is computed per `results.csv` row and the resulting table is
+keyed by `(source_label, test_name, target_opcode, *model_by, client_name)` —
+**`source_label` leads the key**. Two specs that share `test_name` + target +
+`model_by` and differ only in `filter_by` (e.g. a read/write access split) each
+get their own adjustment applied to their own fitted coefficient; without the
+`source_label` axis the aggregator's lookup would collide and the second spec
+would inherit the first's adjusted coefficient.
+
 Adjustment formula (unchanged):
 
 ```
@@ -1070,10 +1081,13 @@ proposal report.
 **AST whitelist** (used by both the load-time validator and the runtime
 evaluator; `ast.parse(mode='eval')`, no `eval`): `Expression`, `Constant`
 (numeric only), `Name` (load context only), `BinOp` over
-`Add`/`Sub`/`Mult`/`Div`/`FloorDiv`, `UnaryOp` over `UAdd`/`USub`. Everything
-else — attribute access, subscript, calls, comparisons, boolean ops,
-`__import__`, walrus, comprehensions, lambdas — is rejected. The string-alias
-form is treated as a one-`Name` formula.
+`Add`/`Sub`/`Mult`/`Div`/`FloorDiv`, `UnaryOp` over `UAdd`/`USub`, and `Call`
+to the variadic built-ins `max`/`min` (≥1 positional arg, no keywords, no
+starred args). Everything else — attribute access, subscript, other calls,
+comparisons, boolean ops, `__import__`, walrus, comprehensions, lambdas — is
+rejected. The string-alias form is treated as a one-`Name` formula. `max`/`min`
+enable clamping (`max(0, x)`) and worst-across-candidates combines; like every
+other operator they propagate `None` (an unresolved operand yields `None`).
 
 **Load-time check** (top-level `Config` validator, after §2.5). For each
 `derived:` entry, the same AST walker runs twice:

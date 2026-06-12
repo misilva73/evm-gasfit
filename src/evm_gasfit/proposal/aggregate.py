@@ -22,6 +22,7 @@ def _all_model_by_cols(config: Config) -> list[str]:
 
 def _lookup_glue_adjustment(
     glue_adjustment_df: pd.DataFrame | None,
+    source_label: str,
     test_name: str,
     target_opcode: str,
     model_by: list[str],
@@ -36,6 +37,11 @@ def _lookup_glue_adjustment(
         & (glue_adjustment_df["target_opcode"] == target_opcode)
         & (glue_adjustment_df["client_name"] == client)
     )
+    # Match the producing spec so two specs sharing test/target/model_by but
+    # differing in filter_by (read/write split) don't pick up each other's
+    # adjusted coefficient.
+    if "source_label" in glue_adjustment_df.columns:
+        mask &= glue_adjustment_df["source_label"] == source_label
     for col in model_by:
         if col in glue_adjustment_df.columns:
             mask &= glue_adjustment_df[col] == model_by_values[col]
@@ -82,6 +88,7 @@ def expand_to_per_client(
             adj_high,
         ) = _lookup_glue_adjustment(
             glue_adjustment_df,
+            spec.source_label,
             spec.test_name,
             target_opcode,
             spec.model_by,

@@ -429,7 +429,7 @@ PRESETS: dict[str, ModelSpec] = {
         },
     ),
     # -------------------------------------------------------------------
-    # Account / storage / state (10)
+    # Account / storage / state (12)
     # -------------------------------------------------------------------
     "warm_storage_access_sload": ModelSpec(
         test_name="test_storage_sload_same_key_benchmark",
@@ -449,43 +449,72 @@ PRESETS: dict[str, ModelSpec] = {
         model_by=["existing_slots"],
         model_params={"target_coef": "COLD_STORAGE_ACCESS"},
     ),
-    "cold_storage_sstore": ModelSpec(
+    # SSTORE is split into a read-only access fit (write_new_value=False) and a
+    # combined access+write fit (write_new_value=True). The write *delta* is
+    # recovered downstream via a derived ``STORAGE_WRITE = max(0,
+    # COLD_STORAGE_WRITE - COLD_STORAGE_ACCESS)`` so the combined cold-write op
+    # is bounded by a single worst-case client rather than the sum of two
+    # independent per-param maxima.
+    "cold_storage_sstore_access": ModelSpec(
         test_name="test_sstore_bloated",
         target_operation="SSTORE",
-        filter_by=["CacheStrategy.NO_CACHE"],
+        filter_by=["CacheStrategy.NO_CACHE", "write_new_value_False"],
         model_by=["existing_slots"],
-        fixture_params={
-            "update": FixtureParamSpec(
-                source="write_new_value",
-                values={"False": 0, "True": 1},
-            ),
-        },
-        model_params={
-            "target_coef": "COLD_STORAGE_ACCESS",
-            "update": "STORAGE_WRITE",
-        },
+        model_params={"target_coef": "COLD_STORAGE_ACCESS"},
     ),
+    "cold_storage_sstore_write": ModelSpec(
+        test_name="test_sstore_bloated",
+        target_operation="SSTORE",
+        filter_by=["CacheStrategy.NO_CACHE", "write_new_value_True"],
+        model_by=["existing_slots"],
+        model_params={"target_coef": "COLD_STORAGE_WRITE"},
+    ),
+    # Account access mirrors SSTORE: value_sent=0 isolates the cold access,
+    # value_sent=1 measures the combined access+write, and ``ACCOUNT_WRITE`` is
+    # derived as the worst write delta across the nocode and code contexts.
     "cold_account_nocode_access": ModelSpec(
         test_name="test_account_access",
         target_operation_param="opcode",
-        filter_by=["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT"],
+        filter_by=[
+            "CacheStrategy.NO_CACHE",
+            "!AccountMode.EXISTING_CONTRACT",
+            "value_sent_0",
+        ],
         model_by=["opcode", "account_mode"],
-        fixture_params={"update": FixtureParamSpec(source="value_sent")},
-        model_params={
-            "target_coef": "COLD_ACCOUNT_NOCODE_ACCESS",
-            "update": "ACCOUNT_WRITE",
-        },
+        model_params={"target_coef": "COLD_ACCOUNT_NOCODE_ACCESS"},
+    ),
+    "cold_account_nocode_write": ModelSpec(
+        test_name="test_account_access",
+        target_operation_param="opcode",
+        filter_by=[
+            "CacheStrategy.NO_CACHE",
+            "!AccountMode.EXISTING_CONTRACT",
+            "value_sent_1",
+        ],
+        model_by=["opcode", "account_mode"],
+        model_params={"target_coef": "COLD_ACCOUNT_NOCODE_WRITE"},
     ),
     "cold_account_code_access": ModelSpec(
         test_name="test_account_access",
         target_operation_param="opcode",
-        filter_by=["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA"],
+        filter_by=[
+            "CacheStrategy.NO_CACHE",
+            "!AccountMode.EXISTING_EOA",
+            "value_sent_0",
+        ],
         model_by=["opcode", "account_mode"],
-        fixture_params={"update": FixtureParamSpec(source="value_sent")},
-        model_params={
-            "target_coef": "COLD_ACCOUNT_CODE_ACCESS",
-            "update": "ACCOUNT_WRITE",
-        },
+        model_params={"target_coef": "COLD_ACCOUNT_CODE_ACCESS"},
+    ),
+    "cold_account_code_write": ModelSpec(
+        test_name="test_account_access",
+        target_operation_param="opcode",
+        filter_by=[
+            "CacheStrategy.NO_CACHE",
+            "!AccountMode.EXISTING_EOA",
+            "value_sent_1",
+        ],
+        model_by=["opcode", "account_mode"],
+        model_params={"target_coef": "COLD_ACCOUNT_CODE_WRITE"},
     ),
     "account_codecopy": ModelSpec(
         test_name="test_codecopy_benchmark",

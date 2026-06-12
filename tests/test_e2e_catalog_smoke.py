@@ -37,13 +37,13 @@ _OPCOUNT_PER_MILLION = 500_000.0
 # Names the catalog's presets propose that are not raw osaka fork fields.
 # Any preset-only config must declare these in `new_params` for load to succeed.
 _CATALOG_NEW_PARAMS: dict[str, int | None] = {
-    "ACCOUNT_WRITE": None,
     "COLD_ACCOUNT_CODE_ACCESS": None,
     "COLD_ACCOUNT_NOCODE_ACCESS": None,
+    "COLD_ACCOUNT_CODE_WRITE": None,
+    "COLD_ACCOUNT_NOCODE_WRITE": None,
     "OPCODE_CALLDATACOPY_PER_WORD": None,
     "OPCODE_CODECOPY_PER_WORD": None,
     "OPCODE_MCOPY_PER_WORD": None,
-    "STORAGE_WRITE": None,
 }
 
 

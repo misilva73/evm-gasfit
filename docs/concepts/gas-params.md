@@ -101,9 +101,11 @@ against an environment built from:
 
 The mini-language ([`proposal/derived.py`](https://github.com/misilva73/evm-gasfit/blob/main/src/evm_gasfit/proposal/derived.py))
 supports `+ - * / //` and unary `+/-` over `int`/`float` constants and
-identifiers. **Boolean values, function calls, comparisons, and attribute
-access are rejected at config load**, not at evaluation time, so a typo
-fails fast.
+identifiers, plus the variadic built-ins `max`/`min` (≥1 positional arg, no
+keywords) — handy for clamping (`max(0, x)`) and worst-across-candidates
+combines. **Boolean values, any other function call, comparisons, and
+attribute access are rejected at config load**, not at evaluation time, so a
+typo fails fast.
 
 If any identifier in a formula resolves to `None` (unfit + declared without
 a baseline), the result is `None` — the derived param renders as `<no fit>`

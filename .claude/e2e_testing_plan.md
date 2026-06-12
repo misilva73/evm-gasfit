@@ -181,7 +181,18 @@ Plan rules pinned: every preset in `defaults/models.py::PRESETS` must pass Pydan
 | Test | Coverage |
 | --- | --- |
 | `test_every_catalog_preset_fits_without_raising` | Programmatically synthesizes one block-limit sweep per preset by introspecting each `ModelSpec` (covers `target_operation_param`, `model_by`, `fixture_params` sources, non-target `model_params` coefs, and precompile-style `target_operation_count_source`). Loads all preset names into one config, runs the pipeline, asserts every preset's `test_name` produces at least one row in `results.csv` and `new_gas.csv` is non-empty. |
-| `test_catalog_warnings_only_list_new_gas_param_names` | Loads the catalog config and asserts every config-load warning names one of the documented new gas-param names (`OPCODE_*COPY_PER_WORD`, `COLD_ACCOUNT_NOCODE_ACCESS`, `COLD_ACCOUNT_CODE_ACCESS`, `ACCOUNT_WRITE`, `STORAGE_WRITE`) — no surprise warnings from typos. |
+| `test_catalog_requires_new_params_declaration` | A preset-only config that omits the catalog's non-raw `model_params` RHS names (`OPCODE_*COPY_PER_WORD`, `COLD_ACCOUNT_{NOCODE,CODE}_ACCESS`, `COLD_ACCOUNT_{NOCODE,CODE}_WRITE`) fails to load with a hard `ConfigError`; declaring them lets the config load cleanly with no warnings. |
+
+### 2.7f [`tests/test_e2e_joint_delta.py`](../tests/test_e2e_joint_delta.py) — joint worst-case pricing for access deltas (catalog / §4.8)
+
+Plan rules pinned: the state-access write cost is fitted as a *combined* access+write param (`COLD_STORAGE_WRITE`, `COLD_ACCOUNT_*_WRITE`) selected via `filter_by` on the `write_new_value`/`value_sent` tokens, and the write delta is recovered in `derived` as `max(0, combined − access)`. This bounds the combined op by a single worst-case client (tighter than the subadditive sum of two independent per-param maxima) and floors a degenerate negative delta at zero.
+
+| Test | Coverage |
+| --- | --- |
+| `test_storage_write_joint_is_tighter_than_independent_max` | Two clients whose worst access and worst combined-write come from *different* clients. Asserts `STORAGE_WRITE == max(0, COLD_STORAGE_WRITE − COLD_STORAGE_ACCESS)` and that it is strictly below the naive per-client `max(combined − access)` read off `new_gas_all_params.csv`. |
+| `test_storage_write_clamps_to_zero` | Combined write measures below the cold access for every client; asserts the derived `STORAGE_WRITE` floors at `0`. |
+| `test_account_write_takes_worst_context` | Two account contexts (nocode/code) with different write deltas; asserts `ACCOUNT_WRITE == max(0, code_delta, nocode_delta)` equals the worst (code) context. |
+| `test_joint_delta_survives_glue_adjustment` | Regression for the glue-adjustment key collision: with glue enabled, the read/write specs share `(test_name, target, model_by)` and differ only in `filter_by`. Asserts the write spec keeps its own (higher) coefficient — the glue adjustment df is keyed on `source_label` — so the delta does not collapse to 0. |
 
 ### 2.8 [`tests/test_e2e_determinism.py`](../tests/test_e2e_determinism.py) — determinism contract (§4.0)
 
@@ -272,7 +283,7 @@ Items previously listed here as "open" are now pinned by code: `client_name` is 
 | §4.5 | Time units / gas conversion | `test_e2e_happy_path`, `test_e2e_glue` |
 | §4.6 | Per-client → across-client aggregation; winning-row provenance; "no prior default" sentinel | `test_e2e_happy_path`, `test_e2e_multi_model`; sentinel tests in `test_e2e_proposal_warnings` |
 | §4.7 | `new_gas_decimal` + `new_gas_rounded` rounding | `test_e2e_happy_path`, `test_derived_alias_and_formula_evaluate` |
-| §4.8 | Derived params: alias, formula, AST whitelist, load-time identifier check | `test_derived_alias_and_formula_evaluate`, `test_derived_formula_unknown_identifier_is_load_time_error` |
+| §4.8 | Derived params: alias, formula, AST whitelist (incl. `max`/`min`), load-time identifier check, joint access-delta pricing | `test_derived_alias_and_formula_evaluate`, `test_derived_formula_unknown_identifier_is_load_time_error`, `test_e2e_joint_delta` (3 tests), `test_unit_derived` |
 | §5 / §5.1 | Output artifacts table; figure naming/layout; plots toggle | multiple |
 | §5 (`new_gas_proposal.md`) | Section ordering, bulleted `## Contents` TOC, column headers, anchor-rate formatting, sentinel rendering, gas-param row order, heatmap colormap (`log2(proposed / current)` + `null`-baseline blank rows) and the markdown-table fallbacks when `output.plots: false` | `test_e2e_report_format` (17 tests) |
 | §8 | CLI contract, exit codes | `test_e2e_cli` (4 tests) |
@@ -287,6 +298,7 @@ The following sad paths are intentionally not e2e tests — each exercises a sin
 - §4.2 fit failure modes (`nobs < n_features + 1`, rank-deficient design, constant `opcount`, scipy convergence failure, bootstrap-iteration failure, all-skipped → `ModelingError`) → [`tests/test_unit_nnls_failures.py`](../tests/test_unit_nnls_failures.py).
 - §4.6 tie-break order (per-client `runtime_ms` → `pvalue` → lexicographic on `(test_name, target_opcode, model_coef_name, model_by-combo, source_label)`; across-client by ascending `client_name`), each with an order-independence counter-test → [`tests/test_unit_aggregate_tie_break.py`](../tests/test_unit_aggregate_tie_break.py).
 - §2.4 gas-cost source selection (`ethereum/execution-specs` vs. `_fallback.py`) and the `EVM_GASFIT_USE_FALLBACK=1` env-var override → [`tests/test_unit_defaults_source.py`](../tests/test_unit_defaults_source.py).
+- §4.8 derived mini-language `max`/`min` extension (clamping, variadic/nested forms, `None` propagation, identifier discovery into call args, rejection of non-whitelisted calls / keywords / starred args) → [`tests/test_unit_derived.py`](../tests/test_unit_derived.py).
 
 Identically-zero `opcount` is rejected earlier by the §2.3 input invariant as a `ConfigError` (CLI exit 1), not via the fit-skip path; the NNLS suite's `[zero]` parametrize branch covers that route.
 

@@ -45,13 +45,22 @@ def compute_glue_adjustment(
 ) -> pd.DataFrame:
     """Compute per-row glue adjustment plus the clipped target coefficient.
 
-    Returns a DataFrame keyed by ``(test_name, target_opcode, *model_by,
-    client_name)`` with columns ``glue_adjustment``,
+    Returns a DataFrame keyed by ``(source_label, test_name, target_opcode,
+    *model_by, client_name)`` with columns ``glue_adjustment``,
     ``adjusted_target_coef_runtime_ms``, ``adjusted_target_coef_conf_int_low``,
-    and ``adjusted_target_coef_conf_int_high``.
+    and ``adjusted_target_coef_conf_int_high``. ``source_label`` leads the key
+    so two specs that share ``test_name`` + target + ``model_by`` and differ
+    only in ``filter_by`` (e.g. a read/write split) each carry their own
+    adjustment against their own fitted coefficient instead of colliding.
     """
     model_by_cols = _model_by_cols(results_df, glue_opcodes_by_test_df)
-    key_cols = ["test_name", "target_opcode", *model_by_cols, "client_name"]
+    key_cols = [
+        "source_label",
+        "test_name",
+        "target_opcode",
+        *model_by_cols,
+        "client_name",
+    ]
 
     rows: list[dict[str, object]] = []
     for _, row in results_df.iterrows():
@@ -93,6 +102,7 @@ def compute_glue_adjustment(
         adjusted_high = max(0.0, high - adjustment)
 
         out_row: dict[str, object] = {
+            "source_label": row["source_label"],
             "test_name": row["test_name"],
             "target_opcode": row["target_opcode"],
             "client_name": row["client_name"],
