@@ -313,6 +313,7 @@ def estimate_models(config: Config, fixtures_df: pd.DataFrame) -> EstimateOutput
     """
     rows: list[dict[str, object]] = []
     fits: dict[tuple, NNLSResults] = {}
+    unmatched: list[ModelSpec] = []
 
     for spec in config.resolved_models:
         slice_df = fixtures_df[fixtures_df["test_name"] == spec.test_name]
@@ -323,6 +324,7 @@ def estimate_models(config: Config, fixtures_df: pd.DataFrame) -> EstimateOutput
                 spec.test_name,
                 spec.filter_by,
             )
+            unmatched.append(spec)
             continue
 
         slice_df = _resolve_target_opcode(slice_df, spec)
@@ -389,6 +391,19 @@ def estimate_models(config: Config, fixtures_df: pd.DataFrame) -> EstimateOutput
                     client,
                 )
                 fits[fit_key] = fit
+
+    # A spec that a config names explicitly is an assertion that it should
+    # apply, so re-state the zero-match specs as one line after the per-spec
+    # warnings have scrolled past. Suite renames land here first.
+    if unmatched:
+        _log.warning(
+            "%d model spec(s) matched no fixtures and were skipped: %s",
+            len(unmatched),
+            "; ".join(
+                f"{spec.source_label} (test_name={spec.test_name!r})"
+                for spec in unmatched
+            ),
+        )
 
     if not rows:
         raise ModelingError(

@@ -181,7 +181,8 @@ def _build_inputs_with_missing_fit(
     """One ADD model that fits + one spec referencing a missing test_name.
 
     The second spec has no matching fixtures, so the modeling layer skips it
-    silently and the proposal layer emits a placeholder row for `MY_UNFIT`.
+    (warning only) and the proposal layer emits a placeholder row for
+    `MY_UNFIT`.
     """
     fixtures = make_block_limit_fixtures(
         test_file="test_arithmetic",

@@ -230,6 +230,80 @@ def test_modeling_error_when_every_fit_is_skipped(
 
 
 # ---------------------------------------------------------------------------
+# Zero-match specs — the end-of-run skipped-spec summary
+# ---------------------------------------------------------------------------
+
+
+def _make_config_with_unmatched_spec() -> Config:
+    """One ADD spec that fits plus one spec whose test_name matches nothing."""
+    return Config.model_validate(
+        {
+            "version": 1,
+            "anchor_rate": 1.0e8,
+            "clients": ["geth"],
+            "gas_costs": {"fork": "osaka"},
+            "modeling": {"bootstrap_iterations": 25, "random_seed": 7},
+            "output": {"plots": False},
+            "models": {
+                "presets": [],
+                "custom": [
+                    {
+                        "test_name": _TEST_NAME,
+                        "target_operation": "ADD",
+                        "model_params": {"target_coef": "OPCODE_ADD"},
+                    },
+                    {
+                        "test_name": "test_renamed_away",
+                        "target_operation": "ADD",
+                        "model_params": {"target_coef": "OPCODE_SUB"},
+                    },
+                ],
+            },
+        }
+    )
+
+
+def test_zero_match_specs_are_summarized_once_at_end_of_run(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A spec matching zero fixtures gets its own summary WARNING naming the
+    spec by ``source_label``, on top of the per-spec skip warning — so a stale
+    ``test_name`` isn't invisible among the other benign warnings."""
+    config = _make_config_with_unmatched_spec()
+    fixtures_df = _make_fixtures_df(opcounts=[10.0, 20.0, 30.0, 40.0, 50.0])
+
+    caplog.set_level(logging.WARNING, logger=_LOGGER_NAME)
+    estimate_models(config, fixtures_df)
+
+    summaries = [
+        r.getMessage()
+        for r in caplog.records
+        if "matched no fixtures" in r.getMessage()
+    ]
+    assert len(summaries) == 1, f"expected exactly one summary line; got: {summaries}"
+    summary = summaries[0]
+    assert "models.custom[1]" in summary
+    assert "test_renamed_away" in summary
+    # The spec that did match must not be named.
+    assert "models.custom[0]" not in summary
+
+
+def test_skipped_spec_summary_precedes_downstream_warnings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The summary is the last WARNING the modeling layer emits, so it lands
+    ahead of the glue/proposal warnings that follow in a full run."""
+    config = _make_config_with_unmatched_spec()
+    fixtures_df = _make_fixtures_df(opcounts=[10.0, 20.0, 30.0, 40.0, 50.0])
+
+    caplog.set_level(logging.WARNING, logger=_LOGGER_NAME)
+    estimate_models(config, fixtures_df)
+
+    msgs = [r.getMessage() for r in caplog.records]
+    assert "matched no fixtures" in msgs[-1], f"summary must come last; got: {msgs}"
+
+
+# ---------------------------------------------------------------------------
 # §4.2 bootstrap-iteration failure — driven through fit_nnls directly
 # ---------------------------------------------------------------------------
 

@@ -729,11 +729,18 @@ land on `results.csv` as `intercept_runtime_ms`, `target_coef_runtime_ms`, and
 - **One-value extras**: if a non-`target_coef` feature has only one unique value across
   the filtered fixtures, drop it from the design matrix and log a warning naming
   the model spec and the feature. Continue with the remaining features.
-- **Empty specs**: if `filter_by` leaves zero matching fixtures for a spec, skip
-  that spec entirely and log a warning to stderr naming the `test_name` and the
-  filter that excluded everything. The pipeline continues with the remaining
-  specs. The skipped spec contributes no rows to `results.csv` and no entry to
-  any downstream artifact; the warning is the only trace.
+- **Empty specs**: if `test_name` plus `filter_by` leaves zero matching fixtures
+  for a spec, skip that spec entirely and log a warning to stderr naming the
+  `test_name` and the filter that excluded everything. The pipeline continues
+  with the remaining specs. The skipped spec contributes no rows to
+  `results.csv` and no entry to any downstream artifact.
+  After the spec loop — and before the all-skipped `ModelingError` check —
+  every zero-match spec is re-stated in a single summary warning carrying the
+  count and each spec's `source_label` and `test_name`. A spec a config names
+  explicitly asserts that it should apply, so the summary keeps a stale
+  `test_name` (e.g. after a benchmark-suite rename) from being lost among the
+  per-fit and glue warnings; it is emitted before the glue layer runs, and
+  reaches `### Other` in `new_gas_proposal.md` via the usual warning capture.
 
 Output of one fit (column names in `results.csv`):
 
