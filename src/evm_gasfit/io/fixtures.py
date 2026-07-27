@@ -8,8 +8,13 @@ import pandas as pd
 
 from evm_gasfit.io import FixtureMatchResult, report_unmatched_fixtures
 
+# Accepts both the legacy ``file.py__test[...]`` form and the pytest node-ID
+# ``path/file.py::test[...]`` form, capturing the basename (path stripped) and
+# tolerating a missing ``[...]`` params group.
 _FIXTURE_RE = re.compile(
-    r"^(?P<test_file>[^.]+)\.py__(?P<test_name>[^\[]+)\[(?P<tokens>.*)\]$"
+    r"^(?:.*/)?(?P<test_file>test_[^./]+\.py)(?:__|::)"
+    r"(?P<test_name>[^\[]+?)"
+    r"(?:\[(?P<test_params>.*)\])?$"
 )
 # Split a token into (key, value) at the first '_' whose value side starts with
 # an uppercase letter or a digit — that's the key/value transition. If no such
@@ -28,7 +33,7 @@ def parse_fixture_name(fixture_name: str) -> dict[str, str | list[str]]:
             "tokens": [],
             "params": {},
         }
-    tokens = match["tokens"].split("-") if match["tokens"] else []
+    tokens = match["test_params"].split("-") if match["test_params"] else []
     params: dict[str, str] = {}
     for token in tokens:
         if "_" not in token:

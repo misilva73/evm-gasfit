@@ -42,7 +42,10 @@ def load_opcounts(path: Path) -> dict[str, dict[str, float]]:
             )
         if "opcount" not in entry:
             raise ConfigError(
-                f"opcounts JSON {path}: fixture {fixture!r} is missing 'opcount' key"
+                f"opcounts JSON {path}: fixture {fixture!r} is missing 'opcount' key. "
+                "This usually means upstream title parsing failed or the opcode/trace "
+                "join produced NaN during the fetch step; check the fetch output's "
+                "meta.json 'opcount_coverage' field (with_opcount / without_opcount)."
             )
         out[fixture] = {k: float(v) for k, v in entry.items()}
     return out
