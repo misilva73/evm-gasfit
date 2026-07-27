@@ -432,7 +432,7 @@ PRESETS: dict[str, ModelSpec] = {
     # Account / storage / state (12)
     # -------------------------------------------------------------------
     "warm_storage_access_sload": ModelSpec(
-        test_name="test_storage_sload_same_key_benchmark",
+        test_name="test_sload_same_key_benchmark",
         target_operation="SLOAD",
         model_params={"target_coef": "WARM_ACCESS"},
     ),
@@ -472,6 +472,9 @@ PRESETS: dict[str, ModelSpec] = {
     # Account access mirrors SSTORE: value_sent=0 isolates the cold access,
     # value_sent=1 measures the combined access+write, and ``ACCOUNT_WRITE`` is
     # derived as the worst write delta across the nocode and code contexts.
+    # ``overhead_baseline_False`` drops the baseline variants, which execute the
+    # surrounding harness without the target opcode and so measure loop
+    # overhead rather than account access.
     "cold_account_nocode_access": ModelSpec(
         test_name="test_account_access",
         target_operation_param="opcode",
@@ -479,6 +482,7 @@ PRESETS: dict[str, ModelSpec] = {
             "CacheStrategy.NO_CACHE",
             "!AccountMode.EXISTING_CONTRACT",
             "value_sent_0",
+            "overhead_baseline_False",
         ],
         model_by=["opcode", "account_mode"],
         model_params={"target_coef": "COLD_ACCOUNT_NOCODE_ACCESS"},
@@ -490,6 +494,7 @@ PRESETS: dict[str, ModelSpec] = {
             "CacheStrategy.NO_CACHE",
             "!AccountMode.EXISTING_CONTRACT",
             "value_sent_1",
+            "overhead_baseline_False",
         ],
         model_by=["opcode", "account_mode"],
         model_params={"target_coef": "COLD_ACCOUNT_NOCODE_WRITE"},
@@ -501,6 +506,7 @@ PRESETS: dict[str, ModelSpec] = {
             "CacheStrategy.NO_CACHE",
             "!AccountMode.EXISTING_EOA",
             "value_sent_0",
+            "overhead_baseline_False",
         ],
         model_by=["opcode", "account_mode"],
         model_params={"target_coef": "COLD_ACCOUNT_CODE_ACCESS"},
@@ -512,6 +518,7 @@ PRESETS: dict[str, ModelSpec] = {
             "CacheStrategy.NO_CACHE",
             "!AccountMode.EXISTING_EOA",
             "value_sent_1",
+            "overhead_baseline_False",
         ],
         model_by=["opcode", "account_mode"],
         model_params={"target_coef": "COLD_ACCOUNT_CODE_WRITE"},
