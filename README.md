@@ -94,6 +94,8 @@ fit.write_reports("./out")
 
 ## Adapters
 
+### EEST `blockchain_tests` Adapter
+
 Prepare EEST `blockchain_tests` fixtures before joining them to benchmark
 runtimes:
 
@@ -110,6 +112,45 @@ This writes `opcounts.json`, `fixtures.csv`, and `excluded.csv`.
 (`original_test_name`, `source_path`, `block_index`).
 Precompile targets such as `SHA2-256` get a synthetic target count from
 `STATICCALL` when EEST traces only the call opcode. 
+
+### `zkevm-metrics` Adapter
+
+Turn a zkevm-benchmark-workload metrics tree into a full set of gasfit inputs:
+
+```bash
+evm-gasfit prepare-zkevm \
+    --zkevm-metrics /path/to/benchmark/zkevm-metrics \
+    --out ./prepared/zkevm
+```
+
+This writes `opcounts.json` and `runtimes.csv` for the pipeline, plus
+`fixtures.csv` and `excluded.csv` for auditing. `prepare-zkevm` reads
+`metadata.opcode_count`, `metadata.target_opcode`, and
+`metadata.original_test_name` to build the opcounts, and takes
+`test_runtime_ms` from `proving.success.proving_time_ms`.
+
+Fixture names follow the same `<test_file>.py__<test_name>[...]` convention as
+`prepare-eest`, deriving `block_limit_million` from `benchmark-gas-value_60M`
+test names, so both adapters' outputs join. Precompile targets such as
+`SHA2-256` get a synthetic target count from `STATICCALL`, matching
+`prepare-eest`.
+
+`client_name` is the record's directory path below `--zkevm-metrics`, joined
+with `-` (so a `<client>/<zkvm>` layout yields `<client>-<zkvm>`), falling back
+to the root directory name for records sitting directly in it. A `hardware.json`
+beside the records is skipped.
+
+Point `--zkevm-metrics` at a directory holding several `<client>/<zkvm>`
+subtrees to compare them in one run.
+
+Records that cannot be used are listed in `excluded.csv` with a `reason`
+column, covering unreadable or malformed records, missing or unusable
+`target_opcode` and `opcode_count`, and proving that crashed, reported no
+time, or returned output that did not match the fixture. Because one benchmark
+keeps a single fixture name across clients, a record is also dropped when it
+repeats a fixture already recorded for its client. When two records for one
+fixture report a different target opcode or opcode counts there is no basis for
+preferring either, so every record for that fixture is dropped.
 
 ## Public API
 
