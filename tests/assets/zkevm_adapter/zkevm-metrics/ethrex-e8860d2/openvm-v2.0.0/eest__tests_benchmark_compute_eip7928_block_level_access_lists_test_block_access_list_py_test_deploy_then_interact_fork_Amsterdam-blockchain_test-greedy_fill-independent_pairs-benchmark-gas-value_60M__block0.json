@@ -1,0 +1,56 @@
+{
+  "name": "eest__tests_benchmark_compute_eip7928_block_level_access_lists_test_block_access_list_py_test_deploy_then_interact_fork_Amsterdam-blockchain_test-greedy_fill-independent_pairs-benchmark-gas-value_60M__block0",
+  "timestamp_completed": "2026-07-27T10:14:26.960488293Z",
+  "metadata": {
+    "block_index": 0,
+    "block_number": 1,
+    "block_used_gas": 679928,
+    "chain_id": 1,
+    "fixture_format": "eest",
+    "network": "Amsterdam",
+    "opcode_count": {
+      "ADD": 9,
+      "CALLDATALOAD": 2,
+      "CALLDATASIZE": 2,
+      "CALLER": 6,
+      "DUP1": 14,
+      "DUP2": 11,
+      "DUP3": 12,
+      "EQ": 18,
+      "GT": 8,
+      "ISZERO": 2,
+      "JUMP": 4,
+      "JUMPDEST": 34,
+      "JUMPI": 28,
+      "MOD": 2,
+      "MUL": 4,
+      "NUMBER": 1,
+      "POP": 12,
+      "PUSH0": 34,
+      "PUSH1": 45,
+      "PUSH2": 25,
+      "PUSH20": 6,
+      "PUSH3": 2,
+      "PUSH32": 4,
+      "RETURN": 4,
+      "SLOAD": 16,
+      "SSTORE": 19,
+      "STOP": 2,
+      "SUB": 5,
+      "SWAP1": 5,
+      "SWAP2": 4,
+      "SWAP3": 4,
+      "TIMESTAMP": 2
+    },
+    "original_test_name": "tests/benchmark/compute/eip7928_block_level_access_lists/test_block_access_list.py::test_deploy_then_interact[fork_Amsterdam-blockchain_test-greedy_fill-independent_pairs-benchmark-gas-value_60M]",
+    "source_path": "blockchain_tests/for_amsterdam_at_0060M/compute/eip7928_block_level_access_lists/block_access_list/deploy_then_interact.json"
+  },
+  "proving": {
+    "success": {
+      "output_matched": true,
+      "proof_size": 268071,
+      "proving_time_ms": 1060,
+      "verification_time_ms": 13
+    }
+  }
+}

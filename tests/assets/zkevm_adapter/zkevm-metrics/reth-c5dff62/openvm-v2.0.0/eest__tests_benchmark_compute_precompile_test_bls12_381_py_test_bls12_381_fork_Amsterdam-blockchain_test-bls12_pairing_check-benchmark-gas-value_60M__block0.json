@@ -1,0 +1,57 @@
+{
+  "name": "eest__tests_benchmark_compute_precompile_test_bls12_381_py_test_bls12_381_fork_Amsterdam-blockchain_test-bls12_pairing_check-benchmark-gas-value_60M__block0",
+  "timestamp_completed": "2026-07-27T07:15:47.824405761Z",
+  "metadata": {
+    "block_index": 0,
+    "block_number": 1,
+    "block_used_gas": 60000000,
+    "chain_id": 1,
+    "fixture_format": "eest",
+    "network": "Amsterdam",
+    "opcode_count": {
+      "ADD": 9,
+      "CALLDATACOPY": 4,
+      "CALLDATALOAD": 2,
+      "CALLDATASIZE": 865,
+      "CALLER": 6,
+      "DUP1": 14,
+      "DUP2": 11,
+      "DUP3": 12,
+      "EQ": 18,
+      "GAS": 855,
+      "GT": 8,
+      "ISZERO": 2,
+      "JUMP": 4,
+      "JUMPDEST": 38,
+      "JUMPI": 28,
+      "MOD": 2,
+      "MUL": 4,
+      "NUMBER": 1,
+      "POP": 867,
+      "PUSH0": 34,
+      "PUSH1": 3489,
+      "PUSH2": 25,
+      "PUSH20": 6,
+      "PUSH3": 2,
+      "PUSH32": 4,
+      "RETURN": 4,
+      "SLOAD": 16,
+      "SSTORE": 19,
+      "STATICCALL": 855,
+      "STOP": 2,
+      "SUB": 5,
+      "SWAP1": 5,
+      "SWAP2": 4,
+      "SWAP3": 4,
+      "TIMESTAMP": 2
+    },
+    "original_test_name": "tests/benchmark/compute/precompile/test_bls12_381.py::test_bls12_381[fork_Amsterdam-blockchain_test-bls12_pairing_check-benchmark-gas-value_60M]",
+    "source_path": "blockchain_tests/for_amsterdam_at_0060M/compute/precompile/bls12_381/bls12_381.json",
+    "target_opcode": "BLS12_PAIRING"
+  },
+  "proving": {
+    "crashed": {
+      "reason": "Prove job ere-6fc52333e9934d4c9a37fc6aa22eb9e0 timed out"
+    }
+  }
+}
