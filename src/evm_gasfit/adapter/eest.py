@@ -52,7 +52,7 @@ _FIXTURE_COLUMNS = (
     "block_limit_million",
     "target_opcode",
 )
-_EXCLUDED_COLUMNS = (
+_EXCLUDED_COLUMNS: tuple[str, ...] = (
     "source_path",
     "original_test_name",
     "block_index",
@@ -457,5 +457,5 @@ def _write_excluded(path: Path, rows: list[dict[str, object]]) -> None:
             writer.writerow(row)
 
 
-def _csv_value(value: object | None) -> object:
+def _csv_value(value: int | None) -> object:
     return "" if value is None else value
