@@ -10,6 +10,7 @@ from typing import Any
 
 from evm_gasfit.adapter.eest import (
     _EXCLUDED_COLUMNS,
+    _OPCODE_ALIASES,
     _PRECOMPILE_TARGETS,
     _block_limit_million,
     _coerce_count,
@@ -281,6 +282,7 @@ def _prepare_opcounts(
             "missing_target_opcode",
             "metadata has no target_opcode",
         )
+    target_opcode = _OPCODE_ALIASES.get(target_opcode, target_opcode)
 
     opcode_count = metadata.get("opcode_count")
     if not isinstance(opcode_count, dict) or not opcode_count:
@@ -293,7 +295,10 @@ def _prepare_opcounts(
         )
 
     try:
-        counts = {str(op): _coerce_count(count) for op, count in opcode_count.items()}
+        counts = {
+            _OPCODE_ALIASES.get(str(op), str(op)): _coerce_count(count)
+            for op, count in opcode_count.items()
+        }
     except ValueError as exc:
         return _excluded(
             source_path,

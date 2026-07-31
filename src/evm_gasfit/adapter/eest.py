@@ -39,6 +39,10 @@ _PRECOMPILE_TARGETS = {
     "SHA2-256",
 }
 
+# EEST names opcode 0x20 by its original ``SHA3`` mnemonic. Gasfit's canonical
+# name for it is ``KECCAK256``, so adapters emit the canonical spelling.
+_OPCODE_ALIASES = {"SHA3": "KECCAK256"}
+
 _FIXTURE_COLUMNS = (
     "fixture_name",
     "original_test_name",
@@ -255,6 +259,7 @@ def _prepare_case(
             "missing_target_opcode",
             "fixture metadata has no target_opcode",
         )
+    target_opcode = _OPCODE_ALIASES.get(target_opcode, target_opcode)
 
     opcode_count = metadata.get("opcode_count")
     if opcode_count is None:
@@ -269,7 +274,10 @@ def _prepare_case(
         )
 
     try:
-        counts = {str(op): _coerce_count(count) for op, count in opcode_count.items()}
+        counts = {
+            _OPCODE_ALIASES.get(str(op), str(op)): _coerce_count(count)
+            for op, count in opcode_count.items()
+        }
     except ValueError as exc:
         return _excluded(
             source_path,
