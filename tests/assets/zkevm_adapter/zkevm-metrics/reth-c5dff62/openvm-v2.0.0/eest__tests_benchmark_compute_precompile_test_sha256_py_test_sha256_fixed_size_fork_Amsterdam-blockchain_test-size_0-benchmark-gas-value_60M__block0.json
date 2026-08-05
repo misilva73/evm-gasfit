@@ -1,0 +1,60 @@
+{
+  "name": "eest__tests_benchmark_compute_precompile_test_sha256_py_test_sha256_fixed_size_fork_Amsterdam-blockchain_test-size_0-benchmark-gas-value_60M__block0",
+  "timestamp_completed": "2026-07-27T09:33:31.370008697Z",
+  "metadata": {
+    "block_index": 0,
+    "block_number": 1,
+    "block_used_gas": 60000000,
+    "chain_id": 1,
+    "fixture_format": "eest",
+    "network": "Amsterdam",
+    "opcode_count": {
+      "ADD": 9,
+      "CALLDATALOAD": 2,
+      "CALLDATASIZE": 2,
+      "CALLER": 6,
+      "CODECOPY": 4,
+      "DUP1": 14,
+      "DUP2": 11,
+      "DUP3": 12,
+      "EQ": 18,
+      "GAS": 340565,
+      "GT": 8,
+      "ISZERO": 2,
+      "JUMP": 54,
+      "JUMPDEST": 88,
+      "JUMPI": 28,
+      "MOD": 2,
+      "MUL": 4,
+      "NUMBER": 1,
+      "POP": 340577,
+      "PUSH0": 1021729,
+      "PUSH1": 681237,
+      "PUSH2": 25,
+      "PUSH20": 6,
+      "PUSH3": 2,
+      "PUSH32": 4,
+      "RETURN": 4,
+      "SLOAD": 16,
+      "SSTORE": 19,
+      "STATICCALL": 340565,
+      "STOP": 2,
+      "SUB": 5,
+      "SWAP1": 5,
+      "SWAP2": 4,
+      "SWAP3": 4,
+      "TIMESTAMP": 2
+    },
+    "original_test_name": "tests/benchmark/compute/precompile/test_sha256.py::test_sha256_fixed_size[fork_Amsterdam-blockchain_test-size_0-benchmark-gas-value_60M]",
+    "source_path": "blockchain_tests/for_amsterdam_at_0060M/compute/precompile/sha256/sha256_fixed_size.json",
+    "target_opcode": "SHA2-256"
+  },
+  "proving": {
+    "success": {
+      "output_matched": true,
+      "proof_size": 316119,
+      "proving_time_ms": 8436,
+      "verification_time_ms": 13
+    }
+  }
+}

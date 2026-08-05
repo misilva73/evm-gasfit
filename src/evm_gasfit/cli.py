@@ -11,6 +11,7 @@ from pathlib import Path
 from evm_gasfit.api import GasFit
 from evm_gasfit.errors import ConfigError, ModelingError
 from evm_gasfit.adapter.eest import prepare_eest
+from evm_gasfit.adapter.zkevm import prepare_zkevm
 
 _log = logging.getLogger("evm_gasfit")
 
@@ -42,6 +43,14 @@ def _build_parser() -> argparse.ArgumentParser:
     prepare_eest_p.add_argument("--eest-fixtures", required=True, type=Path)
     prepare_eest_p.add_argument("--out", required=True, type=Path)
     prepare_eest_p.set_defaults(func=_prepare_eest)
+
+    prepare_zkevm_p = sub.add_parser(
+        "prepare-zkevm",
+        help="Normalize zkevm-benchmark-workload metrics into gasfit inputs",
+    )
+    prepare_zkevm_p.add_argument("--zkevm-metrics", required=True, type=Path)
+    prepare_zkevm_p.add_argument("--out", required=True, type=Path)
+    prepare_zkevm_p.set_defaults(func=_prepare_zkevm)
     return parser
 
 
@@ -59,6 +68,11 @@ def _run(args: argparse.Namespace) -> int:
 
 def _prepare_eest(args: argparse.Namespace) -> int:
     prepare_eest(Path(args.eest_fixtures), Path(args.out))
+    return 0
+
+
+def _prepare_zkevm(args: argparse.Namespace) -> int:
+    prepare_zkevm(Path(args.zkevm_metrics), Path(args.out))
     return 0
 
 

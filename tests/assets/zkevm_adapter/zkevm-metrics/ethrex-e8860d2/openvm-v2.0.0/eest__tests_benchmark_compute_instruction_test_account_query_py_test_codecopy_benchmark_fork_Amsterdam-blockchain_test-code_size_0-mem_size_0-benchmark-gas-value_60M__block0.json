@@ -1,0 +1,58 @@
+{
+  "name": "eest__tests_benchmark_compute_instruction_test_account_query_py_test_codecopy_benchmark_fork_Amsterdam-blockchain_test-code_size_0-mem_size_0-benchmark-gas-value_60M__block0",
+  "timestamp_completed": "2026-07-27T10:29:43.828605105Z",
+  "metadata": {
+    "block_index": 0,
+    "block_number": 1,
+    "block_used_gas": 60000000,
+    "chain_id": 1,
+    "fixture_format": "eest",
+    "network": "Amsterdam",
+    "opcode_count": {
+      "ADD": 9,
+      "CALLDATALOAD": 2,
+      "CALLDATASIZE": 2,
+      "CALLER": 6,
+      "CODECOPY": 5993501,
+      "DUP1": 14,
+      "DUP2": 11,
+      "DUP3": 12,
+      "EQ": 18,
+      "GT": 8,
+      "ISZERO": 2,
+      "JUMP": 458,
+      "JUMPDEST": 492,
+      "JUMPI": 28,
+      "MOD": 2,
+      "MUL": 4,
+      "NUMBER": 1,
+      "POP": 12,
+      "PUSH0": 11987490,
+      "PUSH1": 5993546,
+      "PUSH2": 25,
+      "PUSH20": 6,
+      "PUSH3": 2,
+      "PUSH32": 4,
+      "RETURN": 4,
+      "SLOAD": 16,
+      "SSTORE": 19,
+      "STOP": 2,
+      "SUB": 5,
+      "SWAP1": 5,
+      "SWAP2": 4,
+      "SWAP3": 4,
+      "TIMESTAMP": 2
+    },
+    "original_test_name": "tests/benchmark/compute/instruction/test_account_query.py::test_codecopy_benchmark[fork_Amsterdam-blockchain_test-code_size_0-mem_size_0-benchmark-gas-value_60M]",
+    "source_path": "blockchain_tests/for_amsterdam_at_0060M/compute/instruction/account_query/codecopy_benchmark.json",
+    "target_opcode": "CODECOPY"
+  },
+  "proving": {
+    "success": {
+      "output_matched": true,
+      "proof_size": 316119,
+      "proving_time_ms": 6390,
+      "verification_time_ms": 13
+    }
+  }
+}
