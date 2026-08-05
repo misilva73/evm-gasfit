@@ -10,14 +10,12 @@ from typing import Any
 
 from evm_gasfit.adapter.eest import (
     _EXCLUDED_COLUMNS,
-    _OPCODE_ALIASES,
-    _PRECOMPILE_TARGETS,
     _block_limit_million,
-    _coerce_count,
     _csv_value,
     _excluded,
     _native_fixture_name,
     _parse_int,
+    _resolve_opcounts,
 )
 from evm_gasfit.errors import ConfigError
 
@@ -150,7 +148,12 @@ def prepare_zkevm(zkevm_metrics: Path, out_dir: Path) -> PreparedZkevm:
             )
             continue
 
-        prepared = _prepare_opcounts(metadata, source_path, original_test_name)
+        prepared = _resolve_opcounts(
+            metadata.get("target_opcode"),
+            metadata.get("opcode_count"),
+            source_path,
+            original_test_name,
+        )
         if isinstance(prepared, dict):
             excluded.append(prepared)
             continue
@@ -266,65 +269,6 @@ def prepare_zkevm(zkevm_metrics: Path, out_dir: Path) -> PreparedZkevm:
         excluded_count=len(excluded),
         out_dir=out,
     )
-
-
-def _prepare_opcounts(
-    metadata: dict[str, Any],
-    source_path: str,
-    original_test_name: str,
-) -> tuple[str, dict[str, int | float]] | dict[str, object]:
-    target_opcode = metadata.get("target_opcode")
-    if not isinstance(target_opcode, str) or not target_opcode:
-        return _excluded(
-            source_path,
-            original_test_name,
-            "",
-            "missing_target_opcode",
-            "metadata has no target_opcode",
-        )
-    target_opcode = _OPCODE_ALIASES.get(target_opcode, target_opcode)
-
-    opcode_count = metadata.get("opcode_count")
-    if not isinstance(opcode_count, dict) or not opcode_count:
-        return _excluded(
-            source_path,
-            original_test_name,
-            "",
-            "missing_opcode_count",
-            "metadata has no opcode_count object",
-        )
-
-    try:
-        counts = {
-            _OPCODE_ALIASES.get(str(op), str(op)): _coerce_count(count)
-            for op, count in opcode_count.items()
-        }
-    except ValueError as exc:
-        return _excluded(
-            source_path,
-            original_test_name,
-            "",
-            "invalid_opcode_count",
-            str(exc),
-        )
-
-    target_count = counts.get(target_opcode)
-    if target_count is None and target_opcode in _PRECOMPILE_TARGETS:
-        target_count = counts.get("STATICCALL")
-        if target_count is not None:
-            counts[target_opcode] = target_count
-
-    if target_count is None:
-        return _excluded(
-            source_path,
-            original_test_name,
-            "",
-            "missing_target_opcount",
-            f"target_opcode {target_opcode!r} is absent from opcode_count",
-        )
-
-    counts["opcount"] = target_count
-    return target_opcode, counts
 
 
 def _proving_runtime(

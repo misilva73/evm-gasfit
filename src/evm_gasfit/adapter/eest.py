@@ -250,27 +250,56 @@ def _prepare_case(
     if not isinstance(metadata, dict):
         metadata = {}
 
-    target_opcode = metadata.get("target_opcode")
+    opcode_count = metadata.get("opcode_count")
+    if opcode_count is None:
+        opcode_count = info.get("opcode_count")
+
+    resolved = _resolve_opcounts(
+        metadata.get("target_opcode"),
+        opcode_count,
+        source_path,
+        original_test_name,
+    )
+    if isinstance(resolved, dict):
+        return resolved
+    target_opcode, counts = resolved
+
+    return _PreparedCase(
+        target_opcode=target_opcode,
+        opcounts=counts,
+        block_limit_million=_block_limit_million(original_test_name),
+    )
+
+
+def _resolve_opcounts(
+    target_opcode: Any,
+    opcode_count: Any,
+    source_path: str,
+    original_test_name: str,
+) -> tuple[str, dict[str, int | float]] | dict[str, object]:
+    """Validate a record's target opcode and its opcode counts.
+
+    Each adapter reads the two values out of its own file format and shares
+    this step. Returns the target with its counts, or an ``excluded.csv`` row
+    saying why the record cannot be used.
+    """
     if not isinstance(target_opcode, str) or not target_opcode:
         return _excluded(
             source_path,
             original_test_name,
             "",
             "missing_target_opcode",
-            "fixture metadata has no target_opcode",
+            "metadata has no target_opcode",
         )
     target_opcode = _OPCODE_ALIASES.get(target_opcode, target_opcode)
 
-    opcode_count = metadata.get("opcode_count")
-    if opcode_count is None:
-        opcode_count = info.get("opcode_count")
     if not isinstance(opcode_count, dict) or not opcode_count:
         return _excluded(
             source_path,
             original_test_name,
             "",
             "missing_opcode_count",
-            "fixture metadata has no opcode_count object",
+            "metadata has no opcode_count object",
         )
 
     try:
@@ -303,11 +332,7 @@ def _prepare_case(
         )
 
     counts["opcount"] = target_count
-    return _PreparedCase(
-        target_opcode=target_opcode,
-        opcounts=counts,
-        block_limit_million=_block_limit_million(original_test_name),
-    )
+    return target_opcode, counts
 
 
 def _relative_source_path(path: Path, root: Path) -> str:
