@@ -109,6 +109,18 @@ def build_fixtures_df(
     opcounts_df = opcounts_df.reset_index()
     # Restrict to matched fixtures so the merge can't reintroduce orphans.
     opcounts_df = opcounts_df[opcounts_df["fixture_name"].isin(matched)]
+    # `SHA3` is the legacy mnemonic for opcode 0x20; benchmark opcount tables
+    # emit it under that name exclusively, while the rest of the pipeline
+    # (glue specs, model specs) only knows the canonical `KECCAK256`. Fold it
+    # in here, at the single point every opcode-count column enters the
+    # pipeline, so no downstream consumer needs its own alias lookup.
+    if "SHA3" in opcounts_df.columns:
+        opcounts_df["KECCAK256"] = opcounts_df["SHA3"].fillna(0.0) + (
+            opcounts_df["KECCAK256"].fillna(0.0)
+            if "KECCAK256" in opcounts_df.columns
+            else 0.0
+        )
+        opcounts_df = opcounts_df.drop(columns="SHA3")
     # Per-opcode missing values are zero counts (sparse JSON is supported).
     opcode_cols = [c for c in opcounts_df.columns if c != "fixture_name"]
     opcounts_df[opcode_cols] = opcounts_df[opcode_cols].fillna(0.0)

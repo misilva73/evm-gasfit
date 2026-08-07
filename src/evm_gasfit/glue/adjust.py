@@ -64,10 +64,17 @@ def compute_glue_adjustment(
 
     rows: list[dict[str, object]] = []
     for _, row in results_df.iterrows():
+        # `model_by_cols` is the union of every spec's `model_by` param
+        # columns; a given row only populates its own spec's subset and
+        # carries NaN in every other spec's columns. Restricting the mask to
+        # this row's non-null columns recovers that row's own spec's key —
+        # comparing the NaN-filled columns would always be False and zero
+        # out `candidates` for every row (`NaN == NaN` is `False`).
+        row_model_by_cols = [mb for mb in model_by_cols if pd.notna(row[mb])]
         ratio_mask = (glue_opcodes_by_test_df["test_name"] == row["test_name"]) & (
             glue_opcodes_by_test_df["target_opcode"] == row["target_opcode"]
         )
-        for mb in model_by_cols:
+        for mb in row_model_by_cols:
             ratio_mask &= glue_opcodes_by_test_df[mb] == row[mb]
         candidates = glue_opcodes_by_test_df[ratio_mask]
 

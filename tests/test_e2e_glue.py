@@ -32,7 +32,9 @@ import pytest
 
 from _data_synth import (
     ClientModel,
+    FixtureSpec,
     base_config,
+    cross_product_fixtures,
     make_block_limit_fixtures,
     make_glue_driver_fixtures,
     run_pipeline,
@@ -524,3 +526,157 @@ def test_glue_missing_optional_driver_does_not_raise(
     glue_results = pd.read_csv(out_dir / "glue_results.csv")
     assert "POP" not in set(glue_results["glue_opcode"])
     assert "STOP" not in set(glue_results["glue_opcode"])
+
+
+def test_glue_adjustment_applies_across_specs_with_disjoint_model_by(
+    tmp_path: Path,
+) -> None:
+    """Two specs with disjoint `model_by` columns must each still get their
+    own glue adjustment.
+
+    `_model_by_cols` keys every row on the *union* of every spec's `model_by`
+    columns. A spec's own rows carry NaN in every other spec's columns, and
+    `NaN == NaN` is `False` in pandas — so as soon as a second spec with a
+    non-empty, disjoint `model_by` enters the run, the ratio mask can
+    collapse to all-False for every row and `glue_adjustment` stays 0.0
+    everywhere. A single spec (or two specs sharing `model_by`) can't catch
+    this: the union then equals each spec's own columns and the bug is
+    invisible.
+    """
+    add_fixtures = make_block_limit_fixtures(
+        test_file="test_arithmetic",
+        test_name="test_arithmetic",
+        target_opcode="ADD",
+        params={"opcode": "ADD"},
+        extra_opcount_per_million={"ISZERO": 500_000},
+    )
+    sload_fixtures = cross_product_fixtures(
+        test_file="test_storage_probe",
+        test_name="test_storage_probe",
+        param_grid={"slots": ["0", "1"]},
+        target_opcode_for="SLOAD",
+        extra_opcount_per_million={"GAS": 500_000},
+    )
+    all_fixtures = add_fixtures + sload_fixtures + make_glue_driver_fixtures()
+    models = {"geth": ClientModel(intercept=50.0, slope=2.0e-5)}
+
+    cfg = base_config(
+        models_custom=[
+            {
+                "test_name": "test_arithmetic",
+                "target_operation": "ADD",
+                "model_by": ["opcode"],
+                "model_params": {"target_coef": "OPCODE_ADD"},
+            },
+            {
+                "test_name": "test_storage_probe",
+                "target_operation": "SLOAD",
+                "model_by": ["slots"],
+                "model_params": {"target_coef": "COLD_STORAGE_ACCESS"},
+            },
+        ],
+        glue_enabled=True,
+    )
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=all_fixtures,
+        models=models,
+        config=cfg,
+        seed=29,
+    )
+    run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+    new_gas_all = pd.read_csv(out_dir / "new_gas_all_params.csv")
+    add_row = new_gas_all[new_gas_all["gas_param"] == "OPCODE_ADD"].iloc[0]
+    sload_row = new_gas_all[new_gas_all["gas_param"] == "COLD_STORAGE_ACCESS"].iloc[0]
+
+    assert float(add_row["glue_adjustment"]) > 0
+    assert float(sload_row["glue_adjustment"]) > 0
+
+
+def test_glue_keccak_recognizes_sha3_opcount_alias(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Real fixture data names opcode 0x20 `SHA3`; evm-gasfit's canonical
+    name is `KECCAK256`. Both the driver fit (`test_keccak_diff_mem_msg_sizes`)
+    and any modelspec test that correlates with it must resolve through the
+    alias — a raw `SHA3` opcount column must not be treated as a distinct,
+    non-priced opcode, and must not make the driver fit see an all-zero count.
+    """
+    keccak_per_count = 3.0e-5
+    block_limits = (30, 60, 90, 120, 150, 180, 210, 240)
+
+    keccak_driver_fixtures = [
+        FixtureSpec(
+            test_file="test_keccak",
+            test_name="test_keccak_diff_mem_msg_sizes",
+            params={},
+            block_limit_million=bl,
+            target_opcode="KECCAK256",
+            target_opcount=bl * 2_000_000.0,
+            count_source_opcode="SHA3",
+            omit_opcode_token=True,
+        )
+        for bl in block_limits
+    ]
+
+    add_fixtures = make_block_limit_fixtures(
+        test_file="test_arithmetic",
+        test_name="test_arithmetic",
+        target_opcode="ADD",
+        params={"opcode": "ADD"},
+    )
+    for spec in add_fixtures:
+        spec.extra_opcounts["SHA3"] = spec.target_opcount * 0.5
+
+    all_fixtures = add_fixtures + keccak_driver_fixtures + make_glue_driver_fixtures()
+    models = {
+        "geth": ClientModel(
+            intercept=50.0,
+            slope=0.0,
+            glue_coefs={
+                "ADD": 2.0e-5,
+                "KECCAK256": keccak_per_count,
+                # Small non-zero slopes for the rest keep pure/cycle fits
+                # well-conditioned (constant-zero counts would skip them).
+                "ISZERO": 5e-6,
+                "JUMPDEST": 5e-6,
+                "SWAP": 5e-6,
+                "DUP": 5e-6,
+                "PUSH": 5e-6,
+                "PUSH0": 5e-6,
+                "GAS": 5e-6,
+                "MLOAD": 5e-6,
+                "STATICCALL": 5e-6,
+                "CALLDATASIZE": 5e-6,
+            },
+        )
+    }
+    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+        tmp_path,
+        fixtures=all_fixtures,
+        models=models,
+        config=base_config(glue_enabled=True),
+        seed=31,
+    )
+    with caplog.at_level(logging.WARNING, logger="evm_gasfit"):
+        run_pipeline(config_yaml, runtimes_csv, opcounts_json, out_dir, glue=True)
+
+    non_priced_warnings = [
+        r.getMessage()
+        for r in caplog.records
+        if "non-priced opcode 'SHA3'" in r.getMessage()
+    ]
+    assert non_priced_warnings == [], f"unexpected warnings: {non_priced_warnings}"
+
+    glue_by_test = pd.read_csv(out_dir / "glue_opcodes_by_test.csv")
+    add_glue = glue_by_test[glue_by_test["test_name"] == "test_arithmetic"]
+    assert "KECCAK256" in set(add_glue["glue_opcode"])
+    assert "SHA3" not in set(add_glue["glue_opcode"])
+
+    glue_results = pd.read_csv(out_dir / "glue_results.csv")
+    keccak_row = glue_results[glue_results["glue_opcode"] == "KECCAK256"].iloc[0]
+    assert int(keccak_row["nobs"]) > 0
+    assert float(keccak_row["glue_runtime_ms"]) == pytest.approx(
+        keccak_per_count, rel=0.05
+    )
