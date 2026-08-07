@@ -202,6 +202,27 @@ Each model spec — whether bundled as a preset or written under
   this only when no opcount column matches `target_operation`; for ordinary
   opcode targets, leave it unset and the invariant defaults to
   `target_opcode` itself.
+- `overhead_baseline_param` — optional, a raw fixture-param name (resolved to
+  `param_<name>` like `model_by`). When set, every fixture where that param
+  is `"False"` is paired against the mean runtime of its `"True"`
+  counterparts (same params otherwise, same client — see §4.3 for the
+  repeated-trial aggregation) and the spec's `target_coef` is fit on the
+  runtime *delta* instead of raw `False` runtime. This is for benchmark
+  suites that ship an explicit A/B
+  baseline fixture — one that runs the surrounding harness without the
+  target opcode — as a model-free control: the delta cancels anything the
+  two variants share, known glue opcode or not, without needing a per-opcode
+  driver fit. A `False` row with no matching `True` row is a config error.
+  Because the fitted coefficient is already glue-clean, specs using this
+  field are skipped entirely by the glue detector (§4.4) — re-detecting glue
+  candidates from their raw counts would let the glue adjustment subtract
+  something a second time. Only use this where the baseline pair is
+  a genuine control for the *whole* target-opcode cost; if the target
+  opcode's own calling convention requires setup (e.g. pushing call
+  arguments) that the baseline *also* omits, pairing folds that setup's true
+  cost into `target_coef` rather than removing it — a spec should only set
+  this field for target opcodes where nothing but the target opcode itself
+  differs between the two variants.
 - `filter_by` — string or list of strings, ANDed as substring matches against
   the raw fixture name. A `!`-prefixed token inverts the match: `!foo`
   requires that `foo` is absent from the fixture name. Scalar inputs are
@@ -729,6 +750,20 @@ land on `results.csv` as `intercept_runtime_ms`, `target_coef_runtime_ms`, and
 - **One-value extras**: if a non-`target_coef` feature has only one unique value across
   the filtered fixtures, drop it from the design matrix and log a warning naming
   the model spec and the feature. Continue with the remaining features.
+- **Baseline pairing**: if a spec sets `overhead_baseline_param` (§2.1), the
+  filtered slice is transformed *before* the §2.3 opcount invariant runs
+  (every `overhead_baseline_True` row has `opcount == 0`, which that
+  invariant otherwise rejects): `"True"` rows are aggregated to one
+  mean-runtime row per every other parsed param (plus client) — benchmark
+  suites commonly repeat the same fixture across several trials, so this
+  compares each individual `"False"` trial against a lower-variance baseline
+  estimate rather than an arbitrary single `"True"` trial — then each
+  `"False"` row's `test_runtime_ms` becomes the difference against its
+  matching aggregated baseline, and the `"True"` rows are dropped. A `"False"`
+  row whose param combination has no `"True"` counterpart at all is a
+  `ConfigError`. The rest of the fit — grouping by `model_by`, building the
+  design matrix, NNLS — runs unchanged on the transformed slice, including
+  repeated `"False"` trials, which still contribute independent observations.
 - **Empty specs**: if `test_name` plus `filter_by` leaves zero matching fixtures
   for a spec, skip that spec entirely and log a warning to stderr naming the
   `test_name` and the filter that excluded everything. The pipeline continues
@@ -927,6 +962,18 @@ cannot. Emit a warning via the `evm_gasfit` logger **and** include it in the
 final `new_gas_proposal.md` under a "Warnings" section, naming the
 (test, glue_opcode) pair. The target coefficient is left unadjusted for that
 contribution.
+
+**Baseline-pairing bypass.** A spec with `overhead_baseline_param` set (§2.1)
+never enters `compute_glue_opcodes_by_test`'s scan and so never appears in
+`glue_opcodes_by_test.csv` or contributes to `detect_missing_glue`'s
+warnings, regardless of what its `False` fixtures correlate with. Its
+`target_coef` was already fit on a baseline-paired runtime delta (§4.3)
+rather than raw runtime — a model-free control
+that cancels anything the paired fixtures share, whether or not it happens
+to be one of the 30 priced canonical names. Re-running detection on it would
+either flag a spurious (already-cancelled) candidate or, worse, let
+`compute_glue_adjustment` subtract a real, already-cancelled-by-construction
+contribution a second time.
 
 ### 4.5 Time units
 

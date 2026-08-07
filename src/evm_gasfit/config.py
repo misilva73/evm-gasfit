@@ -126,6 +126,7 @@ class ModelSpec(BaseModel):
     target_operation: str | None = None
     target_operation_param: str | None = None
     target_operation_count_source: str | None = None
+    overhead_baseline_param: str | None = None
     filter_by: list[str] = Field(default_factory=list)
     model_by: list[str] = Field(default_factory=list)
     model_params: dict[str, str] = Field(default_factory=dict)
@@ -296,6 +297,10 @@ class Config(BaseModel):
             if spec.target_operation_param is not None:
                 updates["target_operation_param"] = (
                     f"param_{spec.target_operation_param}"
+                )
+            if spec.overhead_baseline_param is not None:
+                updates["overhead_baseline_param"] = (
+                    f"param_{spec.overhead_baseline_param}"
                 )
             if spec.model_by:
                 updates["model_by"] = [

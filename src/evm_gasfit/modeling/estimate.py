@@ -114,6 +114,64 @@ def _resolve_target_opcode(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
     return df
 
 
+def _split_baseline_pair(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
+    """Replace each ``overhead_baseline_False`` row's runtime with its delta
+    against the matching ``overhead_baseline_True`` fixture's mean runtime,
+    dropping the ``True`` rows.
+
+    A ``True`` fixture runs the same harness loop without the target opcode,
+    so ``False.test_runtime_ms - True.test_runtime_ms`` isolates the target's
+    own cost from everything the two variants share (loop overhead, keccak,
+    calling-convention glue) — whatever that shared cost is, known or not.
+    Benchmark suites commonly repeat the same fixture across several trials,
+    so the ``True`` side is aggregated to one mean-runtime row per fixture
+    identity before the merge — each ``False`` trial keeps its own
+    independent noise and is compared against the lower-variance baseline
+    estimate, rather than an arbitrary single ``True`` trial. Must run before
+    :func:`_enforce_opcount_invariant`: every ``True`` row has ``opcount ==
+    0``, which that check rejects.
+    """
+    col = spec.overhead_baseline_param
+    if col is None:
+        return df
+    false_df = df[df[col] == "False"]
+    true_df = df[df[col] == "True"]
+    # Only columns with at least one real value in this slice discriminate
+    # fixtures; other tests' param columns are all-NaN here and would ride
+    # along in the join key for no reason (harmless, since uniformly NaN on
+    # both sides, but pointless to carry).
+    pair_cols = [
+        c
+        for c in df.columns
+        if c.startswith("param_") and c != col and df[c].notna().any()
+    ]
+    pair_cols.append("client_name")
+    true_baseline = (
+        true_df.groupby(pair_cols, dropna=False)["test_runtime_ms"]
+        .mean()
+        .reset_index()
+        .rename(columns={"test_runtime_ms": "test_runtime_ms_baseline"})
+    )
+    merged = false_df.merge(
+        true_baseline,
+        on=pair_cols,
+        how="left",
+        validate="many_to_one",
+    )
+    unmatched = merged["test_runtime_ms_baseline"].isna()
+    if unmatched.any():
+        examples = merged.loc[unmatched, "fixture_name"].tolist()[:5]
+        raise ConfigError(
+            f"spec test_name={spec.test_name!r}: {int(unmatched.sum())} "
+            f"overhead_baseline_False fixture(s) have no matching "
+            f"overhead_baseline_True counterpart, e.g. {examples!r}"
+        )
+    merged["test_runtime_ms"] = (
+        merged["test_runtime_ms"] - merged["test_runtime_ms_baseline"]
+    )
+    return merged.drop(columns="test_runtime_ms_baseline")
+
+
 def _enforce_opcount_invariant(df: pd.DataFrame, spec: ModelSpec) -> None:
     """Check ``opcount == row[count_source]`` per the input invariant.
 
@@ -328,6 +386,7 @@ def estimate_models(config: Config, fixtures_df: pd.DataFrame) -> EstimateOutput
             continue
 
         slice_df = _resolve_target_opcode(slice_df, spec)
+        slice_df = _split_baseline_pair(slice_df, spec)
         _enforce_opcount_invariant(slice_df, spec)
         slice_df = _materialize_derived(slice_df, spec)
 

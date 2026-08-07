@@ -68,9 +68,8 @@ _PLACEHOLDER_PARAMS: dict[str, str] = {
     "value_sent": "1",
     "write_new_value": "True",
     "existing_slots": "True",
-    # Placeholder must not contain "EXISTING_CONTRACT": the NOCODE account
-    # preset filters by `!AccountMode.EXISTING_CONTRACT`.
-    "account_mode": "AccountMode.NON_EXISTING_ACCOUNT",
+    # `account_mode` is handled by `_representative_account_mode` instead —
+    # no single value survives every account-access preset's negation filters.
 }
 
 
@@ -101,6 +100,35 @@ def _representative_target(spec: ModelSpec) -> str:
         # test_account_access: cold-account family.
         return "BALANCE"
     return "BALANCE"
+
+
+_ACCOUNT_MODE_CANDIDATES: tuple[str, ...] = (
+    "AccountMode.NON_EXISTING_ACCOUNT",
+    "AccountMode.EXISTING_EOA",
+    "AccountMode.EXISTING_CONTRACT_MINIMAL",
+)
+
+
+def _representative_account_mode(spec: ModelSpec) -> str:
+    """Pick an `account_mode` value that survives every `!AccountMode.*`
+    negation in `spec.filter_by`.
+
+    No single hardcoded value works for every account-access preset: the
+    NOCODE presets exclude `EXISTING_CONTRACT`, the CODE presets exclude
+    `EXISTING_EOA`, and `cold_account_code_access_noncall` additionally
+    excludes `NON_EXISTING_ACCOUNT` (no `overhead_baseline_True` counterpart
+    for that mode) — so the placeholder has to be chosen per spec.
+    """
+    # `_apply_filters` matches by substring, so "!AccountMode.EXISTING_CONTRACT"
+    # excludes "AccountMode.EXISTING_CONTRACT_MINIMAL" too — check containment,
+    # not exact equality.
+    excluded = [
+        token[1:] for token in spec.filter_by if token.startswith("!AccountMode.")
+    ]
+    for candidate in _ACCOUNT_MODE_CANDIDATES:
+        if not any(e in candidate for e in excluded):
+            return candidate
+    return _ACCOUNT_MODE_CANDIDATES[0]
 
 
 def _filter_tokens_to_params(
@@ -145,7 +173,10 @@ def _smoke_fixtures_for(spec: ModelSpec) -> list[FixtureSpec]:
         params[spec.target_operation_param] = target_opcode
 
     for col in spec.model_by:
-        params.setdefault(col, _placeholder(col))
+        if col == "account_mode":
+            params.setdefault(col, _representative_account_mode(spec))
+        else:
+            params.setdefault(col, _placeholder(col))
 
     for fp_spec in spec.fixture_params.values():
         if fp_spec.source not in params:
@@ -169,6 +200,12 @@ def _smoke_fixtures_for(spec: ModelSpec) -> list[FixtureSpec]:
 
     _filter_tokens_to_params(spec, params, target_opcode)
 
+    if spec.overhead_baseline_param is not None:
+        # This spec pairs each fixture against an `overhead_baseline_True`
+        # counterpart (see modeling/estimate.py `_split_baseline_pair`) — the
+        # smoke fixtures need one, or the pairing step raises.
+        params[spec.overhead_baseline_param] = "False"
+
     fixtures: list[FixtureSpec] = []
     for bl in _BLOCK_LIMITS:
         fixtures.append(
@@ -183,6 +220,19 @@ def _smoke_fixtures_for(spec: ModelSpec) -> list[FixtureSpec]:
                 omit_opcode_token=is_precompile,
             )
         )
+        if spec.overhead_baseline_param is not None:
+            true_params = dict(params)
+            true_params[spec.overhead_baseline_param] = "True"
+            fixtures.append(
+                FixtureSpec(
+                    test_file=spec.test_name,
+                    test_name=spec.test_name,
+                    params=true_params,
+                    block_limit_million=bl,
+                    target_opcode=target_opcode,
+                    target_opcount=0.0,
+                )
+            )
     return fixtures
 
 

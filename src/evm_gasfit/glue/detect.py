@@ -147,6 +147,14 @@ def compute_glue_opcodes_by_test(
     rows: list[dict[str, object]] = []
 
     for spec in model_specs:
+        if spec.overhead_baseline_param is not None:
+            # This spec's target_coef is already fit on a baseline-paired
+            # runtime delta (modeling/estimate.py `_split_baseline_pair`),
+            # which nets out the *exact* measured effect of anything that
+            # differs between the paired fixtures — known glue opcode or not.
+            # Re-detecting glue candidates here would make
+            # compute_glue_adjustment subtract them a second time.
+            continue
         for group_values, group_df in _spec_groups(fixtures_df, spec):
             # Opcounts are a property of the fixture, not the client — collapse
             # to one row per fixture before correlating. Sorting by opcount

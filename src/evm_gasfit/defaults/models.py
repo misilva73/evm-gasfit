@@ -472,9 +472,13 @@ PRESETS: dict[str, ModelSpec] = {
     # Account access mirrors SSTORE: value_sent=0 isolates the cold access,
     # value_sent=1 measures the combined access+write, and ``ACCOUNT_WRITE`` is
     # derived as the worst write delta across the nocode and code contexts.
-    # ``overhead_baseline_False`` drops the baseline variants, which execute the
-    # surrounding harness without the target opcode and so measure loop
-    # overhead rather than account access.
+    #
+    # The nocode presets (EOA / non-existing accounts) have no
+    # ``overhead_baseline_True`` counterpart fixture at all — every one of
+    # their fixtures is already ``overhead_baseline_False`` — so there is no
+    # baseline variant to drop and no filter_by token for it; target_coef
+    # relies on the existing per-opcode glue adjustment, same as any other
+    # spec.
     "cold_account_nocode_access": ModelSpec(
         test_name="test_account_access",
         target_operation_param="opcode",
@@ -482,7 +486,6 @@ PRESETS: dict[str, ModelSpec] = {
             "CacheStrategy.NO_CACHE",
             "!AccountMode.EXISTING_CONTRACT",
             "value_sent_0",
-            "overhead_baseline_False",
         ],
         model_by=["opcode", "account_mode"],
         model_params={"target_coef": "COLD_ACCOUNT_NOCODE_ACCESS"},
@@ -494,11 +497,28 @@ PRESETS: dict[str, ModelSpec] = {
             "CacheStrategy.NO_CACHE",
             "!AccountMode.EXISTING_CONTRACT",
             "value_sent_1",
-            "overhead_baseline_False",
         ],
         model_by=["opcode", "account_mode"],
         model_params={"target_coef": "COLD_ACCOUNT_NOCODE_WRITE"},
     ),
+    # The code presets (EXISTING_CONTRACT_* modes) DO have an
+    # overhead_baseline_True counterpart for every fixture — but only BALANCE /
+    # EXTCODEHASH / EXTCODESIZE benefit from pairing cleanly: their False/True
+    # opcode counts differ only in keccak (identical in both, cancels in the
+    # runtime delta) and tiny non-scaling offsets (absorbed by the intercept).
+    # CALL / CALLCODE / DELEGATECALL / STATICCALL / EXTCODECOPY additionally
+    # differ in GAS/PUSH-family/POP counts that scale with the target's own
+    # opcount — pairing would fold that calling-convention cost INTO
+    # target_coef instead of removing it, undoing the per-opcode glue
+    # mechanism's already-correct subtraction of exactly those opcodes. So the
+    # opcode universe is split: the call-family opcodes stay on
+    # `cold_account_code_access`/`_write` unchanged (still missing keccak's
+    # small contribution, same as before); BALANCE/EXTCODEHASH/EXTCODESIZE
+    # move to the `_noncall` variants below, which fit target_coef on the
+    # runtime delta (False - matching True) via overhead_baseline_param and
+    # are skipped by the per-opcode glue mechanism entirely (see
+    # glue/detect.py's `overhead_baseline_param` check) to avoid double
+    # counting the (already-zero, for these three) glue contribution.
     "cold_account_code_access": ModelSpec(
         test_name="test_account_access",
         target_operation_param="opcode",
@@ -507,6 +527,9 @@ PRESETS: dict[str, ModelSpec] = {
             "!AccountMode.EXISTING_EOA",
             "value_sent_0",
             "overhead_baseline_False",
+            "!opcode_BALANCE",
+            "!opcode_EXTCODEHASH",
+            "!opcode_EXTCODESIZE",
         ],
         model_by=["opcode", "account_mode"],
         model_params={"target_coef": "COLD_ACCOUNT_CODE_ACCESS"},
@@ -519,9 +542,35 @@ PRESETS: dict[str, ModelSpec] = {
             "!AccountMode.EXISTING_EOA",
             "value_sent_1",
             "overhead_baseline_False",
+            "!opcode_BALANCE",
+            "!opcode_EXTCODEHASH",
+            "!opcode_EXTCODESIZE",
         ],
         model_by=["opcode", "account_mode"],
         model_params={"target_coef": "COLD_ACCOUNT_CODE_WRITE"},
+    ),
+    # No write-side counterpart: BALANCE/EXTCODEHASH/EXTCODESIZE never carry a
+    # value (only CALL/CALLCODE do), so a `value_sent_1` slice restricted to
+    # these three opcodes always matches zero fixtures — COLD_ACCOUNT_CODE_WRITE
+    # is priced from the call-family opcodes alone via `cold_account_code_write`.
+    "cold_account_code_access_noncall": ModelSpec(
+        test_name="test_account_access",
+        target_operation_param="opcode",
+        filter_by=[
+            "CacheStrategy.NO_CACHE",
+            "!AccountMode.EXISTING_EOA",
+            # NON_EXISTING_ACCOUNT has no overhead_baseline_True counterpart
+            # either — only the 4 EXISTING_CONTRACT_* modes do.
+            "!AccountMode.NON_EXISTING_ACCOUNT",
+            "value_sent_0",
+            "!opcode_CALL",
+            "!opcode_DELEGATECALL",
+            "!opcode_STATICCALL",
+            "!opcode_EXTCODECOPY",
+        ],
+        model_by=["opcode", "account_mode"],
+        model_params={"target_coef": "COLD_ACCOUNT_CODE_ACCESS"},
+        overhead_baseline_param="overhead_baseline",
     ),
     "account_codecopy": ModelSpec(
         test_name="test_codecopy_benchmark",

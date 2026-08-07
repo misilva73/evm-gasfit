@@ -104,6 +104,16 @@ Plan rules pinned: glue off by default; the priced canonical-name set is sourced
 | `test_glue_works_with_benchmark_sweep_token` | Same as `test_glue_enabled_writes_files_and_adjusts_slope` but the scan axis is named `benchmark_<N>M` instead of `block_limit_million_<N>`. Sanity-checks the parser/detector don't depend on a specific token name. |
 | `test_glue_missing_optional_driver_does_not_raise` | Driver fixtures present for every required spec; POP/STOP remain absent (they have no driver in any dataset). Asserts: pipeline runs to completion; POP/STOP are absent from `glue_results.csv` rather than appearing as NaN rows. |
 
+### 2.4a [`tests/test_e2e_overhead_baseline.py`](../tests/test_e2e_overhead_baseline.py) — `overhead_baseline_param` runtime-delta pairing (§2.1, §4.3, §4.4)
+
+Plan rules pinned: a spec's `overhead_baseline_param` pairs each fixture where that param is `"False"` against its `"True"` counterpart (same client, same every other parsed param) and fits `target_coef` on the runtime delta instead of raw runtime; the pairing step runs before the §2.3 opcount invariant (every `True` row has `opcount == 0`); an unmatched `False` row is a `ConfigError`; baseline-paired specs are skipped entirely by `compute_glue_opcodes_by_test` so the per-opcode glue mechanism never double-subtracts a contribution the pairing already cancelled.
+
+| Test | Coverage |
+| --- | --- |
+| `test_baseline_pair_cancels_shared_contamination` | A contaminant opcode (`SHA3LIKE`) planted with an identical count in both the `False` and `True` variants (mirrors keccak on `test_account_access`). Asserts `results.csv`'s recovered `target_coef_runtime_ms` matches the clean planted slope, not the slope biased by the contamination, and that `new_gas_all_params.csv`'s `glue_adjustment` is `0.0` (nothing left for the per-opcode mechanism to add). |
+| `test_baseline_paired_spec_excluded_from_glue_detection` | Same contaminated fixtures, glue enabled. Asserts `glue_opcodes_by_test.csv` has zero rows for the baseline-paired spec's `test_name`, even though the contaminant strongly correlates with the target's raw opcount. |
+| `test_baseline_pair_raises_on_unmatched_false_row` | Drops one `overhead_baseline_True` fixture, leaving its `False` counterpart unmatched. Asserts `ConfigError` naming the unmatched fixture. |
+
 ### 2.5 [`tests/test_e2e_overrides_derived_plots.py`](../tests/test_e2e_overrides_derived_plots.py) — overrides, derived params, plots toggle (§2.4, §4.7, §4.8, §5.1)
 
 Plan rules pinned: `gas_costs.overrides` patches the fork defaults and flows to the proposal diff; both `derived:` forms (alias and `{formula: ...}`) evaluate against the worst-case integer table in declaration order; identifier-not-found inside a derived formula is a load-time error (§4.8); the plots-on / plots-off branches in §5.1.
@@ -180,7 +190,7 @@ Plan rules pinned: every preset in `defaults/models.py::PRESETS` must pass Pydan
 
 | Test | Coverage |
 | --- | --- |
-| `test_every_catalog_preset_fits_without_raising` | Programmatically synthesizes one block-limit sweep per preset by introspecting each `ModelSpec` (covers `target_operation_param`, `model_by`, `fixture_params` sources, non-target `model_params` coefs, and precompile-style `target_operation_count_source`). Loads all preset names into one config, runs the pipeline, asserts every preset's `test_name` produces at least one row in `results.csv` and `new_gas.csv` is non-empty. |
+| `test_every_catalog_preset_fits_without_raising` | Programmatically synthesizes one block-limit sweep per preset by introspecting each `ModelSpec` (covers `target_operation_param`, `model_by`, `fixture_params` sources, non-target `model_params` coefs, precompile-style `target_operation_count_source`, and — for `cold_account_code_*_noncall` — a paired `overhead_baseline_True` fixture per sweep point). Loads all preset names into one config, runs the pipeline, asserts every preset's `test_name` produces at least one row in `results.csv` and `new_gas.csv` is non-empty. |
 | `test_catalog_requires_new_params_declaration` | A preset-only config that omits the catalog's non-raw `model_params` RHS names (`OPCODE_*COPY_PER_WORD`, `COLD_ACCOUNT_{NOCODE,CODE}_ACCESS`, `COLD_ACCOUNT_{NOCODE,CODE}_WRITE`) fails to load with a hard `ConfigError`; declaring them lets the config load cleanly with no warnings. |
 
 ### 2.7f [`tests/test_e2e_joint_delta.py`](../tests/test_e2e_joint_delta.py) — joint worst-case pricing for access deltas (catalog / §4.8)
