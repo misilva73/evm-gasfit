@@ -224,13 +224,13 @@ def write_runtime_report(
                 lines.append("")
 
                 if plots_enabled:
-                    kwargs = dict(
-                        target_opcode=opcode,
-                        test_name=test_name,
-                        model_by_combo=combo,
-                        client=client,
-                        out_dir=out_dir,
-                    )
+                    kwargs = {
+                        "target_opcode": opcode,
+                        "test_name": test_name,
+                        "model_by_combo": combo,
+                        "client": client,
+                        "out_dir": out_dir,
+                    }
                     plot_regression(fit, **kwargs)
                     plot_bootstrap(fit, **kwargs)
                     plot_diagnostics(fit, **kwargs)

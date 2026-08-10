@@ -37,11 +37,11 @@ def _normalize_str_list(value: Any, field_name: str) -> list[str]:
     elif isinstance(value, list):
         items = list(value)
     else:
-        raise ValueError(f"{field_name} must be a string or list of strings")
+        raise TypeError(f"{field_name} must be a string or list of strings")
     out: list[str] = []
     for item in items:
         if not isinstance(item, str):
-            raise ValueError(f"{field_name} entries must be strings (got {item!r})")
+            raise TypeError(f"{field_name} entries must be strings (got {item!r})")
         if item == "":
             raise ValueError(f"{field_name} entries must be non-empty strings")
         out.append(item)
@@ -102,14 +102,14 @@ class FixtureParamSpec(BaseModel):
         if vals is None:
             return data
         if not isinstance(vals, dict):
-            raise ValueError("fixture_params.values must be a mapping")
+            raise TypeError("fixture_params.values must be a mapping")
         # Keys may be YAML booleans/numbers; coerce to ``str`` and float values.
         data = dict(data)
         data["values"] = {str(k): float(v) for k, v in vals.items()}
         return data
 
     @model_validator(mode="after")
-    def _check_transform_excludes_values(self) -> "FixtureParamSpec":
+    def _check_transform_excludes_values(self) -> FixtureParamSpec:
         if self.transform is not None and self.values is not None:
             raise ValueError(
                 "fixture_params: 'transform' and 'values' are mutually exclusive"
@@ -148,7 +148,7 @@ class ModelSpec(BaseModel):
         return data
 
     @model_validator(mode="after")
-    def _check(self) -> "ModelSpec":
+    def _check(self) -> ModelSpec:
         # Exactly one of target_operation / target_operation_param.
         has_op = self.target_operation is not None
         has_param = self.target_operation_param is not None
@@ -186,7 +186,7 @@ class ModelsSection(BaseModel):
     custom: list[ModelSpec] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _reject_duplicate_presets(self) -> "ModelsSection":
+    def _reject_duplicate_presets(self) -> ModelsSection:
         seen: set[str] = set()
         for name in self.presets:
             if name in seen:
@@ -234,7 +234,7 @@ class Config(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _cross_validate(self) -> "Config":
+    def _cross_validate(self) -> Config:
         # 0) Validate clients: non-empty list of non-empty unique strings.
         if not self.clients:
             raise ConfigError("clients must be a non-empty list")

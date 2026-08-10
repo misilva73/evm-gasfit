@@ -20,8 +20,6 @@ from .required import (
 
 __all__ = [
     "CYCLE_GLUE_OPCODES",
-    "GlueEstimateOutput",
-    "GlueOpcodeSpec",
     "MEMBER_TO_CANONICAL",
     "MIXED_A_GLUE_OPCODES",
     "MIXED_B_GLUE_OPCODES",
@@ -29,6 +27,8 @@ __all__ = [
     "PRICED_GLUE_SPECS",
     "PURE_GLUE_OPCODES",
     "SPEC_BY_NAME",
+    "GlueEstimateOutput",
+    "GlueOpcodeSpec",
     "compute_glue_adjustment",
     "compute_glue_opcodes_by_test",
     "detect_missing_glue",

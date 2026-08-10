@@ -208,7 +208,7 @@ def _weak_losing_candidates(
     """
     if candidates_df.empty or "is_winner" not in candidates_df.columns:
         return candidates_df.iloc[0:0]
-    losers = candidates_df[candidates_df["is_winner"] == False]  # noqa: E712
+    losers = candidates_df[candidates_df["is_winner"] == False]
     weak_mask = (losers["pvalue"] >= pv_thresh) | (losers["rsquared"] < r2_thresh)
     weak = losers[weak_mask]
     dedupe_cols = [
@@ -236,8 +236,10 @@ def _render_poor_fit_table(
     R² stays compact (``0.273``).
     """
     lines = [
-        "| Gas param | Client | Test | Target opcode | Coef | "
-        "runtime_ms | pvalue | rsquared | Failed |",
+        (
+            "| Gas param | Client | Test | Target opcode | Coef | "
+            "runtime_ms | pvalue | rsquared | Failed |"
+        ),
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for _, row in rows_df.iterrows():
@@ -489,7 +491,7 @@ def _build_client_comparison_rows(
     return rows
 
 
-def _cell(value: float | int | None) -> str:
+def _cell(value: float | None) -> str:
     """Render a pivot cell as either an integer or blank for NaN/None."""
     if value is None:
         return ""
@@ -671,7 +673,7 @@ def write_proposal_report(
     full_all_df = proposal_output.new_gas_all_df
     if "is_winner" in full_all_df.columns:
         winners_all_df = full_all_df[
-            (full_all_df["is_winner"] == True)  # noqa: E712
+            (full_all_df["is_winner"] == True)
             | (full_all_df["client_name"].astype(str).str.len() == 0)
         ]
     else:
@@ -682,9 +684,7 @@ def write_proposal_report(
     )
     missing_by_test, other_warnings = _partition_warnings(proposal_output.warnings)
     n_warn = sum(len(v) for v in missing_by_test.values()) + len(other_warnings)
-    poor_fit_rows = winners_all_df[
-        winners_all_df.get("poor_fit", False) == True  # noqa: E712
-    ]
+    poor_fit_rows = winners_all_df[winners_all_df.get("poor_fit", False) == True]
 
     lines: list[str] = ["# New gas proposal", ""]
 

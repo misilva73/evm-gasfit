@@ -129,7 +129,7 @@ def _pure_fit(
             n_bootstrap=config.modeling.bootstrap_iterations,
             random_seed=config.modeling.random_seed,
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 -- broad on purpose: any numerical failure means this fit attempt is unfit, not a crash
         _log.warning(
             "glue pure-fit failed: client=%s opcode=%s exc=%s",
             client,
@@ -173,7 +173,7 @@ def _cycle_fit(
             n_bootstrap=config.modeling.bootstrap_iterations,
             random_seed=config.modeling.random_seed,
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 -- broad on purpose: any numerical failure means this fit attempt is unfit, not a crash
         _log.warning("glue cycle-fit failed: client=%s exc=%s", client, exc)
         return None
 
@@ -285,7 +285,7 @@ def _mixed_fit(
             n_bootstrap=config.modeling.bootstrap_iterations,
             random_seed=config.modeling.random_seed,
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 -- broad on purpose: any numerical failure means this fit attempt is unfit, not a crash
         _log.warning(
             "glue mixed-fit failed: client=%s opcode=%s exc=%s",
             client,

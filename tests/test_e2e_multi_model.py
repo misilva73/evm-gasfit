@@ -18,7 +18,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     base_config,
@@ -141,7 +140,7 @@ def test_multi_model_with_target_param_and_groups(tmp_path: Path) -> None:
     # not just the per-client winners.
     assert int(new_gas_all["gas_param"].isin(target_params).sum()) == 10
     # Exactly one winner per (gas_param, client): 2 params × 2 clients = 4.
-    winners = new_gas_all[new_gas_all["is_winner"] == True]  # noqa: E712
+    winners = new_gas_all[new_gas_all["is_winner"] == True]
     assert int(winners["gas_param"].isin(target_params).sum()) == 4
 
     # ---- winning-row provenance: copy verbatim from a single source row -

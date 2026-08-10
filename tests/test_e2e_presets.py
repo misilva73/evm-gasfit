@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     base_config,
@@ -110,8 +109,9 @@ def test_invalid_models_section_is_config_error(
     write_config_yaml(config_yaml, config)
 
     from evm_gasfit import GasFit
+    from evm_gasfit.errors import ConfigError
 
-    with pytest.raises(Exception):
+    with pytest.raises(ConfigError):
         GasFit.from_config(config_yaml)
 
 

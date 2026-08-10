@@ -10,13 +10,13 @@ import matplotlib
 
 matplotlib.use("Agg", force=False)
 
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-import seaborn as sns  # noqa: E402
-import statsmodels.api as sm  # noqa: E402
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import statsmodels.api as sm
 
-from ..modeling.results import NNLSResults  # noqa: E402
+from ..modeling.results import NNLSResults
 
 logger = logging.getLogger("evm_gasfit.reports")
 
@@ -485,7 +485,7 @@ def plot_proposal_provenance_heatmap(
     gas_param: str,
     slice_df: pd.DataFrame,
     *,
-    current_value: float | int | None,
+    current_value: float | None,
     out_dir: Path,
 ) -> tuple[Path, list[tuple[str, str]] | None]:
     """Per-gas-param heatmap: rows are model combos, columns are clients,

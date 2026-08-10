@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-
 from _data_synth import (
     ClientModel,
     base_config,
@@ -35,7 +34,7 @@ def _invoke_cli(args: list[str]) -> subprocess.CompletedProcess[str]:
         cmd = ["evm-gasfit", *args]
     else:
         cmd = [sys.executable, "-m", "evm_gasfit.cli", *args]
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
 
 def _prep(

@@ -20,7 +20,7 @@ def _invoke_cli(args: list[str]) -> subprocess.CompletedProcess[str]:
         cmd = ["evm-gasfit", *args]
     else:
         cmd = [sys.executable, "-m", "evm_gasfit.cli", *args]
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
 
 def test_cli_prepare_eest_writes_native_inputs(tmp_path: Path) -> None:

@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     base_config,
@@ -27,7 +26,6 @@ from _data_synth import (
     run_pipeline,
     write_standard_inputs,
 )
-
 
 _SPECS = [
     ("test_storage_cold_write", "SSTORE", "COLD_STORAGE_WRITE"),

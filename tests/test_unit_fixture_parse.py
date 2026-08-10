@@ -35,8 +35,10 @@ def test_legacy_and_node_id_forms_agree() -> None:
             {"account_mode": "EXISTING_EOA", "opcode": "CALL"},
         ),
         (
-            "benchmark/compute/instruction/test_account_query.py::test_codecopy_benchmark"
-            "[account_mode_EXISTING_EOA-opcode_CALL]",
+            (
+                "benchmark/compute/instruction/test_account_query.py::test_codecopy_benchmark"
+                "[account_mode_EXISTING_EOA-opcode_CALL]"
+            ),
             "test_codecopy_benchmark",
             {"account_mode": "EXISTING_EOA", "opcode": "CALL"},
         ),

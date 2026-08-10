@@ -121,19 +121,25 @@ def build_page() -> str:
     lines = [
         "# Preset catalog",
         "",
-        f"The package ships {len(PRESETS)} `ModelSpec` presets. Selecting a "
-        "preset under `models.presets` in the YAML config is equivalent to "
-        "pasting its literal into `models.custom`.",
+        (
+            f"The package ships {len(PRESETS)} `ModelSpec` presets. Selecting a "
+            "preset under `models.presets` in the YAML config is equivalent to "
+            "pasting its literal into `models.custom`."
+        ),
         "",
-        "Each preset binds a `test_name` (an EEST test file), a target "
-        "(literal opcode or `target_operation_param`), optional fixture "
-        "selectors (`filter_by`), grouping dimensions (`model_by`), derived "
-        "columns (`fixture_params`), and a `model_params` map from regression "
-        "coefficient names to gas-param names.",
+        (
+            "Each preset binds a `test_name` (an EEST test file), a target "
+            "(literal opcode or `target_operation_param`), optional fixture "
+            "selectors (`filter_by`), grouping dimensions (`model_by`), derived "
+            "columns (`fixture_params`), and a `model_params` map from regression "
+            "coefficient names to gas-param names."
+        ),
         "",
-        "See [Writing custom ModelSpecs](../guides/custom-modelspecs.md) for "
-        "what each field means and [Deriving gas params](../concepts/gas-params.md) "
-        "for how the fitted coefficients become the final proposal.",
+        (
+            "See [Writing custom ModelSpecs](../guides/custom-modelspecs.md) for "
+            "what each field means and [Deriving gas params](../concepts/gas-params.md) "
+            "for how the fitted coefficients become the final proposal."
+        ),
         "",
     ]
     for category, _ in CATEGORIES:

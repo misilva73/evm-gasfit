@@ -307,7 +307,7 @@ def _resolve_opcounts(
             _OPCODE_ALIASES.get(str(op), str(op)): _coerce_count(count)
             for op, count in opcode_count.items()
         }
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         return _excluded(
             source_path,
             original_test_name,
@@ -421,7 +421,7 @@ def _source_id(source_path: str, original_test_name: str) -> str:
 
 def _coerce_count(value: Any) -> int | float:
     if isinstance(value, bool):
-        raise ValueError(f"opcode count must be numeric, got bool {value!r}")
+        raise TypeError(f"opcode count must be numeric, got bool {value!r}")
     if isinstance(value, int):
         return value
     if isinstance(value, float):

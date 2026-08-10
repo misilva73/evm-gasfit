@@ -50,6 +50,7 @@ def test_cli_writes_inputs_the_pipeline_can_join(tmp_path: Path) -> None:
         + ["--zkevm-metrics", str(ASSETS), "--out", str(out)],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 0, f"CLI exited {result.returncode}\n{result.stderr}"
     frame, match = build_fixtures_df(

@@ -69,7 +69,7 @@ class GasFit:
         _log.addHandler(self._warning_handler)
 
     @classmethod
-    def from_config(cls, path: Path) -> "GasFit":
+    def from_config(cls, path: Path) -> GasFit:
         """Load and validate the YAML config at ``path`` and return a fresh driver."""
         path = Path(path)
         pre_warnings: list[str] = []

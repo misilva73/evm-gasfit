@@ -18,7 +18,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from _data_synth import (
     NEW_GAS_ALL_PARAMS_COLUMNS,
     NEW_GAS_COLUMNS,

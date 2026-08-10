@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from difflib import get_close_matches
-from typing import Iterator
 
 from evm_gasfit.errors import ConfigError
 

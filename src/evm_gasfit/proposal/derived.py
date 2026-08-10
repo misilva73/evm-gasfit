@@ -8,7 +8,7 @@ same AST walker is used for both load-time validation and runtime evaluation.
 from __future__ import annotations
 
 import ast
-from typing import Mapping
+from collections.abc import Mapping
 
 from evm_gasfit.errors import ConfigError
 

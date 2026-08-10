@@ -22,7 +22,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from _data_synth import (
     ClientModel,
     base_config,
@@ -146,7 +145,7 @@ def test_poor_fit_section_surfaces_winners_and_losing_candidates(
     # one noisy) both have a qualified candidate, so neither winner is flagged.
     # ``poor_fit`` now flags every failing candidate, so restrict to winners.
     poor_winners = add_rows[
-        (add_rows["poor_fit"] == True) & (add_rows["is_winner"] == True)  # noqa: E712
+        (add_rows["poor_fit"] == True) & (add_rows["is_winner"] == True)
     ]
     assert set(poor_winners["client_name"]) == {"gamma"}
     # The winning row's R² should reflect the actual noisy fit (well below the

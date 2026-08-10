@@ -20,7 +20,6 @@ import re
 from pathlib import Path
 
 import pandas as pd
-
 from _data_synth import (
     ALWAYS_ON_ARTIFACTS,
     GLUE_ARTIFACTS,
@@ -29,9 +28,9 @@ from _data_synth import (
     make_block_limit_fixtures,
     make_glue_driver_fixtures,
     run_pipeline,
+    write_config_yaml,
     write_opcounts_json,
     write_runtimes_csv,
-    write_config_yaml,
 )
 
 

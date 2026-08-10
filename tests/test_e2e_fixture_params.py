@@ -18,7 +18,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     base_config,
@@ -26,7 +25,6 @@ from _data_synth import (
     run_pipeline,
     write_standard_inputs,
 )
-
 
 _ACCOUNT_VALUE_SENT_SPEC = {
     "test_name": "test_account_access",

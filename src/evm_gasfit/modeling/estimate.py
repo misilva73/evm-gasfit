@@ -242,7 +242,7 @@ def _build_design(
         index=df.index,
     )
     extras: list[str] = []
-    for coef_name, _gas_param in spec.model_params.items():
+    for coef_name in spec.model_params:
         if coef_name == "target_coef":
             continue
         # A model_params key can reference either a derived column produced by
@@ -318,7 +318,7 @@ def _fit_or_skip(
             n_bootstrap=config.modeling.bootstrap_iterations,
             random_seed=config.modeling.random_seed,
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 -- broad on purpose: any numerical failure means this fit attempt is unfit, not a crash
         _log.warning(
             "spec test_name=%r group=%s client=%s: NNLS solver raised %s, skipping",
             spec.test_name,

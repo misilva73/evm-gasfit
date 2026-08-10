@@ -11,13 +11,12 @@ row per preset and ``new_gas.csv`` is non-empty.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     FixtureSpec,
@@ -29,7 +28,6 @@ from _data_synth import (
 
 from evm_gasfit.config import ModelSpec
 from evm_gasfit.defaults.models import PRESETS
-
 
 _BLOCK_LIMITS = (30, 60, 90, 120, 150)
 _OPCOUNT_PER_MILLION = 500_000.0

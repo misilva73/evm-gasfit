@@ -8,10 +8,10 @@ import sys
 import traceback
 from pathlib import Path
 
-from evm_gasfit.api import GasFit
-from evm_gasfit.errors import ConfigError, ModelingError
 from evm_gasfit.adapter.eest import prepare_eest
 from evm_gasfit.adapter.zkevm import prepare_zkevm
+from evm_gasfit.api import GasFit
+from evm_gasfit.errors import ConfigError, ModelingError
 
 _log = logging.getLogger("evm_gasfit")
 
@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     except ModelingError as exc:
         _log.error("modeling error: %s", exc)
         return 2
-    except Exception:
+    except Exception:  # noqa: BLE001 -- top-level CLI catch-all, logs full traceback below
         _log.error("unexpected error:\n%s", traceback.format_exc())
         return 1
 

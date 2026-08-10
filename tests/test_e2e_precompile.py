@@ -16,13 +16,12 @@ slope. The test asserts they don't.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import numpy as np
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     FixtureSpec,

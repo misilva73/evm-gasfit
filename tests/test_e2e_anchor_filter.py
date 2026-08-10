@@ -19,15 +19,14 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     base_config,
     cross_product_fixtures,
     run_pipeline,
-    write_runtimes_csv,
-    write_opcounts_json,
     write_config_yaml,
+    write_opcounts_json,
+    write_runtimes_csv,
 )
 
 

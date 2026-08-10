@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     base_config,
@@ -154,7 +153,7 @@ def test_new_param_referenced_only_by_derived(tmp_path: Path) -> None:
         ],
         extra={"derived": {"ALIAS": "MY_NEW_PARAM"}},
     )
-    config_yaml, runtimes_csv, opcounts_json, out_dir = write_standard_inputs(
+    config_yaml, _runtimes_csv, _opcounts_json, _out_dir = write_standard_inputs(
         tmp_path,
         fixtures=fixtures,
         models=models,

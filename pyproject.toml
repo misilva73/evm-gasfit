@@ -74,3 +74,6 @@ addopts = "-ra -q"
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[tool.ruff]
+extend-exclude = [".claude"]

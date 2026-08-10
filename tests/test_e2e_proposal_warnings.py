@@ -25,7 +25,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from _data_synth import (
     ClientModel,
     assert_sentinel_near,
@@ -38,7 +37,6 @@ from _data_synth import (
     write_opcounts_json,
     write_standard_inputs,
 )
-
 
 SENTINEL = "no prior default"
 UNKNOWN_PARAMS = ("BRAND_NEW_GAS_PARAM", "OPCODE_NEVER_EXISTED_GAS")

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import nnls
@@ -69,11 +71,9 @@ def fit_nnls(
     all_indices = rng.integers(0, n, size=(n_bootstrap, n))
     for i in range(n_bootstrap):
         idx = all_indices[i]
-        try:
+        with contextlib.suppress(Exception):
             coef_boot, _ = nnls(X_with_const[idx], y[idx])
             bootstrap_coefs[i] = coef_boot
-        except Exception:
-            continue
 
     return NNLSResults(
         X=X_with_const,

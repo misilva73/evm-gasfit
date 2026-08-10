@@ -18,7 +18,6 @@ from .plots import (
     slug,
 )
 
-
 _TIER_BY_NAME: dict[str, str] = {s.name: s.tier for s in PRICED_GLUE_SPECS}
 
 
