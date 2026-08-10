@@ -115,19 +115,30 @@ def _resolve_target_opcode(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
 
 
 def _split_baseline_pair(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
-    """Replace each ``overhead_baseline_False`` row's runtime with its delta
-    against the matching ``overhead_baseline_True`` fixture's mean runtime,
-    dropping the ``True`` rows.
+    """Replace each ``overhead_baseline_False`` row's runtime *and* every
+    per-opcode count with its delta against the matching
+    ``overhead_baseline_True`` fixture's mean, dropping the ``True`` rows.
 
     A ``True`` fixture runs the same harness loop without the target opcode,
-    so ``False.test_runtime_ms - True.test_runtime_ms`` isolates the target's
-    own cost from everything the two variants share (loop overhead, keccak,
-    calling-convention glue) — whatever that shared cost is, known or not.
+    so ``False - True`` isolates the target's own cost from everything the
+    two variants share. Diffing runtime alone would only be correct for glue
+    opcodes whose count is identical between variants (e.g. keccak on a cold
+    account probe) — anything that scales with the target's own opcount
+    (e.g. the GAS/PUSH/POP calling convention around a CALL) is zero on the
+    ``True`` side and non-zero on ``False``, so it does *not* cancel and must
+    stay visible for the per-opcode glue detector (:mod:`evm_gasfit.glue.detect`)
+    to pick up downstream. Diffing every opcode-count column, not just
+    runtime, makes both cases fall out of the same subtraction: a shared,
+    non-scaling contaminant lands at a constant delta (correlation with
+    opcount fails, so it's never flagged as glue and never double-counted);
+    a scaling one lands at the same delta it would show in a raw fit, and
+    gets detected and priced exactly as it would without pairing.
+
     Benchmark suites commonly repeat the same fixture across several trials,
-    so the ``True`` side is aggregated to one mean-runtime row per fixture
-    identity before the merge — each ``False`` trial keeps its own
-    independent noise and is compared against the lower-variance baseline
-    estimate, rather than an arbitrary single ``True`` trial. Must run before
+    so the ``True`` side is aggregated to one mean row per fixture identity
+    before the merge — each ``False`` trial keeps its own independent noise
+    and is compared against the lower-variance baseline estimate, rather
+    than an arbitrary single ``True`` trial. Must run before
     :func:`_enforce_opcount_invariant`: every ``True`` row has ``opcount ==
     0``, which that check rejects.
     """
@@ -146,11 +157,21 @@ def _split_baseline_pair(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
         if c.startswith("param_") and c != col and df[c].notna().any()
     ]
     pair_cols.append("client_name")
+    # Diff every numeric column except the pairing key and ``opcount``, which
+    # must stay the (unpaired) target opcount — it's the regression's x-axis
+    # and the correlation reference in glue detection, not a contaminant.
+    diff_cols = [
+        c
+        for c in df.columns
+        if c not in pair_cols
+        and c != "opcount"
+        and pd.api.types.is_numeric_dtype(df[c])
+    ]
     true_baseline = (
-        true_df.groupby(pair_cols, dropna=False)["test_runtime_ms"]
+        true_df.groupby(pair_cols, dropna=False)[diff_cols]
         .mean()
         .reset_index()
-        .rename(columns={"test_runtime_ms": "test_runtime_ms_baseline"})
+        .rename(columns={c: f"{c}__baseline" for c in diff_cols})
     )
     merged = false_df.merge(
         true_baseline,
@@ -158,7 +179,7 @@ def _split_baseline_pair(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
         how="left",
         validate="many_to_one",
     )
-    unmatched = merged["test_runtime_ms_baseline"].isna()
+    unmatched = merged["test_runtime_ms__baseline"].isna()
     if unmatched.any():
         examples = merged.loc[unmatched, "fixture_name"].tolist()[:5]
         raise ConfigError(
@@ -166,10 +187,9 @@ def _split_baseline_pair(df: pd.DataFrame, spec: ModelSpec) -> pd.DataFrame:
             f"overhead_baseline_False fixture(s) have no matching "
             f"overhead_baseline_True counterpart, e.g. {examples!r}"
         )
-    merged["test_runtime_ms"] = (
-        merged["test_runtime_ms"] - merged["test_runtime_ms_baseline"]
-    )
-    return merged.drop(columns="test_runtime_ms_baseline")
+    for c in diff_cols:
+        merged[c] = merged[c] - merged[f"{c}__baseline"]
+    return merged.drop(columns=[f"{c}__baseline" for c in diff_cols])
 
 
 def _enforce_opcount_invariant(df: pd.DataFrame, spec: ModelSpec) -> None:

@@ -210,19 +210,22 @@ Each model spec — whether bundled as a preset or written under
   runtime *delta* instead of raw `False` runtime. This is for benchmark
   suites that ship an explicit A/B
   baseline fixture — one that runs the surrounding harness without the
-  target opcode — as a model-free control: the delta cancels anything the
-  two variants share, known glue opcode or not, without needing a per-opcode
-  driver fit. A `False` row with no matching `True` row is a config error.
-  Because the fitted coefficient is already glue-clean, specs using this
-  field are skipped entirely by the glue detector (§4.4) — re-detecting glue
-  candidates from their raw counts would let the glue adjustment subtract
-  something a second time. Only use this where the baseline pair is
-  a genuine control for the *whole* target-opcode cost; if the target
-  opcode's own calling convention requires setup (e.g. pushing call
-  arguments) that the baseline *also* omits, pairing folds that setup's true
-  cost into `target_coef` rather than removing it — a spec should only set
-  this field for target opcodes where nothing but the target opcode itself
-  differs between the two variants.
+  target opcode — as a model-free control: the delta cancels, for free and
+  without needing a per-opcode driver fit, anything whose *count* is
+  identical between the two variants (known glue opcode or not). A `False`
+  row with no matching `True` row is a config error. The pairing transform
+  (§4.3) is applied to every opcode-count column, not just runtime, so the
+  glue detector (§4.4) runs on the same delta rather than being skipped: a
+  contaminant that scales with the target's own opcount instead of staying
+  identical — e.g. a calling convention (GAS for a gas stipend, PUSHes for
+  call arguments) that the `True` baseline drops along with the target op —
+  does not cancel on its own, but survives the diff and is still detected and
+  priced by the ordinary per-opcode mechanism. A spec can therefore set this
+  field even when the target opcode's own calling convention differs between
+  variants, as long as that convention is one of the 30 priced canonical
+  names (`glue/required.py`); a differing count that is *not* one of those
+  30 names would still fold into `target_coef` uncorrected, same as it would
+  in a spec that doesn't use this field at all.
 - `filter_by` — string or list of strings, ANDed as substring matches against
   the raw fixture name. A `!`-prefixed token inverts the match: `!foo`
   requires that `foo` is absent from the fixture name. Scalar inputs are
@@ -753,17 +756,24 @@ land on `results.csv` as `intercept_runtime_ms`, `target_coef_runtime_ms`, and
 - **Baseline pairing**: if a spec sets `overhead_baseline_param` (§2.1), the
   filtered slice is transformed *before* the §2.3 opcount invariant runs
   (every `overhead_baseline_True` row has `opcount == 0`, which that
-  invariant otherwise rejects): `"True"` rows are aggregated to one
-  mean-runtime row per every other parsed param (plus client) — benchmark
-  suites commonly repeat the same fixture across several trials, so this
-  compares each individual `"False"` trial against a lower-variance baseline
-  estimate rather than an arbitrary single `"True"` trial — then each
-  `"False"` row's `test_runtime_ms` becomes the difference against its
-  matching aggregated baseline, and the `"True"` rows are dropped. A `"False"`
-  row whose param combination has no `"True"` counterpart at all is a
-  `ConfigError`. The rest of the fit — grouping by `model_by`, building the
-  design matrix, NNLS — runs unchanged on the transformed slice, including
-  repeated `"False"` trials, which still contribute independent observations.
+  invariant otherwise rejects): `"True"` rows are aggregated to one mean row
+  per every other parsed param (plus client) — benchmark suites commonly
+  repeat the same fixture across several trials, so this compares each
+  individual `"False"` trial against a lower-variance baseline estimate
+  rather than an arbitrary single `"True"` trial — then each `"False"` row's
+  `test_runtime_ms` **and every per-opcode count column** becomes the
+  difference against its matching aggregated baseline (`opcount` itself is
+  left untouched — it's the regression's x-axis and the glue detector's
+  correlation reference, not a contaminant), and the `"True"` rows are
+  dropped. A `"False"` row whose param combination has no `"True"`
+  counterpart at all is a `ConfigError`. The rest of the fit — grouping by
+  `model_by`, building the design matrix, NNLS — runs unchanged on the
+  transformed slice, including repeated `"False"` trials, which still
+  contribute independent observations. Diffing every count column, not just
+  runtime, is what lets the glue detector (§4.4) run on baseline-paired specs
+  instead of being skipped: an opcode with an identical count on both sides
+  deltas to a constant and fails detection on its own, while one that scales
+  with the target's own opcount survives the diff untouched.
 - **Empty specs**: if `test_name` plus `filter_by` leaves zero matching fixtures
   for a spec, skip that spec entirely and log a warning to stderr naming the
   `test_name` and the filter that excluded everything. The pipeline continues
@@ -963,17 +973,20 @@ final `new_gas_proposal.md` under a "Warnings" section, naming the
 (test, glue_opcode) pair. The target coefficient is left unadjusted for that
 contribution.
 
-**Baseline-pairing bypass.** A spec with `overhead_baseline_param` set (§2.1)
-never enters `compute_glue_opcodes_by_test`'s scan and so never appears in
-`glue_opcodes_by_test.csv` or contributes to `detect_missing_glue`'s
-warnings, regardless of what its `False` fixtures correlate with. Its
-`target_coef` was already fit on a baseline-paired runtime delta (§4.3)
-rather than raw runtime — a model-free control
-that cancels anything the paired fixtures share, whether or not it happens
-to be one of the 30 priced canonical names. Re-running detection on it would
-either flag a spurious (already-cancelled) candidate or, worse, let
-`compute_glue_adjustment` subtract a real, already-cancelled-by-construction
-contribution a second time.
+**Baseline pairing interaction.** A spec with `overhead_baseline_param` set
+(§2.1) enters `compute_glue_opcodes_by_test`'s scan exactly like any other
+spec, except the slice it scans is the same baseline-paired delta (§4.3) its
+`target_coef` was fit on — every opcode-count column diffed against the
+matching `"True"` baseline, not raw `"False"` counts. This is what makes
+running the detector safe rather than redundant: an opcode whose count is
+identical between the paired fixtures (the case pairing exists to cancel for
+free) deltas to a constant, fails the correlation threshold on its own, and
+is never flagged — so `compute_glue_adjustment` never subtracts an
+already-cancelled contribution a second time. An opcode whose count instead
+scales with the target's own opcount (e.g. a calling convention the `"True"`
+baseline drops along with the target op) survives the diff untouched and is
+detected and priced exactly as it would be for a spec that doesn't use
+baseline pairing at all.
 
 ### 4.5 Time units
 

@@ -10,6 +10,17 @@ Family-member columns (``DUP1``..``DUP16``, ``SWAP1``..``SWAP16``,
 ``SWAP``, ``PUSH``) before the threshold pass, so a single family row is
 emitted instead of one per member. The result drives
 ``glue_opcodes_by_test.csv`` and the missing-glue warning.
+
+A spec with ``overhead_baseline_param`` set runs against the baseline-paired
+delta (``modeling/estimate.py`` ``_split_baseline_pair``, applied to every
+opcode-count column here, not just runtime) rather than raw counts. A glue
+opcode whose count is identical between the paired fixtures — the case the
+pairing exists to handle — deltas to a constant and fails the correlation
+threshold on its own, so it's never flagged and never subtracted a second
+time. One that scales with the target's own opcount (e.g. calling-convention
+GAS/PUSH/POP around a CALL, which the ``True`` baseline drops along with the
+target op) survives the diff and is detected exactly as it would be without
+pairing.
 """
 
 from __future__ import annotations
@@ -25,6 +36,7 @@ from evm_gasfit.modeling.estimate import (
     _apply_filters,
     _materialize_derived,
     _resolve_target_opcode,
+    _split_baseline_pair,
 )
 
 from .required import MEMBER_TO_CANONICAL, PRICED_GLUE_OPCODES
@@ -56,6 +68,7 @@ def _spec_groups(
     if slice_df.empty:
         return []
     slice_df = _resolve_target_opcode(slice_df, spec)
+    slice_df = _split_baseline_pair(slice_df, spec)
     slice_df = _materialize_derived(slice_df, spec)
 
     for col in spec.model_by:
@@ -147,14 +160,6 @@ def compute_glue_opcodes_by_test(
     rows: list[dict[str, object]] = []
 
     for spec in model_specs:
-        if spec.overhead_baseline_param is not None:
-            # This spec's target_coef is already fit on a baseline-paired
-            # runtime delta (modeling/estimate.py `_split_baseline_pair`),
-            # which nets out the *exact* measured effect of anything that
-            # differs between the paired fixtures — known glue opcode or not.
-            # Re-detecting glue candidates here would make
-            # compute_glue_adjustment subtract them a second time.
-            continue
         for group_values, group_df in _spec_groups(fixtures_df, spec):
             # Opcounts are a property of the fixture, not the client — collapse
             # to one row per fixture before correlating. Sorting by opcount

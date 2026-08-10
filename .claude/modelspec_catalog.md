@@ -278,9 +278,8 @@ presets below enumerate the *included* values as separate entries.
 | `cold_storage_sstore_write` | `test_sstore_bloated` | `SSTORE` (`filter_by: ["CacheStrategy.NO_CACHE", "write_new_value_True"]`) | `[existing_slots]` | `COLD_STORAGE_WRITE` (combined access+write) |
 | `cold_account_nocode_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT", "value_sent_0"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_NOCODE_ACCESS` |
 | `cold_account_nocode_write` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT", "value_sent_1"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_NOCODE_WRITE` (combined access+write) |
-| `cold_account_code_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "value_sent_0", "overhead_baseline_False", "!opcode_BALANCE", "!opcode_EXTCODEHASH", "!opcode_EXTCODESIZE"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_ACCESS` |
-| `cold_account_code_write` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "value_sent_1", "overhead_baseline_False", "!opcode_BALANCE", "!opcode_EXTCODEHASH", "!opcode_EXTCODESIZE"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_WRITE` (combined access+write) |
-| `cold_account_code_access_noncall` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "!AccountMode.NON_EXISTING_ACCOUNT", "value_sent_0", "!opcode_CALL", "!opcode_DELEGATECALL", "!opcode_STATICCALL", "!opcode_EXTCODECOPY"]`, `overhead_baseline_param: overhead_baseline`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_ACCESS` |
+| `cold_account_code_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "!AccountMode.NON_EXISTING_ACCOUNT", "value_sent_0"]`, `overhead_baseline_param: overhead_baseline`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_ACCESS` |
+| `cold_account_code_write` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "!AccountMode.NON_EXISTING_ACCOUNT", "value_sent_1", "!opcode_BALANCE", "!opcode_EXTCODEHASH", "!opcode_EXTCODESIZE"]`, `overhead_baseline_param: overhead_baseline`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_WRITE` (combined access+write) |
 | `account_codecopy` | `test_codecopy_benchmark` | `CODECOPY` | `[code_size, mem_size]` | `target_coef: OPCODE_CODECOPY_BASE`, `code_words: OPCODE_CODECOPY_PER_WORD` (via `fixture_params.code_words = {source: code_size, transform: bytes_to_words}`) |
 | `account_codesize` | `test_codesize` | `CODESIZE` | — | `OPCODE_CODESIZE` |
 | `account_selfbalance` | `test_selfbalance` | `SELFBALANCE` | — | `OPCODE_SELFBALANCE` |
@@ -335,38 +334,38 @@ Notes:
   than by the key shape — no preset claims another's fits, and the
   overlapping `NON_EXISTING_ACCOUNT` mode stays distinct candidate rows (one
   per preset) instead of being deduplicated.
-- **`overhead_baseline` pairing (CODE, non-call opcodes only).**
+- **`overhead_baseline` pairing (all 8 CODE opcodes).**
   `test_account_access` sweeps an `overhead_baseline` variant: `True`
   fixtures run the surrounding harness *without* the target account
   operation, pairing each `False` fixture against the mean runtime of its
   `True` counterparts (the suite repeats every fixture across several trials,
-  so this is a many-to-one match, not 1:1). For
-  `BALANCE`/`EXTCODEHASH`/`EXTCODESIZE` (`cold_account_code_access_noncall`;
-  there is no `_write_noncall` counterpart — only `CALL`/`CALLCODE` ever carry
-  a value, so a `value_sent_1` slice restricted to these three opcodes always
-  matches zero fixtures),
-  `overhead_baseline_param: overhead_baseline` fits `target_coef` on the
-  runtime delta (`False − mean(True)`) instead of raw `False` runtime — it
-  cancels keccak (`SHA3`), which has an identical count in both variants for
-  these three opcodes, and tiny non-scaling setup offsets, which the
-  intercept would absorb anyway. Because the target_coef is already clean,
-  this preset is skipped entirely by the per-opcode glue detector
-  (`glue/detect.py`) — re-detecting glue candidates from its (unfiltered)
-  `False`+`True` mix would let `compute_glue_adjustment` subtract something
-  a second time.
+  so this is a many-to-one match, not 1:1). `overhead_baseline_param:
+  overhead_baseline` fits `target_coef` on the runtime delta (`False −
+  mean(True)`) instead of raw `False` runtime, and the per-opcode glue
+  detector (`glue/detect.py`) runs on that same delta — every opcode-count
+  column, not just runtime — rather than being skipped for baseline-paired
+  specs. This is what lets a single preset cover both opcode families:
+  - `BALANCE`/`EXTCODEHASH`/`EXTCODESIZE`: keccak (`SHA3`) has an identical
+    count in both variants, so it deltas to a constant and fails the
+    detector's correlation threshold on its own — cancelled for free, never
+    double-subtracted.
+  - `CALL`/`CALLCODE`/`DELEGATECALL`/`STATICCALL`/`EXTCODECOPY`: their `True`
+    baseline also drops the entire calling-convention setup (GAS for the gas
+    stipend, several `PUSH1`s for the call arguments), so those opcodes'
+    counts scale with the target's own opcount rather than staying identical
+    between variants — they survive the delta and are still detected and
+    priced by the ordinary per-opcode mechanism, same as they were before
+    this preset used baseline pairing. Their keccak contribution, previously
+    an accepted small residual, now cancels too.
 
-  `CALL`/`CALLCODE`/`DELEGATECALL`/`STATICCALL`/`EXTCODECOPY`
-  (`cold_account_code_*`, unchanged) stay on `overhead_baseline_False`
-  filtering and the ordinary per-opcode glue mechanism instead: their `True`
-  baseline also drops the entire calling-convention setup (GAS for the gas
-  stipend, several `PUSH1`s for the call arguments), so those opcodes' counts
-  scale with the target's own opcount rather than staying identical between
-  variants. Pairing would fold their real, already-correctly-priced
-  contribution *into* `target_coef` instead of removing it, undoing the
-  per-opcode mechanism's existing (correct) subtraction of exactly those
-  opcodes. (Should keccak's small residual on the call-family opcodes need
-  fixing later, a self-contained way is a better `KECCAK256` driver fixture —
-  not baseline pairing.)
+  `AccountMode.NON_EXISTING_ACCOUNT` is excluded for both the access and
+  write presets because that mode has no `overhead_baseline_True`
+  counterpart at all — only the 4 `EXISTING_CONTRACT_*` modes do. There is no
+  write-side preset for `BALANCE`/`EXTCODEHASH`/`EXTCODESIZE`: those three
+  never carry a value (only `CALL`/`CALLCODE` do), so a `value_sent_1` slice
+  restricted to them always matches zero fixtures —
+  `COLD_ACCOUNT_CODE_WRITE` is priced from the call-family opcodes alone via
+  `cold_account_code_write`.
 - **Filter tokens use the EEST enum stringification.** EEST renders
   `cache_strategy` and `account_mode` parameters as
   `cache_strategy_CacheStrategy.<VALUE>` and

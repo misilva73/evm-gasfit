@@ -114,10 +114,10 @@ def _representative_account_mode(spec: ModelSpec) -> str:
     negation in `spec.filter_by`.
 
     No single hardcoded value works for every account-access preset: the
-    NOCODE presets exclude `EXISTING_CONTRACT`, the CODE presets exclude
-    `EXISTING_EOA`, and `cold_account_code_access_noncall` additionally
-    excludes `NON_EXISTING_ACCOUNT` (no `overhead_baseline_True` counterpart
-    for that mode) — so the placeholder has to be chosen per spec.
+    NOCODE presets exclude `EXISTING_CONTRACT`, and the CODE presets exclude
+    both `EXISTING_EOA` and `NON_EXISTING_ACCOUNT` (no `overhead_baseline_True`
+    counterpart for either mode) — so the placeholder has to be chosen per
+    spec.
     """
     # `_apply_filters` matches by substring, so "!AccountMode.EXISTING_CONTRACT"
     # excludes "AccountMode.EXISTING_CONTRACT_MINIMAL" too — check containment,
