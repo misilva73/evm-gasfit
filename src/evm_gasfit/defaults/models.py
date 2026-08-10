@@ -512,7 +512,11 @@ PRESETS: dict[str, ModelSpec] = {
     # also drops). So a single preset covers the whole opcode universe.
     # NON_EXISTING_ACCOUNT is excluded because that mode has no
     # overhead_baseline_True counterpart at all — only the 4
-    # EXISTING_CONTRACT_* modes do.
+    # EXISTING_CONTRACT_* modes do. EXISTING_CONTRACT_JUMPDEST is excluded too:
+    # that mode points the target opcode at a contract whose code is a single
+    # JUMPDEST, which is not representative of the cold account access being
+    # priced and was winning the worst-case selection for several
+    # (param, client) pairs, including COLD_ACCOUNT_CODE_ACCESS itself.
     "cold_account_code_access": ModelSpec(
         test_name="test_account_access",
         target_operation_param="opcode",
@@ -520,6 +524,7 @@ PRESETS: dict[str, ModelSpec] = {
             "CacheStrategy.NO_CACHE",
             "!AccountMode.EXISTING_EOA",
             "!AccountMode.NON_EXISTING_ACCOUNT",
+            "!AccountMode.EXISTING_CONTRACT_JUMPDEST",
             "value_sent_0",
         ],
         model_by=["opcode", "account_mode"],
@@ -537,6 +542,7 @@ PRESETS: dict[str, ModelSpec] = {
             "CacheStrategy.NO_CACHE",
             "!AccountMode.EXISTING_EOA",
             "!AccountMode.NON_EXISTING_ACCOUNT",
+            "!AccountMode.EXISTING_CONTRACT_JUMPDEST",
             "value_sent_1",
             "!opcode_BALANCE",
             "!opcode_EXTCODEHASH",

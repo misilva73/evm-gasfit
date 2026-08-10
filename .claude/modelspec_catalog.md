@@ -278,8 +278,8 @@ presets below enumerate the *included* values as separate entries.
 | `cold_storage_sstore_write` | `test_sstore_bloated` | `SSTORE` (`filter_by: ["CacheStrategy.NO_CACHE", "write_new_value_True"]`) | `[existing_slots]` | `COLD_STORAGE_WRITE` (combined access+write) |
 | `cold_account_nocode_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT", "value_sent_0"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_NOCODE_ACCESS` |
 | `cold_account_nocode_write` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_CONTRACT", "value_sent_1"]`) | `[opcode, account_mode]` | `COLD_ACCOUNT_NOCODE_WRITE` (combined access+write) |
-| `cold_account_code_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "!AccountMode.NON_EXISTING_ACCOUNT", "value_sent_0"]`, `overhead_baseline_param: overhead_baseline`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_ACCESS` |
-| `cold_account_code_write` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "!AccountMode.NON_EXISTING_ACCOUNT", "value_sent_1", "!opcode_BALANCE", "!opcode_EXTCODEHASH", "!opcode_EXTCODESIZE"]`, `overhead_baseline_param: overhead_baseline`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_WRITE` (combined access+write) |
+| `cold_account_code_access` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "!AccountMode.NON_EXISTING_ACCOUNT", "!AccountMode.EXISTING_CONTRACT_JUMPDEST", "value_sent_0"]`, `overhead_baseline_param: overhead_baseline`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_ACCESS` |
+| `cold_account_code_write` | `test_account_access` | param `opcode` (`filter_by: ["CacheStrategy.NO_CACHE", "!AccountMode.EXISTING_EOA", "!AccountMode.NON_EXISTING_ACCOUNT", "!AccountMode.EXISTING_CONTRACT_JUMPDEST", "value_sent_1", "!opcode_BALANCE", "!opcode_EXTCODEHASH", "!opcode_EXTCODESIZE"]`, `overhead_baseline_param: overhead_baseline`) | `[opcode, account_mode]` | `COLD_ACCOUNT_CODE_WRITE` (combined access+write) |
 | `account_codecopy` | `test_codecopy_benchmark` | `CODECOPY` | `[code_size, mem_size]` | `target_coef: OPCODE_CODECOPY_BASE`, `code_words: OPCODE_CODECOPY_PER_WORD` (via `fixture_params.code_words = {source: code_size, transform: bytes_to_words}`) |
 | `account_codesize` | `test_codesize` | `CODESIZE` | — | `OPCODE_CODESIZE` |
 | `account_selfbalance` | `test_selfbalance` | `SELFBALANCE` | — | `OPCODE_SELFBALANCE` |
@@ -360,7 +360,13 @@ Notes:
 
   `AccountMode.NON_EXISTING_ACCOUNT` is excluded for both the access and
   write presets because that mode has no `overhead_baseline_True`
-  counterpart at all — only the 4 `EXISTING_CONTRACT_*` modes do. There is no
+  counterpart at all — only the 4 `EXISTING_CONTRACT_*` modes do.
+  `AccountMode.EXISTING_CONTRACT_JUMPDEST` is excluded too, from the
+  remaining 3: that mode points the target opcode at a contract whose code
+  is a single `JUMPDEST`, an account shape that is not representative of the
+  cold account access being priced, and against a real dataset it won the
+  worst-case selection for several `(param, client)` pairs, including
+  `COLD_ACCOUNT_CODE_ACCESS` itself. There is no
   write-side preset for `BALANCE`/`EXTCODEHASH`/`EXTCODESIZE`: those three
   never carry a value (only `CALL`/`CALLCODE` do), so a `value_sent_1` slice
   restricted to them always matches zero fixtures —
