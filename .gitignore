@@ -50,3 +50,4 @@ site/
 # Project specific]
 out/
 in/
+secrets.json
