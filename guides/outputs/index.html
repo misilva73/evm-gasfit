@@ -1,0 +1,1395 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Estimate worst-case EVM gas costs from runtime measurements.">
+      
+      
+      
+      
+        <link rel="prev" href="../custom-modelspecs/">
+      
+      
+        <link rel="next" href="../../concepts/nnls/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Reading the outputs - evm-gasfit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#reading-the-outputs" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="evm-gasfit" class="md-header__button md-logo" aria-label="evm-gasfit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            evm-gasfit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Reading the outputs
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../custom-modelspecs/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../concepts/nnls/" class="md-tabs__link">
+          
+  
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/config/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="evm-gasfit" class="md-nav__button md-logo" aria-label="evm-gasfit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    evm-gasfit
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install & quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../custom-modelspecs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing custom ModelSpecs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading the outputs
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading the outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#csv-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSV artifacts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CSV artifacts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resultscsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        results.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new_gas_all_paramscsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        new_gas_all_params.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new_gascsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        new_gas.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metajson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        meta.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#markdown-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Markdown reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Markdown reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime_estimation_autogenerated_reportmd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runtime_estimation_autogenerated_report.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new_gas_proposalmd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        new_gas_proposal.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glue_opcodes_autogenerated_reportmd-glue-runs-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        glue_opcodes_autogenerated_report.md (glue runs only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#figures-figs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figures (figs/)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/nnls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NNLS modeling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/glue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glue adjustment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/gas-params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deriving gas params
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config (YAML)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/presets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preset catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#csv-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSV artifacts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CSV artifacts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resultscsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        results.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new_gas_all_paramscsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        new_gas_all_params.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new_gascsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        new_gas.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metajson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        meta.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#markdown-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Markdown reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Markdown reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime_estimation_autogenerated_reportmd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runtime_estimation_autogenerated_report.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new_gas_proposalmd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        new_gas_proposal.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glue_opcodes_autogenerated_reportmd-glue-runs-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        glue_opcodes_autogenerated_report.md (glue runs only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#figures-figs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Figures (figs/)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="reading-the-outputs">Reading the outputs<a class="headerlink" href="#reading-the-outputs" title="Permanent link">&para;</a></h1>
+<p>A run of <code>evm-gasfit</code> writes its artifacts under the directory you pass to
+<code>write_reports(out_dir)</code> (CLI: <code>--out</code>). This page is a file-by-file tour of
+what's there and how to read it.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>out_dir/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── results.csv
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── new_gas_all_params.csv
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── new_gas.csv
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── runtime_estimation_autogenerated_report.md
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── new_gas_proposal.md
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── meta.json
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── figs/                                       # only if output.plots: true
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── glue_results.csv                            # only if glue_adjustment.enabled
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── glue_opcodes_by_test.csv                    # only if glue_adjustment.enabled
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>└── glue_opcodes_autogenerated_report.md        # only if glue_adjustment.enabled
+</code></pre></div>
+<h2 id="csv-artifacts">CSV artifacts<a class="headerlink" href="#csv-artifacts" title="Permanent link">&para;</a></h2>
+<h3 id="resultscsv"><code>results.csv</code><a class="headerlink" href="#resultscsv" title="Permanent link">&para;</a></h3>
+<p>One row per <strong>successful NNLS fit</strong> — i.e. per <code>(spec, model_by-combo, client)</code>.
+Columns include:</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Columns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keys</td>
+<td><code>test_name</code>, <code>target_opcode</code>, <code>client_name</code>, one column per <code>model_by</code> axis.</td>
+</tr>
+<tr>
+<td>Fit</td>
+<td><code>nobs</code>, <code>rsquared</code>, <code>rsquared_adj</code>.</td>
+</tr>
+<tr>
+<td>Intercept</td>
+<td><code>intercept_runtime_ms</code>, <code>intercept_pvalue</code>.</td>
+</tr>
+<tr>
+<td>Target</td>
+<td><code>target_coef_runtime_ms</code>, <code>target_coef_pvalue</code>, <code>target_coef_conf_int_low</code>, <code>target_coef_conf_int_high</code>.</td>
+</tr>
+<tr>
+<td>Per extra</td>
+<td><code>&lt;extra&gt;_runtime_ms</code>, <code>&lt;extra&gt;_pvalue</code>, <code>&lt;extra&gt;_conf_int_low</code>, <code>&lt;extra&gt;_conf_int_high</code> (for each surviving <code>model_params</code> entry beyond <code>target_coef</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>Skipped fits (insufficient data, constant <code>opcount</code>, solver failure) do <strong>not</strong>
+produce a row — only the log carries the warning. See
+<a href="../../concepts/nnls/">NNLS modeling</a> for skip reasons.</p>
+<h3 id="new_gas_all_paramscsv"><code>new_gas_all_params.csv</code><a class="headerlink" href="#new_gas_all_paramscsv" title="Permanent link">&para;</a></h3>
+<p>The aggregator's per-<code>(gas_param, client, candidate)</code> expansion of
+<code>results.csv</code>. One row for <strong>every</strong> <code>model_params</code> entry of every fit
+that could contribute to a gas param — winning and losing candidates
+together. Columns include <code>gas_param</code>, <code>client_name</code>, the source
+<code>test_name</code> / <code>target_opcode</code> / <code>model_coef_name</code> / <code>model_by-combo</code>, the
+<code>source_label</code> of the producing model spec (<code>presets[&lt;name&gt;]</code> or
+<code>models.custom[&lt;i&gt;]</code> — the disambiguator between candidates that are otherwise
+identical, e.g. two specs differing only in <code>filter_by</code>), the
+runtime + CI + p-value, the <code>glue_adjustment</code> applied (zero when no glue
+row matched), <code>new_gas_decimal</code> (raw conversion), <code>new_gas_rounded</code>
+(<code>ceil</code>-rounded), and two booleans:</p>
+<ul>
+<li><code>is_winner</code> — set on the row picked by the per-client worst-case selector.</li>
+<li><code>poor_fit</code> — set on <strong>every</strong> candidate that failed the p-value / R²
+  thresholds, not just winners. A row that is both <code>is_winner</code> and <code>poor_fit</code>
+  is a fallback winner: the whole <code>(gas_param, client)</code> group had no qualifying
+  row and the selector fell back to the best-effort pick.</li>
+</ul>
+<h3 id="new_gascsv"><code>new_gas.csv</code><a class="headerlink" href="#new_gascsv" title="Permanent link">&para;</a></h3>
+<p>The <strong>final proposal</strong>: one row per gas param, taken as the across-client
+worst case of the per-client winners. Columns are <code>gas_param</code>, <code>client_name</code>
+(the worst-case client), <code>runtime_ms</code>, CI bounds, the contributing
+<code>selected_test</code> / <code>selected_opcode</code> / <code>selected_model_coef_name</code>,
+<code>glue_adjustment</code>, <code>new_gas_decimal</code>, <code>new_gas_rounded</code>, and <code>model_by-combo</code>
+columns. This is what's diffed against the patched fork baseline in the
+report.</p>
+<h3 id="metajson"><code>meta.json</code><a class="headerlink" href="#metajson" title="Permanent link">&para;</a></h3>
+<p>Run metadata: package version, fork name, anchor rate, config hash, and
+timestamps. Useful as an audit pointer when comparing runs.</p>
+<h2 id="markdown-reports">Markdown reports<a class="headerlink" href="#markdown-reports" title="Permanent link">&para;</a></h2>
+<h3 id="runtime_estimation_autogenerated_reportmd"><code>runtime_estimation_autogenerated_report.md</code><a class="headerlink" href="#runtime_estimation_autogenerated_reportmd" title="Permanent link">&para;</a></h3>
+<p>Per-spec NNLS summary. For each <code>(test, target, model_by-combo)</code>:</p>
+<ul>
+<li>Per-client coefficient table with point estimate, CI, p-value.</li>
+<li>R² and <code>nobs</code>.</li>
+<li>Diagnostic plots inlined when <code>output.plots: true</code>.</li>
+</ul>
+<p>This is the place to inspect fit quality — the proposal report only surfaces
+poor-fit <em>selections</em>, not every poor fit.</p>
+<h3 id="new_gas_proposalmd"><code>new_gas_proposal.md</code><a class="headerlink" href="#new_gas_proposalmd" title="Permanent link">&para;</a></h3>
+<p>The headline artifact. Sections, in order:</p>
+<ol>
+<li><strong>Run metadata</strong> — timestamp, fork, anchor rate.</li>
+<li><strong>Summary</strong> — single line counting proposed / increased / decreased /
+   new / unresolved params and warning counts.</li>
+<li><strong>Contents</strong> — TOC with anchor links.</li>
+<li><strong>Proposed gas parameters</strong> — the diff table for fitted rows: <code>gas_param</code>,
+   <code>current_gas</code>, <code>proposed_gas</code>, <code>diff</code>, <code>pct</code>, with <code>&lt;no fit&gt;</code> rows for
+   unresolved params kept in a separate block.</li>
+<li><strong>Client comparison</strong> — for each fitted param, the worst-client and
+   second-worst-client values plus <code>worst / second-worst</code> ratio. Large
+   ratios (≳ 2×) flag the worst client as a likely outlier. The per-client
+   overview is rendered either as:</li>
+<li>A <code>log2(proposed / current)</code> heatmap when <code>output.plots: true</code> (red =
+     more expensive than current, green = cheaper, blank rows = <code>new_params</code>
+     declared without a baseline). The cell the per-client selector picked
+     for each client is outlined.</li>
+<li>A markdown table fallback when plots are off; the winning cell is
+     <strong>bolded</strong>.</li>
+<li><strong>Worst-case provenance</strong> — one collapsible <code>&lt;details&gt;</code> block per gas
+   param, showing every <code>(test_name, target_opcode, model_coef_name, model_by)</code>
+   contender × every client. This is where you go when a proposed value
+   looks surprising and you want to see what the other candidates said.</li>
+<li><strong>Warnings</strong> — four subsections:</li>
+<li><code>Missing parameters</code> — proposed names that produced no value.</li>
+<li><code>Incomplete client coverage</code> — proposed for some clients, absent on
+     others.</li>
+<li><code>Missing glue adjustments</code> — glue contributions skipped due to
+     fit-quality gates (see <a href="../../concepts/glue/">Glue adjustment</a>).</li>
+<li><code>Other</code> — anything else.</li>
+<li><strong>Poor-fit selections</strong> — the same poor-fit <em>winners</em> the <code>new_gas.csv</code>
+   row flags, plus a separate <code>Other weak candidates</code> subsection listing
+   losing candidates that also failed the thresholds. Use this to decide
+   whether the worst-case pick is solid or whether you should split / refit
+   the spec.</li>
+</ol>
+<h3 id="glue_opcodes_autogenerated_reportmd-glue-runs-only"><code>glue_opcodes_autogenerated_report.md</code> (glue runs only)<a class="headerlink" href="#glue_opcodes_autogenerated_reportmd-glue-runs-only" title="Permanent link">&para;</a></h3>
+<p>Per-glue-opcode summary: tier, driver fixture, per-client coefficient with
+quality stats, and plots when enabled. See
+<a href="../../concepts/glue/">Glue adjustment</a> for what the tiers mean.</p>
+<h2 id="figures-figs">Figures (<code>figs/</code>)<a class="headerlink" href="#figures-figs" title="Permanent link">&para;</a></h2>
+<p>When <code>output.plots: true</code>:</p>
+<ul>
+<li><code>figs/runtime/</code> — per-fit scatter plus regression line, one PNG per
+  <code>(spec, model_by-combo, client)</code>.</li>
+<li><code>figs/glue/</code> — per-priced-glue diagnostic plots (glue runs only).</li>
+<li>The proposal report's heatmaps are inlined directly as base64 data URIs
+  so the <code>.md</code> is self-contained.</li>
+</ul>
+<p>Turning plots off (<code>output.plots: false</code>) skips <code>figs/</code> entirely and falls
+back to markdown tables in the report.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "content.code.copy", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

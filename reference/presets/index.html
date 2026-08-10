@@ -1,0 +1,7428 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Estimate worst-case EVM gas costs from runtime measurements.">
+      
+      
+      
+      
+        <link rel="prev" href="../config/">
+      
+      
+        <link rel="next" href="../../api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Preset catalog - evm-gasfit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#preset-catalog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="evm-gasfit" class="md-header__button md-logo" aria-label="evm-gasfit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            evm-gasfit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Preset catalog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/custom-modelspecs/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../concepts/nnls/" class="md-tabs__link">
+          
+  
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../config/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="evm-gasfit" class="md-nav__button md-logo" aria-label="evm-gasfit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    evm-gasfit
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install & quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/custom-modelspecs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing custom ModelSpecs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading the outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/nnls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NNLS modeling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/glue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glue adjustment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/gas-params/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deriving gas params
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config (YAML)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preset catalog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preset catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#arithmetic-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arithmetic (15)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arithmetic (15)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_sub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_sub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mul" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mul
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_div" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_div
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_sdiv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_sdiv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_signextend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_signextend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_exp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_exp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mod_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mod_bits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_smod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_smod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_smod_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_smod_bits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_addmod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_addmod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_addmod_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_addmod_bits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mulmod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mulmod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mulmod_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mulmod_bits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bitwise-9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bitwise (9)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bitwise (9)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_and" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_and
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_or" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_or
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_xor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_xor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_byte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_byte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_shl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_shl
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_shr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_shr
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_sar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_sar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_not
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_clz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_clz
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison (6)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comparison (6)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comparison_lt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_lt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_gt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_gt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_slt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_slt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_sgt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_sgt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_eq" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_eq
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_iszero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_iszero
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stack-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stack (4)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stack (4)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stack_push0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_push0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stack_push" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_push
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stack_dup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_dup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stack_swap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_swap
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#control-flow-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control flow (5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Control flow (5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_jump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_jump
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_jumpi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_jumpi
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_jumpdest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_jumpdest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_pc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_pc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_gas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_gas
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#block-transaction-context-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block &amp; transaction context (11)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Block &amp; transaction context (11)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#block_basefee" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_basefee
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_blobbasefee" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_blobbasefee
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_chainid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_chainid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_coinbase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_coinbase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_gaslimit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_gaslimit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_number
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_prevrandao" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_prevrandao
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_timestamp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_timestamp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_blockhash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_blockhash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tx_gasprice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tx_gasprice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tx_origin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tx_origin
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-context-8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call context (8)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Call context (8)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#call_address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_address
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_caller" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_caller
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_callvalue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_callvalue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_calldataload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_calldataload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_calldatasize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_calldatasize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_returndatasize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_returndatasize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_calldatacopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_calldatacopy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_returndatacopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_returndatacopy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory (5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Memory (5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#memory_mload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_mload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory_mstore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_mstore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory_mstore8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_mstore8
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory_msize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_msize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory_mcopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_mcopy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#account-storage-state-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Account / storage / state (12)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Account / storage / state (12)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#warm_storage_access_sload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        warm_storage_access_sload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#warm_account_access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        warm_account_access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_storage_sload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_storage_sload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_storage_sstore_access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_storage_sstore_access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_storage_sstore_write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_storage_sstore_write
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_account_nocode_access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_account_nocode_access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_account_nocode_write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_account_nocode_write
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_account_code_access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_account_code_access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_account_code_write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_account_code_write
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#account_codecopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        account_codecopy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#account_codesize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        account_codesize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#account_selfbalance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        account_selfbalance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transient-storage-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transient storage (2)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Transient storage (2)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#storage_tload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        storage_tload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage_tstore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        storage_tstore
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hashing-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hashing (1)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Hashing (1)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keccak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        keccak
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System (1)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System (1)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system_create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        system_create
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bls12-381-precompiles-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BLS12-381 precompiles (6)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="BLS12-381 precompiles (6)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_g1add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_g1add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_g2add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_g2add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_fp_to_g1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_fp_to_g1
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_fp_to_g2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_fp_to_g2
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_g1msm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_g1msm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_g2msm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_g2msm
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#precompiles-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Precompiles (19)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Precompiles (19)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#precompile_ecrecover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_ecrecover
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_sha256_fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_sha256_fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_sha256_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_sha256_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_ripemd160_fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_ripemd160_fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_ripemd160_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_ripemd160_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_identity_fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_identity_fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_identity_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_identity_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_blake2f" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_blake2f
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_blake2f_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_blake2f_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_p256verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_p256verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_p256verify_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_p256verify_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_point_evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_point_evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_point_evaluation_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_point_evaluation_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_mul" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_mul
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_add_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_add_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_mul_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_mul_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_pairing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_pairing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_pairing_alt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_pairing_alt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#arithmetic-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arithmetic (15)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arithmetic (15)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_sub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_sub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mul" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mul
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_div" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_div
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_sdiv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_sdiv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_signextend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_signextend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_exp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_exp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mod_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mod_bits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_smod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_smod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_smod_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_smod_bits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_addmod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_addmod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_addmod_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_addmod_bits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mulmod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mulmod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arithmetic_mulmod_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arithmetic_mulmod_bits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bitwise-9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bitwise (9)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bitwise (9)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_and" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_and
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_or" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_or
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_xor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_xor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_byte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_byte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_shl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_shl
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_shr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_shr
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_sar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_sar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_not
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bitwise_clz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bitwise_clz
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison (6)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comparison (6)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comparison_lt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_lt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_gt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_gt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_slt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_slt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_sgt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_sgt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_eq" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_eq
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison_iszero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        comparison_iszero
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stack-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stack (4)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stack (4)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stack_push0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_push0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stack_push" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_push
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stack_dup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_dup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stack_swap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stack_swap
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#control-flow-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control flow (5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Control flow (5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_jump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_jump
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_jumpi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_jumpi
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_jumpdest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_jumpdest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_pc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_pc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control_flow_gas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control_flow_gas
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#block-transaction-context-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block &amp; transaction context (11)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Block &amp; transaction context (11)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#block_basefee" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_basefee
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_blobbasefee" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_blobbasefee
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_chainid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_chainid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_coinbase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_coinbase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_gaslimit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_gaslimit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_number
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_prevrandao" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_prevrandao
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_timestamp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_timestamp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#block_blockhash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        block_blockhash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tx_gasprice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tx_gasprice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tx_origin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tx_origin
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-context-8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call context (8)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Call context (8)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#call_address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_address
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_caller" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_caller
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_callvalue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_callvalue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_calldataload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_calldataload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_calldatasize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_calldatasize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_returndatasize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_returndatasize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_calldatacopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_calldatacopy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call_returndatacopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        call_returndatacopy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory (5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Memory (5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#memory_mload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_mload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory_mstore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_mstore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory_mstore8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_mstore8
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory_msize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_msize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory_mcopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory_mcopy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#account-storage-state-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Account / storage / state (12)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Account / storage / state (12)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#warm_storage_access_sload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        warm_storage_access_sload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#warm_account_access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        warm_account_access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_storage_sload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_storage_sload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_storage_sstore_access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_storage_sstore_access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_storage_sstore_write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_storage_sstore_write
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_account_nocode_access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_account_nocode_access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_account_nocode_write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_account_nocode_write
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_account_code_access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_account_code_access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cold_account_code_write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cold_account_code_write
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#account_codecopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        account_codecopy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#account_codesize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        account_codesize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#account_selfbalance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        account_selfbalance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transient-storage-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transient storage (2)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Transient storage (2)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#storage_tload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        storage_tload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage_tstore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        storage_tstore
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hashing-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hashing (1)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Hashing (1)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keccak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        keccak
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System (1)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System (1)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system_create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        system_create
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bls12-381-precompiles-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BLS12-381 precompiles (6)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="BLS12-381 precompiles (6)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_g1add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_g1add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_g2add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_g2add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_fp_to_g1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_fp_to_g1
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_fp_to_g2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_fp_to_g2
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_g1msm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_g1msm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bls_g2msm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bls_g2msm
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#precompiles-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Precompiles (19)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Precompiles (19)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#precompile_ecrecover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_ecrecover
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_sha256_fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_sha256_fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_sha256_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_sha256_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_ripemd160_fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_ripemd160_fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_ripemd160_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_ripemd160_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_identity_fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_identity_fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_identity_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_identity_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_blake2f" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_blake2f
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_blake2f_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_blake2f_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_p256verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_p256verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_p256verify_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_p256verify_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_point_evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_point_evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_point_evaluation_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_point_evaluation_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_mul" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_mul
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_add_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_add_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_mul_uncachable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_mul_uncachable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_pairing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_pairing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precompile_bn128_pairing_alt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        precompile_bn128_pairing_alt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="preset-catalog">Preset catalog<a class="headerlink" href="#preset-catalog" title="Permanent link">&para;</a></h1>
+<p>The package ships 104 <code>ModelSpec</code> presets. Selecting a preset under <code>models.presets</code> in the YAML config is equivalent to pasting its literal into <code>models.custom</code>.</p>
+<p>Each preset binds a <code>test_name</code> (an EEST test file), a target (literal opcode or <code>target_operation_param</code>), optional fixture selectors (<code>filter_by</code>), grouping dimensions (<code>model_by</code>), derived columns (<code>fixture_params</code>), and a <code>model_params</code> map from regression coefficient names to gas-param names.</p>
+<p>See <a href="../../guides/custom-modelspecs/">Writing custom ModelSpecs</a> for what each field means and <a href="../../concepts/gas-params/">Deriving gas params</a> for how the fitted coefficients become the final proposal.</p>
+<h2 id="arithmetic-15">Arithmetic (15)<a class="headerlink" href="#arithmetic-15" title="Permanent link">&para;</a></h2>
+<h3 id="arithmetic_add"><code>arithmetic_add</code><a class="headerlink" href="#arithmetic_add" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ADD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_ADD-</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_ADD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_sub"><code>arithmetic_sub</code><a class="headerlink" href="#arithmetic_sub" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SUB</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SUB</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SUB</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_mul"><code>arithmetic_mul</code><a class="headerlink" href="#arithmetic_mul" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MUL</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_MUL-</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MUL</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_div"><code>arithmetic_div</code><a class="headerlink" href="#arithmetic_div" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>DIV</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_DIV</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_DIV</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_sdiv"><code>arithmetic_sdiv</code><a class="headerlink" href="#arithmetic_sdiv" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SDIV</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SDIV</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SDIV</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_signextend"><code>arithmetic_signextend</code><a class="headerlink" href="#arithmetic_signextend" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SIGNEXTEND</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SIGNEXTEND</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SIGNEXTEND</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_exp"><code>arithmetic_exp</code><a class="headerlink" href="#arithmetic_exp" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>EXP</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_EXP</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_EXP_BASE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_mod"><code>arithmetic_mod</code><a class="headerlink" href="#arithmetic_mod" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MOD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_MOD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MOD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_mod_bits"><code>arithmetic_mod_bits</code><a class="headerlink" href="#arithmetic_mod_bits" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_mod%22"><code>test_mod</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MOD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_MOD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>mod_bits</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MOD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_smod"><code>arithmetic_smod</code><a class="headerlink" href="#arithmetic_smod" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SMOD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SMOD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SMOD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_smod_bits"><code>arithmetic_smod_bits</code><a class="headerlink" href="#arithmetic_smod_bits" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_mod%22"><code>test_mod</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SMOD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SMOD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>mod_bits</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SMOD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_addmod"><code>arithmetic_addmod</code><a class="headerlink" href="#arithmetic_addmod" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ADDMOD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_ADDMOD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_ADDMOD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_addmod_bits"><code>arithmetic_addmod_bits</code><a class="headerlink" href="#arithmetic_addmod_bits" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_mod_arithmetic%22"><code>test_mod_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ADDMOD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_ADDMOD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>mod_bits</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_ADDMOD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_mulmod"><code>arithmetic_mulmod</code><a class="headerlink" href="#arithmetic_mulmod" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_arithmetic%22"><code>test_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MULMOD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_MULMOD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MULMOD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arithmetic_mulmod_bits"><code>arithmetic_mulmod_bits</code><a class="headerlink" href="#arithmetic_mulmod_bits" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_mod_arithmetic%22"><code>test_mod_arithmetic</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MULMOD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_MULMOD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>mod_bits</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MULMOD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="bitwise-9">Bitwise (9)<a class="headerlink" href="#bitwise-9" title="Permanent link">&para;</a></h2>
+<h3 id="bitwise_and"><code>bitwise_and</code><a class="headerlink" href="#bitwise_and" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bitwise%22"><code>test_bitwise</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>AND</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_AND</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_AND</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bitwise_or"><code>bitwise_or</code><a class="headerlink" href="#bitwise_or" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bitwise%22"><code>test_bitwise</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>OR</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_OR</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_OR</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bitwise_xor"><code>bitwise_xor</code><a class="headerlink" href="#bitwise_xor" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bitwise%22"><code>test_bitwise</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>XOR</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_XOR</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_XOR</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bitwise_byte"><code>bitwise_byte</code><a class="headerlink" href="#bitwise_byte" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bitwise%22"><code>test_bitwise</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BYTE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_BYTE</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_BYTE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bitwise_shl"><code>bitwise_shl</code><a class="headerlink" href="#bitwise_shl" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bitwise%22"><code>test_bitwise</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SHL</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SHL</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SHL</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bitwise_shr"><code>bitwise_shr</code><a class="headerlink" href="#bitwise_shr" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bitwise%22"><code>test_bitwise</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SHR</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SHR</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SHR</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bitwise_sar"><code>bitwise_sar</code><a class="headerlink" href="#bitwise_sar" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bitwise%22"><code>test_bitwise</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SAR</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SAR</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SAR</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bitwise_not"><code>bitwise_not</code><a class="headerlink" href="#bitwise_not" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_not_op%22"><code>test_not_op</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>NOT</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_NOT</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bitwise_clz"><code>bitwise_clz</code><a class="headerlink" href="#bitwise_clz" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_clz_same%22"><code>test_clz_same</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CLZ</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CLZ</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="comparison-6">Comparison (6)<a class="headerlink" href="#comparison-6" title="Permanent link">&para;</a></h2>
+<h3 id="comparison_lt"><code>comparison_lt</code><a class="headerlink" href="#comparison_lt" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_comparison%22"><code>test_comparison</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>LT</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_LT</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_LT</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison_gt"><code>comparison_gt</code><a class="headerlink" href="#comparison_gt" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_comparison%22"><code>test_comparison</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>GT</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_GT</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_GT</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison_slt"><code>comparison_slt</code><a class="headerlink" href="#comparison_slt" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_comparison%22"><code>test_comparison</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SLT</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SLT</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SLT</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison_sgt"><code>comparison_sgt</code><a class="headerlink" href="#comparison_sgt" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_comparison%22"><code>test_comparison</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SGT</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_SGT</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SGT</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison_eq"><code>comparison_eq</code><a class="headerlink" href="#comparison_eq" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_comparison%22"><code>test_comparison</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>EQ</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_EQ</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_EQ</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison_iszero"><code>comparison_iszero</code><a class="headerlink" href="#comparison_iszero" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_iszero%22"><code>test_iszero</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ISZERO</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_ISZERO</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="stack-4">Stack (4)<a class="headerlink" href="#stack-4" title="Permanent link">&para;</a></h2>
+<h3 id="stack_push0"><code>stack_push0</code><a class="headerlink" href="#stack_push0" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_push%22"><code>test_push</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>PUSH0</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_PUSH0-</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_PUSH0</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stack_push"><code>stack_push</code><a class="headerlink" href="#stack_push" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_push%22"><code>test_push</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_PUSH</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_PUSH</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stack_dup"><code>stack_dup</code><a class="headerlink" href="#stack_dup" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_dup%22"><code>test_dup</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_DUP</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stack_swap"><code>stack_swap</code><a class="headerlink" href="#stack_swap" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_swap%22"><code>test_swap</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SWAP</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="control-flow-5">Control flow (5)<a class="headerlink" href="#control-flow-5" title="Permanent link">&para;</a></h2>
+<h3 id="control_flow_jump"><code>control_flow_jump</code><a class="headerlink" href="#control_flow_jump" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_jump_benchmark%22"><code>test_jump_benchmark</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>JUMP</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_JUMP</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="control_flow_jumpi"><code>control_flow_jumpi</code><a class="headerlink" href="#control_flow_jumpi" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_jumpi_fallthrough%22"><code>test_jumpi_fallthrough</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>JUMPI</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_JUMPI</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="control_flow_jumpdest"><code>control_flow_jumpdest</code><a class="headerlink" href="#control_flow_jumpdest" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_jumpdests%22"><code>test_jumpdests</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>JUMPDEST</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_JUMPDEST</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="control_flow_pc"><code>control_flow_pc</code><a class="headerlink" href="#control_flow_pc" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_pc_op%22"><code>test_pc_op</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>PC</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_PC</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="control_flow_gas"><code>control_flow_gas</code><a class="headerlink" href="#control_flow_gas" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_gas_op%22"><code>test_gas_op</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>GAS</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_GAS</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="block-transaction-context-11">Block &amp; transaction context (11)<a class="headerlink" href="#block-transaction-context-11" title="Permanent link">&para;</a></h2>
+<h3 id="block_basefee"><code>block_basefee</code><a class="headerlink" href="#block_basefee" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_block_context_ops%22"><code>test_block_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BASEFEE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_BASEFEE</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_BASEFEE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block_blobbasefee"><code>block_blobbasefee</code><a class="headerlink" href="#block_blobbasefee" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_block_context_ops%22"><code>test_block_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLOBBASEFEE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_BLOBBASEFEE</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_BLOBBASEFEE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block_chainid"><code>block_chainid</code><a class="headerlink" href="#block_chainid" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_block_context_ops%22"><code>test_block_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CHAINID</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_CHAINID</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CHAINID</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block_coinbase"><code>block_coinbase</code><a class="headerlink" href="#block_coinbase" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_block_context_ops%22"><code>test_block_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>COINBASE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_COINBASE</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_COINBASE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block_gaslimit"><code>block_gaslimit</code><a class="headerlink" href="#block_gaslimit" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_block_context_ops%22"><code>test_block_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>GASLIMIT</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_GASLIMIT</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_GASLIMIT</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block_number"><code>block_number</code><a class="headerlink" href="#block_number" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_block_context_ops%22"><code>test_block_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>NUMBER</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_NUMBER</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_NUMBER</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block_prevrandao"><code>block_prevrandao</code><a class="headerlink" href="#block_prevrandao" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_block_context_ops%22"><code>test_block_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>PREVRANDAO</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_PREVRANDAO</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_PREVRANDAO</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block_timestamp"><code>block_timestamp</code><a class="headerlink" href="#block_timestamp" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_block_context_ops%22"><code>test_block_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>TIMESTAMP</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_TIMESTAMP</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_TIMESTAMP</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block_blockhash"><code>block_blockhash</code><a class="headerlink" href="#block_blockhash" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_blockhash%22"><code>test_blockhash</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLOCKHASH</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>block</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_BLOCKHASH</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tx_gasprice"><code>tx_gasprice</code><a class="headerlink" href="#tx_gasprice" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_call_frame_context_ops%22"><code>test_call_frame_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>GASPRICE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_GASPRICE</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_GASPRICE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tx_origin"><code>tx_origin</code><a class="headerlink" href="#tx_origin" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_call_frame_context_ops%22"><code>test_call_frame_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ORIGIN</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_ORIGIN</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_ORIGIN</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="call-context-8">Call context (8)<a class="headerlink" href="#call-context-8" title="Permanent link">&para;</a></h2>
+<h3 id="call_address"><code>call_address</code><a class="headerlink" href="#call_address" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_call_frame_context_ops%22"><code>test_call_frame_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ADDRESS</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_ADDRESS</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_ADDRESS</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call_caller"><code>call_caller</code><a class="headerlink" href="#call_caller" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_call_frame_context_ops%22"><code>test_call_frame_context_ops</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CALLER</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_CALLER</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CALLER</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call_callvalue"><code>call_callvalue</code><a class="headerlink" href="#call_callvalue" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_callvalue_from_origin%22"><code>test_callvalue_from_origin</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CALLVALUE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CALLVALUE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call_calldataload"><code>call_calldataload</code><a class="headerlink" href="#call_calldataload" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_calldataload%22"><code>test_calldataload</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CALLDATALOAD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>calldata_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CALLDATALOAD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call_calldatasize"><code>call_calldatasize</code><a class="headerlink" href="#call_calldatasize" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_calldatasize%22"><code>test_calldatasize</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CALLDATASIZE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>calldata_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CALLDATASIZE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call_returndatasize"><code>call_returndatasize</code><a class="headerlink" href="#call_returndatasize" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_returndatasize_nonzero%22"><code>test_returndatasize_nonzero</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>RETURNDATASIZE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>returned_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_RETURNDATASIZE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call_calldatacopy"><code>call_calldatacopy</code><a class="headerlink" href="#call_calldatacopy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_calldatacopy_from_origin%22"><code>test_calldatacopy_from_origin</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CALLDATACOPY</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>calldata_size</code>, <code>mem_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CALLDATACOPY_BASE</code><br><code>calldata_words</code> → <code>OPCODE_CALLDATACOPY_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>calldata_words</code> (source=<code>calldata_size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call_returndatacopy"><code>call_returndatacopy</code><a class="headerlink" href="#call_returndatacopy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_returndatacopy%22"><code>test_returndatacopy</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>RETURNDATACOPY</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>return_size</code>, <code>mem_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_RETURNDATACOPY_BASE</code><br><code>return_words</code> → <code>OPCODE_RETURNDATACOPY_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>return_words</code> (source=<code>return_size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="memory-5">Memory (5)<a class="headerlink" href="#memory-5" title="Permanent link">&para;</a></h2>
+<h3 id="memory_mload"><code>memory_mload</code><a class="headerlink" href="#memory_mload" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_memory_access%22"><code>test_memory_access</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MLOAD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_MLOAD</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>mem_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MLOAD_BASE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="memory_mstore"><code>memory_mstore</code><a class="headerlink" href="#memory_mstore" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_memory_access%22"><code>test_memory_access</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MSTORE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_MSTORE-</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>mem_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MSTORE_BASE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="memory_mstore8"><code>memory_mstore8</code><a class="headerlink" href="#memory_mstore8" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_memory_access%22"><code>test_memory_access</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MSTORE8</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>opcode_MSTORE8</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>mem_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MSTORE8_BASE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="memory_msize"><code>memory_msize</code><a class="headerlink" href="#memory_msize" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_msize%22"><code>test_msize</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MSIZE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MSIZE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="memory_mcopy"><code>memory_mcopy</code><a class="headerlink" href="#memory_mcopy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_mcopy%22"><code>test_mcopy</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>MCOPY</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>copy_size</code>, <code>mem_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_MCOPY_BASE</code><br><code>copy_words</code> → <code>OPCODE_MCOPY_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>copy_words</code> (source=<code>copy_size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="account-storage-state-12">Account / storage / state (12)<a class="headerlink" href="#account-storage-state-12" title="Permanent link">&para;</a></h2>
+<h3 id="warm_storage_access_sload"><code>warm_storage_access_sload</code><a class="headerlink" href="#warm_storage_access_sload" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_sload_same_key_benchmark%22"><code>test_sload_same_key_benchmark</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SLOAD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>WARM_ACCESS</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="warm_account_access"><code>warm_account_access</code><a class="headerlink" href="#warm_account_access" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_ext_account_query_warm%22"><code>test_ext_account_query_warm</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>WARM_ACCESS</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cold_storage_sload"><code>cold_storage_sload</code><a class="headerlink" href="#cold_storage_sload" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_sload_bloated%22"><code>test_sload_bloated</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SLOAD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>CacheStrategy.NO_CACHE</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>existing_slots</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>COLD_STORAGE_ACCESS</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cold_storage_sstore_access"><code>cold_storage_sstore_access</code><a class="headerlink" href="#cold_storage_sstore_access" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_sstore_bloated%22"><code>test_sstore_bloated</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SSTORE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>CacheStrategy.NO_CACHE</code>, <code>write_new_value_False</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>existing_slots</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>COLD_STORAGE_ACCESS</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cold_storage_sstore_write"><code>cold_storage_sstore_write</code><a class="headerlink" href="#cold_storage_sstore_write" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_sstore_bloated%22"><code>test_sstore_bloated</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SSTORE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>CacheStrategy.NO_CACHE</code>, <code>write_new_value_True</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>existing_slots</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>COLD_STORAGE_WRITE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cold_account_nocode_access"><code>cold_account_nocode_access</code><a class="headerlink" href="#cold_account_nocode_access" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_account_access%22"><code>test_account_access</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>CacheStrategy.NO_CACHE</code>, <code>!AccountMode.EXISTING_CONTRACT</code>, <code>value_sent_0</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code>, <code>account_mode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>COLD_ACCOUNT_NOCODE_ACCESS</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cold_account_nocode_write"><code>cold_account_nocode_write</code><a class="headerlink" href="#cold_account_nocode_write" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_account_access%22"><code>test_account_access</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>CacheStrategy.NO_CACHE</code>, <code>!AccountMode.EXISTING_CONTRACT</code>, <code>value_sent_1</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code>, <code>account_mode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>COLD_ACCOUNT_NOCODE_WRITE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cold_account_code_access"><code>cold_account_code_access</code><a class="headerlink" href="#cold_account_code_access" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_account_access%22"><code>test_account_access</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>CacheStrategy.NO_CACHE</code>, <code>!AccountMode.EXISTING_EOA</code>, <code>!AccountMode.NON_EXISTING_ACCOUNT</code>, <code>!AccountMode.EXISTING_CONTRACT_JUMPDEST</code>, <code>value_sent_0</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code>, <code>account_mode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>COLD_ACCOUNT_CODE_ACCESS</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cold_account_code_write"><code>cold_account_code_write</code><a class="headerlink" href="#cold_account_code_write" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_account_access%22"><code>test_account_access</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>CacheStrategy.NO_CACHE</code>, <code>!AccountMode.EXISTING_EOA</code>, <code>!AccountMode.NON_EXISTING_ACCOUNT</code>, <code>!AccountMode.EXISTING_CONTRACT_JUMPDEST</code>, <code>value_sent_1</code>, <code>!opcode_BALANCE</code>, <code>!opcode_EXTCODEHASH</code>, <code>!opcode_EXTCODESIZE</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code>, <code>account_mode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>COLD_ACCOUNT_CODE_WRITE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="account_codecopy"><code>account_codecopy</code><a class="headerlink" href="#account_codecopy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_codecopy_benchmark%22"><code>test_codecopy_benchmark</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CODECOPY</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>code_size</code>, <code>mem_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CODECOPY_BASE</code><br><code>code_words</code> → <code>OPCODE_CODECOPY_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>code_words</code> (source=<code>code_size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="account_codesize"><code>account_codesize</code><a class="headerlink" href="#account_codesize" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_codesize%22"><code>test_codesize</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>CODESIZE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CODESIZE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="account_selfbalance"><code>account_selfbalance</code><a class="headerlink" href="#account_selfbalance" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_selfbalance%22"><code>test_selfbalance</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SELFBALANCE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_SELFBALANCE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="transient-storage-2">Transient storage (2)<a class="headerlink" href="#transient-storage-2" title="Permanent link">&para;</a></h2>
+<h3 id="storage_tload"><code>storage_tload</code><a class="headerlink" href="#storage_tload" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_tload%22"><code>test_tload</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>TLOAD</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_TLOAD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="storage_tstore"><code>storage_tstore</code><a class="headerlink" href="#storage_tstore" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_tstore%22"><code>test_tstore</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>TSTORE</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_TSTORE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hashing-1">Hashing (1)<a class="headerlink" href="#hashing-1" title="Permanent link">&para;</a></h2>
+<h3 id="keccak"><code>keccak</code><a class="headerlink" href="#keccak" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_keccak_diff_mem_msg_sizes%22"><code>test_keccak_diff_mem_msg_sizes</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>KECCAK256</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>mem_size</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_KECCAK256_BASE</code><br><code>msg_words</code> → <code>OPCODE_KECCAK256_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>msg_words</code> (source=<code>msg_size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="system-1">System (1)<a class="headerlink" href="#system-1" title="Permanent link">&para;</a></h2>
+<h3 id="system_create"><code>system_create</code><a class="headerlink" href="#system_create" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_create%22"><code>test_create</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td>param <code>opcode</code></td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>opcode</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>OPCODE_CREATE_BASE</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="bls12-381-precompiles-6">BLS12-381 precompiles (6)<a class="headerlink" href="#bls12-381-precompiles-6" title="Permanent link">&para;</a></h2>
+<h3 id="precompile_bls_g1add"><code>precompile_bls_g1add</code><a class="headerlink" href="#precompile_bls_g1add" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bls12_381%22"><code>test_bls12_381</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLS12_G1ADD</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>bls12_g1add</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_BLS_G1ADD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bls_g2add"><code>precompile_bls_g2add</code><a class="headerlink" href="#precompile_bls_g2add" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bls12_381%22"><code>test_bls12_381</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLS12_G2ADD</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>bls12_g2add</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_BLS_G2ADD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bls_fp_to_g1"><code>precompile_bls_fp_to_g1</code><a class="headerlink" href="#precompile_bls_fp_to_g1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bls12_381%22"><code>test_bls12_381</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLS12_MAP_FP_TO_G1</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>bls12_fp_to_g1</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_BLS_G1MAP</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bls_fp_to_g2"><code>precompile_bls_fp_to_g2</code><a class="headerlink" href="#precompile_bls_fp_to_g2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bls12_381%22"><code>test_bls12_381</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLS12_MAP_FP_TO_G2</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>bls12_fp_to_g2</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_BLS_G2MAP</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bls_g1msm"><code>precompile_bls_g1msm</code><a class="headerlink" href="#precompile_bls_g1msm" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bls12_g1_msm%22"><code>test_bls12_g1_msm</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLS12_G1MSM</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>bls12_g1msm</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>k</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_BLS_G1MUL</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bls_g2msm"><code>precompile_bls_g2msm</code><a class="headerlink" href="#precompile_bls_g2msm" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_bls12_g2_msm%22"><code>test_bls12_g2_msm</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLS12_G2MSM</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>bls12_g2msm</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>k</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_BLS_G2MUL</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="precompiles-19">Precompiles (19)<a class="headerlink" href="#precompiles-19" title="Permanent link">&para;</a></h2>
+<h3 id="precompile_ecrecover"><code>precompile_ecrecover</code><a class="headerlink" href="#precompile_ecrecover" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_ecrecover%22"><code>test_ecrecover</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ECRECOVER</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>ecrecover</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_ECRECOVER</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_sha256_fixed"><code>precompile_sha256_fixed</code><a class="headerlink" href="#precompile_sha256_fixed" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_sha256_fixed_size%22"><code>test_sha256_fixed_size</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SHA256</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>sha256</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_SHA256_BASE</code><br><code>size_words</code> → <code>PRECOMPILE_SHA256_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>size_words</code> (source=<code>size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_sha256_uncachable"><code>precompile_sha256_uncachable</code><a class="headerlink" href="#precompile_sha256_uncachable" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_sha256_uncachable%22"><code>test_sha256_uncachable</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>SHA256</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>sha256</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_SHA256_BASE</code><br><code>size_words</code> → <code>PRECOMPILE_SHA256_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>size_words</code> (source=<code>size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_ripemd160_fixed"><code>precompile_ripemd160_fixed</code><a class="headerlink" href="#precompile_ripemd160_fixed" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_ripemd160_fixed_size%22"><code>test_ripemd160_fixed_size</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>RIPEMD160</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>ripemd160</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_RIPEMD160_BASE</code><br><code>size_words</code> → <code>PRECOMPILE_RIPEMD160_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>size_words</code> (source=<code>size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_ripemd160_uncachable"><code>precompile_ripemd160_uncachable</code><a class="headerlink" href="#precompile_ripemd160_uncachable" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_ripemd160_uncachable%22"><code>test_ripemd160_uncachable</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>RIPEMD160</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>ripemd160</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_RIPEMD160_BASE</code><br><code>size_words</code> → <code>PRECOMPILE_RIPEMD160_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>size_words</code> (source=<code>size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_identity_fixed"><code>precompile_identity_fixed</code><a class="headerlink" href="#precompile_identity_fixed" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_identity_fixed_size%22"><code>test_identity_fixed_size</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>IDENTITY</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>identity</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_IDENTITY_BASE</code><br><code>size_words</code> → <code>PRECOMPILE_IDENTITY_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>size_words</code> (source=<code>size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_identity_uncachable"><code>precompile_identity_uncachable</code><a class="headerlink" href="#precompile_identity_uncachable" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_identity_uncachable%22"><code>test_identity_uncachable</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>IDENTITY</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>identity</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_IDENTITY_BASE</code><br><code>size_words</code> → <code>PRECOMPILE_IDENTITY_PER_WORD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td><code>size_words</code> (source=<code>size</code>; transform=<code>bytes_to_words</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_blake2f"><code>precompile_blake2f</code><a class="headerlink" href="#precompile_blake2f" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_blake2f_benchmark%22"><code>test_blake2f_benchmark</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLAKE2F</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>blake2f</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_BLAKE2F_BASE</code><br><code>num_rounds</code> → <code>PRECOMPILE_BLAKE2F_PER_ROUND</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_blake2f_uncachable"><code>precompile_blake2f_uncachable</code><a class="headerlink" href="#precompile_blake2f_uncachable" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_blake2f_uncachable%22"><code>test_blake2f_uncachable</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>BLAKE2F</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>blake2f</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_BLAKE2F_BASE</code><br><code>num_rounds</code> → <code>PRECOMPILE_BLAKE2F_PER_ROUND</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_p256verify"><code>precompile_p256verify</code><a class="headerlink" href="#precompile_p256verify" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_p256verify%22"><code>test_p256verify</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>P256VERIFY</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>p256verify</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_P256VERIFY</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_p256verify_uncachable"><code>precompile_p256verify_uncachable</code><a class="headerlink" href="#precompile_p256verify_uncachable" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_p256verify_uncachable%22"><code>test_p256verify_uncachable</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>P256VERIFY</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>p256verify</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_P256VERIFY</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_point_evaluation"><code>precompile_point_evaluation</code><a class="headerlink" href="#precompile_point_evaluation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_point_evaluation%22"><code>test_point_evaluation</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>POINT_EVALUATION</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>point_evaluation</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_POINT_EVALUATION</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_point_evaluation_uncachable"><code>precompile_point_evaluation_uncachable</code><a class="headerlink" href="#precompile_point_evaluation_uncachable" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_point_evaluation_uncachable%22"><code>test_point_evaluation_uncachable</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>POINT_EVALUATION</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>point_evaluation</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_POINT_EVALUATION</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bn128_add"><code>precompile_bn128_add</code><a class="headerlink" href="#precompile_bn128_add" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_alt_bn128%22"><code>test_alt_bn128</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ECADD</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>bn128_</code>, <code>!bn128_mul</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td><code>bn128</code></td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_ECADD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bn128_mul"><code>precompile_bn128_mul</code><a class="headerlink" href="#precompile_bn128_mul" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_alt_bn128%22"><code>test_alt_bn128</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ECMUL</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>bn128_mul_</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_ECMUL</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bn128_add_uncachable"><code>precompile_bn128_add_uncachable</code><a class="headerlink" href="#precompile_bn128_add_uncachable" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_alt_bn128_uncachable%22"><code>test_alt_bn128_uncachable</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ECADD</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>ec_add</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_ECADD</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bn128_mul_uncachable"><code>precompile_bn128_mul_uncachable</code><a class="headerlink" href="#precompile_bn128_mul_uncachable" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_alt_bn128_uncachable%22"><code>test_alt_bn128_uncachable</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ECMUL</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>ec_mul_</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_ECMUL</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bn128_pairing"><code>precompile_bn128_pairing</code><a class="headerlink" href="#precompile_bn128_pairing" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_alt_bn128_benchmark%22"><code>test_alt_bn128_benchmark</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ECPAIRING</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td><code>num_pairs</code></td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_ECPAIRING_BASE</code><br><code>num_pairs</code> → <code>PRECOMPILE_ECPAIRING_PER_POINT</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="precompile_bn128_pairing_alt"><code>precompile_bn128_pairing_alt</code><a class="headerlink" href="#precompile_bn128_pairing_alt" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_name</code></td>
+<td><a href="https://github.com/search?type=code&amp;q=repo%3Aethereum%2Fexecution-specs+%22def%20test_ec_pairing%22"><code>test_ec_pairing</code></a></td>
+</tr>
+<tr>
+<td>target</td>
+<td><code>ECPAIRING</code> (counts from <code>STATICCALL</code>)</td>
+</tr>
+<tr>
+<td><code>filter_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_by</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>model_params</code></td>
+<td><code>target_coef</code> → <code>PRECOMPILE_ECPAIRING_BASE</code><br><code>num_pairs</code> → <code>PRECOMPILE_ECPAIRING_PER_POINT</code></td>
+</tr>
+<tr>
+<td><code>fixture_params</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "content.code.copy", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
